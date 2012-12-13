@@ -1,0 +1,63 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Trasitional//EN""http:/www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<script type="text/javascript" src="ajax.js"></script>
+<script type="text/javascript" src="button.js"></script>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=gb2312" />
+<title>EveryCook</title>
+</head>
+<body>
+	<table border="1">
+		<tr>
+			<th>ADC1:<div id="id0"></div></th>
+			<th>ADC2:<div id="id1"></div></th>
+			<th>ADC3:<div id="id2"></div></th>
+			<th>ADC4:<div id="id3"></div></th>
+			<th>ADC5:<div id="id4"></div></th>
+			<th>ADC6:<div id="id5"></div></th>
+		</tr>
+		<tr>
+			<th>SIG1:<div id="id6"></div></th>
+			<th>SIG2:<div id="id7"></div></th>
+			<th>SIG3:<div id="id8"></div></th>
+			<th>SIG4:<div id="id9"></div></th>
+			<th>SIG5:<div id="id10"></div></th>
+			<th>SIG6:<div id="id11"></div></th>
+		</tr>
+	</table>
+	
+	<input type="button" value="Buzzer" id="bt0" onclick="PressDown('text1', startRequest)"/>
+	<input type="button" value="Key1" id="bt1" onclick="PressOnce('text2', startRequest)"/>
+	<input type="button" value="Key2" id="bt2" onclick="PressOnce('text3', startRequest)"/>
+	<input type="button" value="Key3" id="bt3" onclick="PressOnce('text4', startRequest)"/>
+	<input type="button" value="Key4" id="bt4" onclick="PressOnce('text5', startRequest)"/>
+	
+	<form name="myForm" onkeyup="startRequest()">
+	<input type="text" style="display:none" value="1" name="buzzer" id="text1"/>
+	buzzerPWM(>20): <input type="text" name="buzzernum" /><br>
+	<input type="text" style="display:none" value="1" name="key1" id="text2"/>
+	<input type="text" style="display:none" value="1" name="key2" id="text3"/>
+	<input type="text" style="display:none" value="1" name="key3" id="text4"/>
+	<input type="text" style="display:none" value="1" name="key4" id="text5"/>
+	pwm0: <input type="text" name="pwm0" />
+	pwm1: <input type="text" name="pwm1" /><br>
+	pwm2: <input type="text" name="pwm2" />
+	pwm3: <input type="text" name="pwm3" /><br>
+	pwm4: <input type="text" name="pwm4" />
+	pwm5: <input type="text" name="pwm5" /><br>
+	pwm6: <input type="text" name="pwm6" />
+	pwm7: <input type="text" name="pwm7" /><br>
+	pwm8: <input type="text" name="pwm8" />
+	pwm9: <input type="text" name="pwm9" /><br>
+	pwm10: <input type="text" name="pwm10" />
+	pwm11: <input type="text" name="pwm11" /><br>
+	pwm12: <input type="text" name="pwm12" />
+	pwm13: <input type="text" name="pwm13" /><br>
+	pwm14: <input type="text" name="pwm14" />
+	pwm15: <input type="text" name="pwm15" /><br>
+	</form>
+</body>
+
+</html>
+
+

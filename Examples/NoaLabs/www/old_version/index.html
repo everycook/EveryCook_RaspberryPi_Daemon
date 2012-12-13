@@ -1,0 +1,137 @@
+<html>
+<head>
+<title>EveryCook</title>
+<Script type="text/javascript">
+function getfile() {
+	var xmlhttp;
+	var newstring;
+	id = new Array('id0', 'id1', 'id2', 'id3', 'id4', 'id5', 
+		       'id6', 'id7', 'id8', 'id9', 'id10', 'id11');
+	if (window.XMLHttpRequest)
+	{
+	xmlhttp = new XMLHttpRequest();
+	}
+	else
+	{
+	xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+	}
+	xmlhttp.onreadystatechange=function()
+	{
+		if (xmlhttp.readyState==4 && xmlhttp.status==200)
+		{
+		newstring=xmlhttp.responseText;
+		ch = new Array;
+		ch = newstring.split("\n");
+		for (i = 0;i < ch.length;i++)
+		{
+			chh = new Array;
+			chh = ch[i].split("	");
+			document.getElementById(id[i]).innerHTML = chh[1];
+		}
+		}
+	}
+	xmlhttp.open("GET", "readfile.txt", true);
+	xmlhttp.send();
+}
+
+var xmlHttp1;  
+function createXmlHttp()  
+{  
+	if(window.ActiveXObject)  
+		xmlHttp1=new ActiveXObject("Microsoft.XMLHTTP");  
+	else  
+		xmlHttp1=new XMLHttpRequest();  
+}  
+function startRequest()  
+{  
+	try  
+	{  
+		createXmlHttp();  
+		var url="php1.php";  
+		var postedData=getRequestBody(document.forms["myForm"]);  
+
+		xmlHttp1.open("post",url,true);  
+		xmlHttp1.setRequestHeader("content-length",postedData.length);//post提交设置项  
+		xmlHttp1.setRequestHeader("content-type","application/x-www-form-urlencoded");//post提交设置项  
+		xmlHttp1.onreadystatechange =onComplete;  
+		//将名值对发送到服务器  
+		xmlHttp1.send(postedData);  
+	}  
+	catch(e)  
+	{  
+		alert(e.message);  
+	}   
+}  
+function onComplete()  
+{  
+	if(xmlHttp1.readyState==4&&xmlHttp.status==200)  
+	{  
+		//显示结果  
+		document.getElementById("divResult").innerText=xmlHttp.responseText;  
+	}  
+}  
+//获取表单中的名值对  
+function getRequestBody(oForm)  
+{  
+	var aParams=new Array();  
+	for(var i=0;i<oForm.elements.length;i++)  
+	{  
+		var sParam=encodeURIComponent(oForm.elements[i].name)  
+		sParam+="=";  
+		sParam+=encodeURIComponent(oForm.elements[i].value);  
+		aParams.push(sParam);  
+	}  
+	return aParams.join("&");  
+} 
+setInterval("getfile()", 100);
+
+</script>
+</head>
+<body>
+	<table border="1">
+		<tr>
+			<th>ADC1:<div id="id0"></div></th>
+			<th>ADC2:<div id="id1"></div></th>
+			<th>ADC3:<div id="id2"></div></th>
+			<th>ADC4:<div id="id3"></div></th>
+			<th>ADC5:<div id="id4"></div></th>
+			<th>ADC6:<div id="id5"></div></th>
+		</tr>
+		<tr>
+			<th>SIG1:<div id="id6"></div></th>
+			<th>SIG2:<div id="id7"></div></th>
+			<th>SIG3:<div id="id8"></div></th>
+			<th>SIG4:<div id="id9"></div></th>
+			<th>SIG5:<div id="id10"></div></th>
+			<th>SIG6:<div id="id11"></div></th>
+		</tr>
+	</table>
+
+	<form name="myForm" onkeyup="startRequest()">
+	buzzer: <input type="text" name="buzzer"/>
+	key1: <input type="text" name="key1" /><br>
+	key2: <input type="text" name="key2" />
+	key3: <input type="text" name="key3" /><br>
+	key4: <input type="text" name="key4" />
+	pwm0: <input type="text" name="pwm0" /><br>
+	pwm1: <input type="text" name="pwm1" />
+	pwm2: <input type="text" name="pwm2" /><br>
+	pwm3: <input type="text" name="pwm3" />
+	pwm4: <input type="text" name="pwm4" /><br>
+	pwm5: <input type="text" name="pwm5" />
+	pwm6: <input type="text" name="pwm6" /><br>
+	pwm7: <input type="text" name="pwm7" />
+	pwm8: <input type="text" name="pwm8" /><br>
+	pwm9: <input type="text" name="pwm9" />
+	pwm10: <input type="text" name="pwm10" /><br>
+	pwm11: <input type="text" name="pwm11" />
+	pwm12: <input type="text" name="pwm12" /><br>
+	pwm13: <input type="text" name="pwm13" />
+	pwm14: <input type="text" name="pwm14" /><br>
+	pwm15: <input type="text" name="pwm15" />
+	</form>
+</body>
+
+</html>
+
+
