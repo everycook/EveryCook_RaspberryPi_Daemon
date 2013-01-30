@@ -2,9 +2,10 @@
 #lines starting with a # are comments
 
 #the conversion factor between ADC values and grams
-#ForceScaleFactor=1
-ForceValue0=0
-ForceValue100=1000
+ForceADC1=100
+ForceValue1=0
+ForceADC2=10000
+ForceValue2=100
 
 #two calibrations points between ADC values and pressure in kPa
 PressADC1=100

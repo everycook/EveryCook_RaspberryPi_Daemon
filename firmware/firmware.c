@@ -20,6 +20,7 @@ void NumberConvertToString(uint32_t num, char *str);
 void StringClean(char *str, uint32_t len);
 void StringUnion(char *fristString, char *secondString);
 uint32_t StringConvertToNumber(char *str);
+float StringConvertToFloat(char *str);
 int POWNTimes(uint32_t num, uint8_t n);
 
 
@@ -59,18 +60,25 @@ char *logFile = "/var/log/EveryCook_Deamon.log";
 
 
 float ForceScaleFactor=0.1; //Conversion between digital Units and grams
-uint32_t ForceValue0=0;
-uint32_t ForceValue100=1000;
 
 float PressScaleFactor=0.1;
 uint32_t PressOffset=1000;
-uint32_t PressValue0=0;
-uint32_t PressValue100=1000;
 
 float TempScaleFactor=0.1;
 uint32_t TempOffset=1000;
-uint32_t TempValue0=0;
-uint32_t TempValue100=1000;
+
+#two calibrations points between ADC values and pressure in kPa
+uint32_t PressADC1=100
+float PressValue1=0.1
+uint32_t PressADC2=1000
+float PressValue2=100.0
+
+#two calibrations points between ADC values and temperature in °C
+uint32_t TempADC1=100
+float TempValue1=0.1
+uint32_t TempADC2=1000
+float TempValue2=100.0
+
 
 uint8_t GainScale_1=8;
 uint8_t GainScale_2=8;
@@ -1107,6 +1115,27 @@ uint32_t StringConvertToNumber(char *str){
 	return value;
 }
 
+float StringConvertToFloat(char *str){
+	float value = 0.0, mutiple = 1.0;
+	uint32_t len = 0;
+
+	while (str[len]){
+		if (str[len] == '.'){
+			break;
+		}
+		len++;
+		mutiple *= 10.0;
+	}
+	len = 0;	
+	while (str[len]){
+		if (str[len] != '.'){
+			mutiple = mutiple/10.0;
+			value = value + (str[len]-48)*mutiple;
+		}
+		len++;
+	}
+	return value;
+}
 
 
 
@@ -1159,24 +1188,45 @@ void ReadConfigurationFile(void){
 				if (DEBUG_ENABLED){printf("\tkey: %s, value: %s\n", keyString, valueString);}
 				
 				//ParseConfigValue
-				if(strcmp(keyString, "ForceValue0") == 0){
-					ForceValue0 = StringConvertToNumber(valueString);
-					if (DEBUG_ENABLED){printf("\tForceValue0: %d\n", ForceValue0);} // (old: %d)
-				} else if(strcmp(keyString, "ForceValue100") == 0){
-					ForceValue100 = StringConvertToNumber(valueString);
-					if (DEBUG_ENABLED){printf("\tForceValue100: %d\n", ForceValue100);} // (old: %d)
-				} else if(strcmp(keyString, "PressValue0") == 0){
-					PressValue0 = StringConvertToNumber(valueString);
-					if (DEBUG_ENABLED){printf("\tPressValue0: %d\n", PressValue0);} // (old: %d)
-				} else if(strcmp(keyString, "PressValue100") == 0){
-					PressValue100 = StringConvertToNumber(valueString);
-					if (DEBUG_ENABLED){printf("\tPressValue100: %d\n", PressValue100);} // (old: %d)
-				} else if(strcmp(keyString, "TempValue0") == 0){
-					TempValue0 = StringConvertToNumber(valueString);
-					if (DEBUG_ENABLED){printf("\tTempValue0: %d\n", TempValue0);} // (old: %d)
-				} else if(strcmp(keyString, "TempValue100") == 0){
-					TempValue100 = StringConvertToNumber(valueString);
-					if (DEBUG_ENABLED){printf("\tTempValue100: %d\n", TempValue100);} // (old: %d)
+				if(strcmp(keyString, "ForceADC1") == 0){
+					ForceADC1 = StringConvertToNumber(valueString);
+					if (DEBUG_ENABLED){printf("\tForceADC1: %d\n", ForceADC1);} // (old: %d)
+				} else if(strcmp(keyString, "ForceValue1") == 0){
+					ForceValue1 = StringConvertToFloat(valueString);
+					if (DEBUG_ENABLED){printf("\tForceValue1: %f\n", ForceValue1);} // (old: %d)
+				} else if(strcmp(keyString, "ForceADC2") == 0){
+					ForceADC2 = StringConvertToNumber(valueString);
+					if (DEBUG_ENABLED){printf("\tForceADC2: %d\n", ForceADC2);} // (old: %d)
+				} else if(strcmp(keyString, "ForceValue2") == 0){
+					ForceValue2 = StringConvertToFloat(valueString);
+					if (DEBUG_ENABLED){printf("\tForceValue2: %f\n", ForceValue2);} // (old: %d)
+				
+				} else if(strcmp(keyString, "PressADC1") == 0){
+					PressADC1 = StringConvertToNumber(valueString);
+					if (DEBUG_ENABLED){printf("\tPressADC1: %d\n", PressADC1);} // (old: %d)
+				} else if(strcmp(keyString, "PressValue1") == 0){
+					PressValue1 = StringConvertToFloat(valueString);
+					if (DEBUG_ENABLED){printf("\tPressValue1: %f\n", PressValue1);} // (old: %d)
+				} else if(strcmp(keyString, "PressADC2") == 0){
+					PressADC2 = StringConvertToNumber(valueString);
+					if (DEBUG_ENABLED){printf("\tPressADC2: %d\n", PressADC2);} // (old: %d)
+				} else if(strcmp(keyString, "PressValue2") == 0){
+					PressValue2 = StringConvertToFloat(valueString);
+					if (DEBUG_ENABLED){printf("\tPressValue2: %f\n", PressValue2);} // (old: %d)
+				
+				} else if(strcmp(keyString, "TempADC1") == 0){
+					TempADC1 = StringConvertToNumber(valueString);
+					if (DEBUG_ENABLED){printf("\tTempADC1: %d\n", TempADC1);} // (old: %d)
+				} else if(strcmp(keyString, "TempValue1") == 0){
+					TempValue1 = StringConvertToFloat(valueString);
+					if (DEBUG_ENABLED){printf("\tTempValue1: %f\n", TempValue1);} // (old: %d)
+				} else if(strcmp(keyString, "TempADC2") == 0){
+					TempADC2 = StringConvertToNumber(valueString);
+					if (DEBUG_ENABLED){printf("\tTempADC2: %d\n", TempADC2);} // (old: %d)
+				} else if(strcmp(keyString, "TempValue2") == 0){
+					TempValue2 = StringConvertToFloat(valueString);
+					if (DEBUG_ENABLED){printf("\tTempValue2: %f\n", TempValue2);} // (old: %d)
+				
 				} else if(strcmp(keyString, "GainScale_1") == 0){
 					ptr = 0;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
@@ -1207,6 +1257,7 @@ void ReadConfigurationFile(void){
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
 					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
 					if (DEBUG_ENABLED){printf("\tGainTemp: %04X\n", newADCConfig[ptr]);} // (old: %d)
+				
 				} else if(strcmp(keyString, "BeepWeightReached") == 0){
 					BeepWeightReached = StringConvertToNumber(valueString);
 					if (DEBUG_ENABLED){printf("\tBeepWeightReached: %d\n", BeepWeightReached);} // (old: %d)
@@ -1251,11 +1302,21 @@ void ReadConfigurationFile(void){
 			}
 		}
 	}
+	/*
 	ForceScaleFactor=100.0/((float)ForceValue100-(float)ForceValue0);
 	PressScaleFactor=100.0/((float)PressValue100-(float)PressValue0);
 	PressOffset=PressValue0;
 	TempScaleFactor=100.0/((float)TempValue100-(float)TempValue0);
 	TempOffset=TempValue0;
+	*/
+	
+	ForceScaleFactor=(ForceValue2-ForceValue1)/((float)ForceADC2-(float)ForceADC1);
+	
+	PressScaleFactor=(PressValue2-PressValue1)/((float)PressADC2-(float)PressADC1);
+	PressOffset=PressScaleFactor/PressValue1;
+	
+	PressScaleFactor=(TempValue2-TempValue1)/((float)TempADC2-(float)TempADC1);
+	PressOffset=PressScaleFactor/TempValue1;
 	
 	if (DEBUG_ENABLED){printf("ForceScaleFactor: %f, PressScaleFactor: %f, PressOffset: %d, TempScaleFactor: %f, TempOffset: %d\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
 	
