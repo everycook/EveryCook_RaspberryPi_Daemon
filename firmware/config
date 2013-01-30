@@ -2,21 +2,30 @@
 #lines starting with a # are comments
 
 #the conversion factor between ADC values and grams
-#ForceScaleFactor=1
-ForceValue0=0
-ForceValue100=1000
+ForceADC1=100
+ForceValue1=0
+ForceADC2=10000
+ForceValue2=100
 
-#the conversion factor and offset between ADC values and pressure in kPa
-#PressScaleFactor=1
-#PressOffset=1000
-PressValue0=0
-PressValue100=1000
+#two calibrations points between ADC values and pressure in kPa
+PressADC1=100
+PressValue1=0.1
+PressADC2=1000
+PressValue2=100.0
 
-#the conversion factor and offset between ADC values and temperature in °C
-#TempScaleFactor=1
-#TempOffset=1000
-TempValue0=0
-TempValue100=1000
+#two calibrations points between ADC values and temperature in °C
+TempADC1=100
+TempValue1=0.1
+TempADC2=1000
+TempValue2=100.0
+
+#AD7794 ADC channel configuration
+LoadCellFrontLeft=1
+LoadCellFrontRight=2
+LoadCellBackLeft=3
+LoadCellBackRight=4
+Temp=5
+Press=6
 
 #AD7794 ADC programmable gain configuration
 GainScale_1=8
@@ -34,6 +43,21 @@ BeepStepEnd=1
 #delete log at start saves disk space set 0 to keep log
 DeleteLogOnStart=1
 LogFile=/var/log/EveryCook_Deamon.log
+
+#PWM Channels Configuration
+Motor=1
+Servo=2
+DisplaySegA=3
+DisplaySegB=4
+DisplaySegC=5
+DisplaySegD=6
+DisplaySegE=7
+DisplaySegF=8
+DisplaySegG=9
+DisplaySegDP=10
+
+#Induction Heater GPIO pins
+PowerOnPin=4
 
 #communication
 #CommandFile=/dev/shm/command
