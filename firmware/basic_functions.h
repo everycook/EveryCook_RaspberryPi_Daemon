@@ -16,24 +16,26 @@
 
 #define I2C_MOTOR				0
 #define I2C_SERVO				1
-#define I2C_7SEG_TOP			2				//SegAPin
-#define I2C_7SEG_TOP_LEFT		3		//SegBPin
-#define I2C_7SEG_TOP_RIGHT		4		//SegFPin
-#define I2C_7SEG_CENTER			5			//SegGPin
-#define I2C_7SEG_BOTTOM_LEFT	6		//SegEPin
-#define I2C_7SEG_BOTTOM_RIGHT	7	//SegCPin
-#define I2C_7SEG_BOTTOM			8			//SegDPin
-#define I2C_7SEG_PERIOD			9			//SegDPPin
+#define I2C_7SEG_TOP			4	//SegAPin
+#define I2C_7SEG_TOP_LEFT		3	//SegBPin
+#define I2C_7SEG_TOP_RIGHT		5	//SegFPin
+#define I2C_7SEG_CENTER			2	//SegGPin
+#define I2C_7SEG_BOTTOM_LEFT	6	//SegEPin
+#define I2C_7SEG_BOTTOM_RIGHT	8	//SegCPin
+#define I2C_7SEG_BOTTOM			7	//SegDPin
+#define I2C_7SEG_PERIOD			9	//SegDPPin
 
-#define PI_PIN_BUZZER	4 //7?
+#define PI_PIN_BUZZER	4
 #define BUZZER_PWM		1000
 
+#define I2C_7SEG_ON				0
+#define I2C_7SEG_OFF			4095
 
 
-
-#define DEBUG_ENABLED	0
+#define DEBUG_ENABLED	1
 
 void initHardware();
+void setADCConfigReg(uint32_t newConfig[]);
 
 //GPIO PCA9685 initialization
 void GPIOInit(void);

@@ -19,11 +19,11 @@
 
 
 #define MODE_STANDBY				0
-#define MODE_CUT					1			//STIME, MORPM(, MOON, MOOFF)
-#define MODE_SCALE					2		//W0, STIME
+#define MODE_CUT					1	//STIME, MORPM(, MOON, MOOFF)
+#define MODE_SCALE					2	//W0, STIME
 
 #define MODE_HEADUP					10 	//T0, STIME, MORPM, MOON, MOOFF
-#define MODE_COOK					11 		//T0, STIME, MORPM, MOON, MOOFF
+#define MODE_COOK					11 	//T0, STIME, MORPM, MOON, MOOFF
 #define MODE_COOLDOWN				12 	//T0, STIME, MORPM, MOON, MOOFF
 
 #define MODE_PRESSUP				20	//P0, STIME, MORPM, MOON, MOOFF
@@ -51,9 +51,10 @@
 #define MODE_OPTIONS_BEGIN					100
 #define MODE_OPTION_REMEMBER_BEEP_ON		100
 #define MODE_OPTION_REMEMBER_BEEP_OFF		101
+#define MODE_OPTION_7SEGMENT_BLINK			102
 
 
-
+void resetValues();
 void ProcessCommand(void);
 void WriteFile(void);
 void ReadFile(void);
@@ -69,7 +70,7 @@ void ScaleFunction();
 void setFreqTimer();
 void FreqHandler(); 
 void SegmentDisplay();
-void SegmentDisplaySimple();
-void SegmentDisplayOptimized();
+void SegmentDisplaySimple(char curSegmentDisplay);
+void SegmentDisplayOptimized(char curSegmentDisplay);
 void Beep();
 

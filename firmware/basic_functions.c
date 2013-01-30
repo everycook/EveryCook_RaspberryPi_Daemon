@@ -21,6 +21,7 @@ uint8_t Data[10];
 
 
 void initHardware(){
+	if (DEBUG_ENABLED){printf("initHardware\n");}
 	VirtualSPIInit();
 	VirtualI2CInit();
 	GPIOInit();
@@ -28,8 +29,19 @@ void initHardware(){
 	AD7794Init();
 }
 
+void setADCConfigReg(uint32_t newConfig[]){
+	if (DEBUG_ENABLED){printf("setADCConfigReg...\n");}
+	uint8_t i=0;
+	for ( ;i<6; ++i){
+		ConfigurationReg[i] = newConfig[i];
+		if (DEBUG_ENABLED){printf("\t%d: %04X\n", i, newConfig[i]);}
+	}
+	if (DEBUG_ENABLED){printf("done.\n");}
+}
+
 //GPIO PCA9685 initialization
 void GPIOInit(void){
+	if (DEBUG_ENABLED){printf("GPIOInit\n");}
 	pinMode(24 ,INPUT);	//SIG1
 	pinMode(25 ,INPUT);	//SIG2
 	pinMode(27 ,INPUT);	//SIG3
@@ -44,21 +56,24 @@ void GPIOInit(void){
 	
 }
 void PCA9685Init(void){
+	if (DEBUG_ENABLED){printf("PCA9685Init\n");}
 	Data[0] = 0x80;
 	Data[1] = 0x00;
-	Data[2] = 0x31;
+	Data[2] = 0x31; //0x11
 	I2CWriteBytes(Data, 3);
 	Data[1] = 0xfe;
-	Data[2] = 0x04;
+	//Data[2] = 0x04;
+	Data[2] = 0x79;
 	I2CWriteBytes(Data, 3);
 	Data[1] = 0x00;
-	Data[2] = 0xa1;
+	Data[2] = 0xa1; // 0x01
 	I2CWriteBytes(Data, 3);
 	Data[1] = 0x01;
 	Data[2] = 0x04;
 	I2CWriteBytes(Data, 3);
 }
 void AD7794Init(void){
+	if (DEBUG_ENABLED){printf("AD7794Init\n");}
 	SPIReset();	
 	delay(30);
 	SPIWrite2Bytes(WRITE_MODE_REG, 0x0002);
@@ -69,26 +84,26 @@ void AD7794Init(void){
 
 //read/write functions
 uint32_t readADC(uint8_t i){
-	uint32_t temp;
+	uint32_t data;
 	SPIWrite2Bytes(WRITE_STRUCT_REG, ConfigurationReg[i]);
 	delay(50);
-	temp = SPIRead3Bytes(READ_DATA_REG);
-	if (DEBUG_ENABLED){printf("readADC(%d): %06X\n", i, temp);}
-	return temp;
+	data = SPIRead3Bytes(READ_DATA_REG);
+	if (DEBUG_ENABLED){printf("readADC(%d): %06X\n", i, data);}
+	return data;
 }
 
 uint32_t readSignPin(uint8_t i){
-	uint32_t temp;
-	temp = digitalRead(PinNumSign[i]);
-	if (DEBUG_ENABLED){printf("readSignPin(%d): %06X\n", i, temp);}
-	return temp;
+	uint32_t data;
+	data = digitalRead(PinNumSign[i]);
+	if (DEBUG_ENABLED){printf("readSignPin(%d): %06X\n", i, data);}
+	return data;
 }
 
 uint32_t readRaspberryPin(uint8_t i){
-	uint32_t temp;
-	temp = digitalRead(i);
-	if (DEBUG_ENABLED){printf("readRaspberryPin(%d): %06X\n", i, temp);}
-	return temp;
+	uint32_t data;
+	data = digitalRead(i);
+	if (DEBUG_ENABLED){printf("readRaspberryPin(%d): %06X\n", i, data);}
+	return data;
 }
 
 void writeControllButtonPin(uint8_t i, uint8_t on){

@@ -55,7 +55,7 @@ void SPIWrite(uint8_t data){
  */
 uint8_t SPIRead(void){
 	int i = 7;
-	uint8_t temp = 0;
+	uint8_t data = 0;
 	
 	for (i = 7; i >= 0; i--){
 		digitalWrite(SCLK, LOW);
@@ -63,11 +63,11 @@ uint8_t SPIRead(void){
 		digitalWrite(SCLK, HIGH);
 		delayMicroseconds(100);
 		if (digitalRead(MISO)){
-			temp = temp | (1<<i);
+			data = data | (1<<i);
 		}
 	}
 
-	return temp;
+	return data;
 }
 
 /* SPIWriteByte: Wirte one byte to denstination register. 
