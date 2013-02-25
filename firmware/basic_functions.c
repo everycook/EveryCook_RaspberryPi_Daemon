@@ -19,9 +19,14 @@ uint8_t PinNumControllButtons[] = {14, 15, 18, 23};
 
 uint8_t Data[10];
 
+bool debug_enabled2 = false;
+
+void setDebugEnabled(bool value){
+	debug_enabled2 = value;
+}
 
 void initHardware(){
-	if (DEBUG_ENABLED){printf("initHardware\n");}
+	if (debug_enabled2){printf("initHardware\n");}
 	VirtualSPIInit();
 	VirtualI2CInit();
 	GPIOInit();
@@ -30,18 +35,18 @@ void initHardware(){
 }
 
 void setADCConfigReg(uint32_t newConfig[]){
-	if (DEBUG_ENABLED){printf("setADCConfigReg...\n");}
+	if (debug_enabled2){printf("setADCConfigReg...\n");}
 	uint8_t i=0;
 	for ( ;i<6; ++i){
 		ConfigurationReg[i] = newConfig[i];
-		if (DEBUG_ENABLED){printf("\t%d: %04X\n", i, newConfig[i]);}
+		if (debug_enabled2){printf("\t%d: %04X\n", i, newConfig[i]);}
 	}
-	if (DEBUG_ENABLED){printf("done.\n");}
+	if (debug_enabled2){printf("done.\n");}
 }
 
 //GPIO PCA9685 initialization
 void GPIOInit(void){
-	if (DEBUG_ENABLED){printf("GPIOInit\n");}
+	if (debug_enabled2){printf("GPIOInit\n");}
 	pinMode(24 ,INPUT);	//SIG1
 	pinMode(25 ,INPUT);	//SIG2
 	pinMode(27 ,INPUT);	//SIG3
@@ -56,7 +61,7 @@ void GPIOInit(void){
 	
 }
 void PCA9685Init(void){
-	if (DEBUG_ENABLED){printf("PCA9685Init\n");}
+	if (debug_enabled2){printf("PCA9685Init\n");}
 	Data[0] = 0x80;
 	Data[1] = 0x00;
 	Data[2] = 0x31; //0x11
@@ -73,7 +78,7 @@ void PCA9685Init(void){
 	I2CWriteBytes(Data, 3);
 }
 void AD7794Init(void){
-	if (DEBUG_ENABLED){printf("AD7794Init\n");}
+	if (debug_enabled2){printf("AD7794Init\n");}
 	SPIReset();	
 	delay(30);
 	SPIWrite2Bytes(WRITE_MODE_REG, 0x0002);
@@ -88,26 +93,26 @@ uint32_t readADC(uint8_t i){
 	SPIWrite2Bytes(WRITE_STRUCT_REG, ConfigurationReg[i]);
 	delay(50);
 	data = SPIRead3Bytes(READ_DATA_REG);
-	if (DEBUG_ENABLED){printf("readADC(%d): %06X\n", i, data);}
+	if (debug_enabled2){printf("readADC(%d): %06X\n", i, data);}
 	return data;
 }
 
 uint32_t readSignPin(uint8_t i){
 	uint32_t data;
 	data = digitalRead(PinNumSign[i]);
-	if (DEBUG_ENABLED){printf("readSignPin(%d): %06X\n", i, data);}
+	if (debug_enabled2){printf("readSignPin(%d): %06X\n", i, data);}
 	return data;
 }
 
 uint32_t readRaspberryPin(uint8_t i){
 	uint32_t data;
 	data = digitalRead(i);
-	if (DEBUG_ENABLED){printf("readRaspberryPin(%d): %06X\n", i, data);}
+	if (debug_enabled2){printf("readRaspberryPin(%d): %06X\n", i, data);}
 	return data;
 }
 
 void writeControllButtonPin(uint8_t i, uint8_t on){
-	if (DEBUG_ENABLED){printf("writeControllButtonPin(%d): %d\n", i, on);}
+	if (debug_enabled2){printf("writeControllButtonPin(%d): %d\n", i, on);}
 	if (on){
 		digitalWrite(PinNumControllButtons[i], HIGH);
 	} else {
@@ -120,7 +125,7 @@ void writeControllButtonPin(uint8_t i, uint8_t on){
 }
 
 void writeRaspberryPin(uint8_t i, uint8_t on){
-	if (DEBUG_ENABLED){printf("writeRaspberryPin(%d): %d\n", i, on);}
+	if (debug_enabled2){printf("writeRaspberryPin(%d): %d\n", i, on);}
 	if (on){
 		digitalWrite(i, HIGH);
 	} else {
@@ -134,7 +139,7 @@ void writeRaspberryPin(uint8_t i, uint8_t on){
 }
 
 void buzzer(uint8_t on, uint32_t pwm){
-	if (DEBUG_ENABLED){printf("buzzer(=pin %d): on:%d pwm:%d\n", PI_PIN_BUZZER, on, pwm);}
+	if (debug_enabled2){printf("buzzer(=pin %d): on:%d pwm:%d\n", PI_PIN_BUZZER, on, pwm);}
 	if (on){
 		softPwmWrite(PI_PIN_BUZZER, 0);
 	} else {
@@ -145,7 +150,7 @@ void buzzer(uint8_t on, uint32_t pwm){
 
 
 void writeI2CPin(uint8_t i, uint32_t value){
-	if (DEBUG_ENABLED){printf("writeI2CPin(%d): %04X\n", i, value);}
+	if (debug_enabled2){printf("writeI2CPin(%d): %04X\n", i, value);}
 	//Data[0] = 0x80; //set in PCA9685Init()
 	Data[1] = 0x06+i*4;
 	Data[2] = 0x00;

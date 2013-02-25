@@ -57,7 +57,7 @@
 void resetValues();
 void ProcessCommand(void);
 void WriteFile(void);
-void ReadFile(void);
+bool ReadFile(void);
 void ReadConfigurationFile(void);
 
 
@@ -73,4 +73,3 @@ void SegmentDisplay();
 void SegmentDisplaySimple(char curSegmentDisplay);
 void SegmentDisplayOptimized(char curSegmentDisplay);
 void Beep();
-
