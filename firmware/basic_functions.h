@@ -7,13 +7,6 @@
 #define IND_KEY3	2 //18
 #define IND_KEY4	3 //23
 
-#define ADC_WEIGHT1		0
-#define ADC_WEIGHT2		1
-#define ADC_WEIGHT3		2
-#define ADC_WEIGHT4		3
-#define ADC_PRESS		4
-#define ADC_TEMP		5
-
 #define I2C_MOTOR				0
 #define I2C_SERVO				1
 #define I2C_7SEG_TOP			4	//SegAPin
@@ -31,9 +24,12 @@
 #define I2C_7SEG_ON				0
 #define I2C_7SEG_OFF			4095
 
+#define bool uint8_t
+#define false 0
+#define true 1
+//#define arr_count(a) (sizeof(a) / sizeof(a[0]))
 
-#define DEBUG_ENABLED	1
-
+void setDebugEnabled(bool value);
 void initHardware();
 void setADCConfigReg(uint32_t newConfig[]);
 
