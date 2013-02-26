@@ -1,3 +1,5 @@
+//TODO_WIA we have full C support, not the minimal C we had in MC. So we have for example string.h (see man string) to handle strings and stuff
+// MODE could be as text in the JSON. costs a few bytes but gives lots of readability
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -44,8 +46,6 @@ float readWeight();
 float readWeightSeparate(float* values);
 
 
-
-
 void blink7Segment();
 
 
@@ -81,13 +81,13 @@ float PressValue1=0.1;
 uint32_t PressADC2=1000;
 float PressValue2=100.0;
 
-//two calibrations points between ADC values and temperature in °C
+//two calibrations points between ADC values and temperature in ï¿½C
 uint32_t TempADC1=100;
 float TempValue1=0.1;
 uint32_t TempADC2=1000;
 float TempValue2=100.0;
 
-//two calibrations points between ADC values and temperature in °C
+//two calibrations points between ADC values and temperature in ï¿½C
 uint32_t ForceADC1=100;
 float ForceValue1=0.1;
 uint32_t ForceADC2=1000;
@@ -170,13 +170,6 @@ uint32_t motorStartTime =0; //When did we start the motor?
 uint32_t RemainTime=0;
 uint32_t BeepEndTime=0; //when to stop the beeper
 
-//hardware timer stuff...
-//volatile bool LastEncoder=false;
-//volatile int EncoderChanges=0;
-//unsigned int LastEncoderChanges=0;
-//uint32_t PrescaleFactor=1024; //15
-//uint32_t Overflow=300;
-
 //Servo stuff
 const uint32_t ValveOpenAngle=4000;
 const uint32_t ValveClosedAngle=0;
@@ -184,10 +177,6 @@ uint32_t ValveSetValue=0;
 
 //Options
 bool doRememberBeep = 0;
-
-
-
-
 
 uint8_t isBuzzing = 1; //to be sure first send a off to buzzer
 const uint8_t ALLWAYS_STOP_BUZZING = 0;
@@ -199,8 +188,6 @@ char oldSegmentDisplay = ' ';
 uint8_t blinkState = 0;
 
 FILE *logFilePointer;
-
-
 
 char curSegmentDisplay = ' ';
 
@@ -225,7 +212,6 @@ The Modes:
 40 = input error, 41 = emergency shutdown (both not implemented yet) 42 = motor overload
 //special commands
 50 = watchdog test
-
 */
 
 
@@ -288,6 +274,7 @@ int main(int argc, const char* argv[]){
 		//try {
 			if (debug_enabled){printf("loop...\n");}
 			runTime = millis()/1000; //calculate runtime in seconds
+			//TODO_wia use system time???
 			if (ReadFile()){
 				ProcessCommand();
 				runTime = millis()/1000;
@@ -376,7 +363,7 @@ float readTemp(){
 	if (simulationMode){
 		int DeltaT=setTemp-oldTemp;
 		float tempValue = oldTemp;	
-		if (mode==MODE_HEADUP || mode==MODE_COOK) {
+		if (mode==MODE_HEATUP || mode==MODE_COOK) {
 			if (DeltaT<0) {
 				tempValue = oldTemp-1;
 			} else if (DeltaT==0) {
@@ -398,9 +385,10 @@ float readTemp(){
 		return tempValue;
 	} else {
 		uint32_t tempValueInt = readADC(ADC_Temp);
-		//TODO do calculate from value to °C
+		//TODO do calculate from value to Â°C
 		float tempValue = ((float)tempValueInt-(float)TempOffset) * TempScaleFactor;
-		if (debug_enabled){printf("readTemp, new Value is %d / %f\n", tempValueInt, tempValue);}
+		tempValue = roundf(tempValue);
+		if (debug_enabled){printf("readTemp, new Value is %d digits %f Â°C\n", tempValueInt, tempValue);}
 		return tempValue;
 	}
 }
@@ -442,18 +430,12 @@ float readPress(){
 void HeatOn() {
 	//if (debug_enabled || simulationMode){printf("HeatOn, was: %d\n", heatPowerStatus);}
 	if (heatPowerStatus==0) { //if its off
-		//  SerialUSB.println("heaton");
-		/*
-		digitalWrite(HeatStopPin,LOW);
-		digitalWrite(HeatStartPin,HIGH);
-		delay(50);
-		digitalWrite(HeatStartPin,LOW);
-		*/
 		if (debug_enabled || simulationMode){printf("HeatOn\n");}
 		if (!simulationMode){
-			writeControllButtonPin(IND_KEY4, 1);
+			writeControllButtonPin(IND_KEY4, 1); //"press" the power button
+			delay(50);
+			writeControllButtonPin(IND_KEY4, 0);
 		}
-		
 		heatPowerStatus=1; //save that we turned it on
 	}
 }
@@ -461,9 +443,10 @@ void HeatOn() {
 void HeatOff(){
 	//if (debug_enabled || simulationMode){printf("HeatOff, was: %d\n", heatPowerStatus);}
 	if (heatPowerStatus>0) { //if its on
-		//digitalWrite(HeatStopPin,HIGH);
 		if (debug_enabled || simulationMode){printf("HeatOff\n");}
 		if (!simulationMode){
+			writeControllButtonPin(IND_KEY4, 1); //"press" the power button
+			delay(50);
 			writeControllButtonPin(IND_KEY4, 0);
 		}
 		heatPowerStatus=0; //save that we turned it off
@@ -540,7 +523,8 @@ float readWeight(){
 		
 		float weightValue = (float)weightValueSum;
 		weightValue *=ForceScaleFactor;
-		if (debug_enabled){printf("readWeight, new Value is %d / %f (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
+		weightValue = roundf(weightValue);
+		if (debug_enabled){printf("readWeight, new Value is %d digits, %f grams (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
 		return weightValue;
 	}
 }
@@ -591,6 +575,7 @@ float readWeightSeparate(float* values){
 		
 		float weightValue = (float)weightValueSum;
 		weightValue *=ForceScaleFactor;
+		weightValue = roundf(weightValue);
 		if (debug_enabled){
 			if (values != NULL){
 				printf("readWeight, new Value is %d / %f (%d, %d, %d, %d / %f, %f, %f, %f)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4, values[0], values[1], values[2], values[3]);
@@ -629,10 +614,10 @@ void TempControl(){
 			//SerialUSB.println("Temperature control: ");
 			//SerialUSB.print(temp);  SerialUSB.print(" Degree C - Bottom Temperature");
 			int DeltaT=setTemp-temp;
-			if (mode==MODE_HEADUP || mode==MODE_COOK) {
+			if (mode==MODE_HEATUP || mode==MODE_COOK) {
 				if (DeltaT<=0) {
 					nextTempCheckTime=runTime+1;
-					if (mode==MODE_HEADUP) {//heatup function
+					if (mode==MODE_HEATUP) {//heatup function
 						stepEndTime=runTime-2;
 						mode=MODE_HOT; //we are hot
 					}
@@ -642,7 +627,7 @@ void TempControl(){
 				else {nextTempCheckTime=runTime+20; HeatOn();}
 				//  SerialUSB.print("runTime is now: ");SerialUSB.print(runTime);SerialUSB.print(" s Next Temperature Check at: ");SerialUSB.print(nextTempCheckTime);SerialUSB.println(" s"); 
 			}
-			if (mode==MODE_HEADUP && heatPowerStatus==1) { //heatup
+			if (mode==MODE_HEATUP && heatPowerStatus==1) { //heatup
 				stepEndTime=nextTempCheckTime+1;
 			} else if (mode==MODE_COOLDOWN && DeltaT>=0) { //cooldown function
 				stepEndTime=runTime-2;
@@ -799,32 +784,6 @@ void ScaleFunction () {
 	}
 }
 
-/*
-void TestWatchDog(){
-	FreqTimer.pause();
-	//SerialUSB.println("Stopped watchdog timer! Reset imminent");
-}
-
-void setFreqTimer() {
-	FreqTimer.pause();
-	FreqTimer.setPrescaleFactor(PrescaleFactor);
-	FreqTimer.setOverflow(Overflow);
-	FreqTimer.setMode(1,TIMER_OUTPUT_COMPARE);
-	FreqTimer.setCompare(TIMER_CH1,1);
-	FreqTimer.attachInterrupt(1,FreqHandler);
-	FreqTimer.refresh();
-	FreqTimer.resume();
-}
-void FreqHandler() { 
-//  togglePin(FreqPin);
-//  togglePin(BOARD_LED_PIN);
-	iwdg_feed();
-	if (digitalRead(EncoderPin)!=LastEncoder){
-		EncoderChanges++;
-		LastEncoder=!LastEncoder;
-	}
-}
-*/
 void SegmentDisplay(){
 	/*if (mode==53) {
 		digitalWrite(Seg1Pin,HIGH);

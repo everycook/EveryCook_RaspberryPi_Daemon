@@ -59,6 +59,10 @@ DisplaySegDP=10
 #Induction Heater GPIO pins
 PowerOnPin=4
 
+#servo stuff
+ValveOpenAngle=4000
+ValveClosedAngle=0
+
 #communication
 #CommandFile=/dev/shm/command
 #StatusFile=/dev/shm/status
