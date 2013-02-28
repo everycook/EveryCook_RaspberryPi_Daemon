@@ -24,7 +24,7 @@ CFLAGS	= $(DEBUG) -Wall $(INCLUDE) -Winline -pipe
 
 LDFLAGS	= -L/usr/local/lib
 
-LIBS    = -lwiringPi -lpthread
+LIBS    = -lwiringPi -lpthread -lm #lm needed for math.h
 
 # Should not alter anything below this line
 ###############################################################################
