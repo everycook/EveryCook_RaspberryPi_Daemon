@@ -1289,19 +1289,36 @@ void ReadConfigurationFile(void){
 				while (c != '='){
 					keyString[i] = c;
 					c = fgetc(fp);
-					i++;
+					++i;
 				}
 				i = 0;
 				c = fgetc(fp); //currently its '=' so read next
 				while (c != '\n'){
+					if (c == '#'){
+						//allow coment behind value
+						break;
+					}
 					if (c != '\r'){
 						valueString[i] = c;
 					}
 					c = fgetc(fp);
-					i++;
+					++i;
+				}
+				//remove spaces at end of value
+				i=i-2;
+				if (i>0){
+					c = valueString[i];
+					while (c == ' ' || c == '\t'){
+						valueString[i] = 0x00;
+						--i;
+						if (i < 0){
+							break;
+						}
+						c = valueString[i];
+					}
 				}
 				
-				if (debug_enabled){printf("\tkey: %s, value: %s\n", keyString, valueString);}
+				if (debug_enabled){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
 				
 				//ParseConfigValue
 				if(strcmp(keyString, "ForceADC1") == 0){
@@ -1454,14 +1471,17 @@ void ReadConfigurationFile(void){
 	ForceScaleFactor=(ForceValue2-ForceValue1)/((double)ForceADC2-(double)ForceADC1);
 	
 	PressScaleFactor=(PressValue2-PressValue1)/((double)PressADC2-(double)PressADC1);
-	PressOffset=PressScaleFactor/PressValue1;
+	//PressOffset=PressScaleFactor/PressValue1;
+	PressOffset=PressADC1 - PressValue1/PressScaleFactor ;  //offset in ADC-Value
 	
-	//TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
-	int debug=TempADC1;
-	//TempScaleFactor=(TempValue2-TempValue1);
+	TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
+	//int debug=TempADC1;
+	//TempOffset=TempScaleFactor/TempValue1;	//falsch
+	//TempOffset=TempADC1*TempScaleFactor - TempValue1;  //offset in °C
+	TempOffset=TempADC1 - TempValue1/TempScaleFactor ;  //offset in ADC-Value
 	
-	TempOffset=TempValue1-TempADC1*TempScaleFactor;
-	printf("debugvalue %d.\n",debug);
+	//TempOffset=TempValue1-TempADC1*TempScaleFactor;
+	//printf("debugvalue %d.\n",debug);
 	if (debug_enabled){printf("ForceScaleFactor: %f, PressScaleFactor: %f, PressOffset: %d, TempScaleFactor: %f, TempOffset: %d\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
 	
 	fclose(fp);

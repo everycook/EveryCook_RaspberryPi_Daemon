@@ -11,7 +11,7 @@ PressADC2=11780000
 PressValue2=100.0
 
 #two calibrations points between ADC values and temperature in °C
-TempADC1=3687000  
+TempADC1=3687000
 #digits
 TempValue1=0.2
 #degrees
