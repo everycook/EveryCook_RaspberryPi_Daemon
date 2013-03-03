@@ -141,10 +141,10 @@ void writeRaspberryPin(uint8_t i, uint8_t on){
 void buzzer(uint8_t on, uint32_t pwm){
 	if (debug_enabled2){printf("buzzer(=pin %d): on:%d pwm:%d\n", PI_PIN_BUZZER, on, pwm);}
 	if (on){
-		softPwmWrite(PI_PIN_BUZZER, 0);
+	//	softPwmWrite(PI_PIN_BUZZER, 0);
 	} else {
-		softPwmCreate(PI_PIN_BUZZER, 0, pwm);
-		softPwmWrite(PI_PIN_BUZZER, pwm/10);
+	//	softPwmCreate(PI_PIN_BUZZER, 0, pwm);
+	//	softPwmWrite(PI_PIN_BUZZER, pwm/10);
 	}
 }
 

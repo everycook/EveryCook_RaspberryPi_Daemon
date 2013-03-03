@@ -11,7 +11,7 @@
 #include <string.h>
 
 #include "basic_functions.h"
-#include "firmware.h"
+#include "deamon.h"
 
 uint8_t ADC_LoadCellFrontLeft=0;
 uint8_t ADC_LoadCellFrontRight=1;
@@ -210,7 +210,7 @@ The Modes:
 
 
 void printUsage(){
-	printf("Usage: ecfirmware [OPTIONS]\r\n");
+	printf("Usage: ecdeamon [OPTIONS]\r\n");
 	printf("programm options:\r\n");
 	printf("  -s,  --sim        start in simulation mode, and will increase weight/temp/press automaticaly\r\n");
 	printf("  -s7, --sim7seg    show 7Segment display in simulation Mode\r\n");
@@ -379,7 +379,7 @@ double readTemp(){
 		return tempValue;
 	} else {
 		uint32_t tempValueInt = readADC(ADC_Temp);
-		double tempValue = ((double)tempValueInt-(double)TempOffset) * TempScaleFactor;
+		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
 		if (debug_enabled){printf("readTemp, new Value is %d digits %f °C\n", tempValueInt, tempValue);}
 		return tempValue;
