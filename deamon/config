@@ -5,24 +5,34 @@
 ForceScaleFactor=1
 
 #two calibrations points between ADC values and pressure in kPa
-PressADC1=10046321
+PressADC1=8822000
 PressValue1=0
-PressADC2=11780000
+PressADC2=8815000
 PressValue2=100.0
 
 #two calibrations points between ADC values and temperature in °C
-TempADC1=3687000
+TempADC1=36854500
 #digits
-TempValue1=0.2
+TempValue1=0
 #degrees
-TempADC2=4200049
-TempValue2=92.5
+TempADC2=6359929
+TempValue2=98
+
+#ADC channels
+ADC_LoadCellFrontLeft=0
+ADC_LoadCellFrontRight=1
+ADC_LoadCellBackLeft=2
+ADC_LoadCellBackRight=4
+ADC_Press=3
+ADC_Temp=5
+
+
 
 #AD7794 ADC programmable gain configuration
-GainScale_1=8
-GainScale_2=8
-GainScale_3=8
-GainScale_4=8
+Gain_LoadCellFrontLeft=8
+Gain_LoadCellFrontRight=8
+Gain_LoadCellBackLeft=8
+Gain_LoadCellBackRight=8
 GainPress=8
 GainTemp=4
 

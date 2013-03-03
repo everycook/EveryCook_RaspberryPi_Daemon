@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <time.h>
 
 #include <math.h>
 
@@ -75,13 +76,13 @@ double PressValue1=0.1;
 uint32_t PressADC2=1000;
 double PressValue2=100.0;
 
-//two calibrations points between ADC values and temperature in �C
+//two calibrations points between ADC values and temperature in °C
 uint32_t TempADC1=100;
 double TempValue1=0.1;
 uint32_t TempADC2=1000;
 double TempValue2=100.0;
 
-//two calibrations points between ADC values and temperature in �C
+//two calibrations points between ADC values and weight
 uint32_t ForceADC1=100;
 double ForceValue1=0.1;
 uint32_t ForceADC2=1000;
@@ -128,7 +129,7 @@ uint8_t motorRpm = 0; //0-255
 uint32_t motorOn = 0;
 uint32_t motorOff = 0;
 double weight = 0;
-uint32_t time = 0;
+uint32_t elapsedTime = 0;
 uint32_t mode = 0;
 uint32_t stepId = -1;
 
@@ -191,6 +192,8 @@ uint32_t simulationUpdateTime = 0;
 
 bool debug_enabled = false;
 
+bool calibration = false;
+
 /*
 The Modes:
 0 = Standby
@@ -215,12 +218,13 @@ void printUsage(){
 	printf("  -s,  --sim        start in simulation mode, and will increase weight/temp/press automaticaly\r\n");
 	printf("  -s7, --sim7seg    show 7Segment display in simulation Mode\r\n");
 	printf("  -d,  --debug      activate Debug output\r\n");
+	printf("  -c,  --calibrate  calibration mode, will output raw adc values\r\n");
 	printf("  -?,  --help       show this help\r\n");
 }
 
 
 int main(int argc, const char* argv[]){
-	printf("start...\n");
+	printf("starting EveryCook deamon...\n");
 	if (debug_enabled){printf("main\n");}
 	int i;
 	//char* param;
@@ -232,6 +236,10 @@ int main(int argc, const char* argv[]){
 			simulationModeShow7Segment = true;
 		} else if(strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0){
 			debug_enabled = 1;
+		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
+			calibration = 1;
+			printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
+			//debug_enabled = 1;
 		} else if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-?") == 0){
 			printUsage();
 			return 0;
@@ -255,29 +263,37 @@ int main(int argc, const char* argv[]){
 	}*/
 	Delay = LongDelay;
 	
-	//setFreqTimer();
 	resetValues();
 	
-	if (debug_enabled){printf("commandFile: %s\n", commandFile);}
-	if (debug_enabled){printf("statusFile: %s\n", statusFile);}
+	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
+	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
 	
-	runTime = millis()/1000;
+	
+	runTime = time(NULL);
+	//printf("runtime is now: %d \n",runTime);
 	stepStartTime = runTime;
-	
 	while (1){
 		//try {
-			if (debug_enabled){printf("loop...\n");}
+			if (debug_enabled){printf("main loop...\n");}
 			runTime = millis()/1000; //calculate runtime in seconds
 			//TODO_wia use system time???
-			if (ReadFile()){
+			
+			if (calibration){
+			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
+			HeatOn();
+			readTemp();
+			readPress();
+			readWeight();
+			}
+			else if (ReadFile()){
 				ProcessCommand();
-				runTime = millis()/1000;
-				time = runTime - stepStartTime;
+				runTime = time(NULL);
+				elapsedTime = runTime - stepStartTime;
 				WriteFile();
 			} else {
 				delay(10000);
 			}
-			if (debug_enabled){printf("loop end.\n");}
+			if (debug_enabled){printf("main loop end.\n");}
 		/*} catch(exception e){
 			if (debug_enabled){printf("Exception: %s\n", e);}
 		}*/
@@ -381,7 +397,7 @@ double readTemp(){
 		uint32_t tempValueInt = readADC(ADC_Temp);
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
-		if (debug_enabled){printf("readTemp, new Value is %d digits %f °C\n", tempValueInt, tempValue);}
+		if (debug_enabled || calibration){printf("readTemp %d digits %.0f °C ", tempValueInt, tempValue);}
 		return tempValue;
 	}
 }
@@ -412,8 +428,8 @@ double readPress(){
 		return pressValue;
 	} else {
 		uint32_t pressValueInt = readADC(ADC_Press);
-		double pressValue = ((double)pressValueInt-(double)PressOffset) * PressScaleFactor;
-		if (debug_enabled){printf("readPress, new Value is %d / %f\n", pressValueInt, pressValue);}
+		double pressValue = (double)pressValueInt* PressScaleFactor+(double)PressOffset;
+		if (debug_enabled || calibration){printf("readPress %d digits %.1f kPa\n", pressValueInt, pressValue);}
 		return pressValue;
 	}
 }
@@ -422,10 +438,11 @@ double readPress(){
 void HeatOn() {
 	//if (debug_enabled || simulationMode){printf("HeatOn, was: %d\n", heatPowerStatus);}
 	if (heatPowerStatus==0) { //if its off
-		if (debug_enabled || simulationMode){printf("HeatOn\n");}
+		if (debug_enabled || simulationMode || calibration){printf("HeatOn status was: %d\n", heatPowerStatus);}
 		if (!simulationMode){
+			writeControllButtonPin(IND_KEY4, 0);
 			writeControllButtonPin(IND_KEY4, 1); //"press" the power button
-			delay(50);
+			delay(500);
 			writeControllButtonPin(IND_KEY4, 0);
 		}
 		heatPowerStatus=1; //save that we turned it on
@@ -516,7 +533,8 @@ double readWeight(){
 		double weightValue = (double)weightValueSum;
 		weightValue *=ForceScaleFactor;
 		weightValue = roundf(weightValue);
-		if (debug_enabled){printf("readWeight, new Value is %d digits, %f grams (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
+		if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams ", weightValueSum, weightValue);}
+		//if (debug_enabled || calibration){printf("readWeight %d digits, %f grams (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
 		return weightValue;
 	}
 }
@@ -673,7 +691,7 @@ void PressControl(){
 	}
 }
 
-void MotorControl (){
+void MotorControl(){
 	if (mode==MODE_CUT || mode>=MIN_TEMP_MODE){
 		if (mode==MODE_CUT) stepEndTime=runTime+1;
 		if (setMotorRpm > 0 && mode<=MAX_STATUS_MODE) {
@@ -730,7 +748,7 @@ void ValveControl(){
 }
 
 
-void ScaleFunction () {
+void ScaleFunction() {
 	if (mode==MODE_SCALE || mode==MODE_WEIGHT_REACHED){
 		stepEndTime=runTime+2;
 		oldWeight = weight;
@@ -1002,8 +1020,6 @@ void Beep(){
 /*******************PI File read/write Code**********************/
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
 
-/* Get the adc datas and signals and write to the file "/var/www/readfile.txt"
- */
 void WriteFile(void){
 	if (debug_enabled){printf("WriteFile\n");}
 	char tempString[10];
@@ -1049,7 +1065,7 @@ void WriteFile(void){
 	StringClean(tempString, 10);
 	
 	StringUnion(TotalUpdate, "\"STIME\":");
-	NumberConvertToString(time, tempString);
+	NumberConvertToString(elapsedTime, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
 	StringClean(tempString, 10);
@@ -1065,7 +1081,7 @@ void WriteFile(void){
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, "}");
 	
-	if (debug_enabled){printf("WriteFile: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, time, mode, stepId);}
+	if (debug_enabled){printf("WriteFile: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);}
 	
 	fp = fopen(statusFile, "w");
 	fputs(TotalUpdate, fp);
@@ -1472,17 +1488,17 @@ void ReadConfigurationFile(void){
 	
 	PressScaleFactor=(PressValue2-PressValue1)/((double)PressADC2-(double)PressADC1);
 	//PressOffset=PressScaleFactor/PressValue1;
-	PressOffset=PressADC1 - PressValue1/PressScaleFactor ;  //offset in ADC-Value
+	PressOffset=PressValue1 - PressADC1*PressScaleFactor ;  //offset in ADC-Value
 	
 	TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
 	//int debug=TempADC1;
 	//TempOffset=TempScaleFactor/TempValue1;	//falsch
 	//TempOffset=TempADC1*TempScaleFactor - TempValue1;  //offset in °C
-	TempOffset=TempADC1 - TempValue1/TempScaleFactor ;  //offset in ADC-Value
+	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in ADC-Value
 	
 	//TempOffset=TempValue1-TempADC1*TempScaleFactor;
 	//printf("debugvalue %d.\n",debug);
-	if (debug_enabled){printf("ForceScaleFactor: %f, PressScaleFactor: %f, PressOffset: %d, TempScaleFactor: %f, TempOffset: %d\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
+	if (debug_enabled){printf("ForceScaleFactor: %f, PressScaleFactor: %f, PressOffset: %d, TempScaleFactor: %e, TempOffset: %d\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
 	
 	fclose(fp);
 	if (debug_enabled){printf("done.\n");}
