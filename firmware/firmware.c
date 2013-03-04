@@ -10,7 +10,10 @@
 
 #include <string.h>
 
+#include "bool.h"
 #include "basic_functions.h"
+#include "convertFunctions.h"
+#include "middlewareSocket.h"
 #include "firmware.h"
 
 uint8_t ADC_LoadCellFrontLeft=0;
@@ -20,13 +23,6 @@ uint8_t ADC_LoadCellBackRight=3;
 uint8_t ADC_Press=4;
 uint8_t ADC_Temp=5;
 
-//Other functions
-void NumberConvertToString(uint32_t num, char *str);
-void StringClean(char *str, uint32_t len);
-void StringUnion(char *fristString, char *secondString);
-uint32_t StringConvertToNumber(char *str);
-double StringConvertToDouble(char *str);
-int POWNTimes(uint32_t num, uint8_t n);
 
 
 
@@ -43,12 +39,6 @@ double readWeightSeparate(double* values);
 
 
 void blink7Segment();
-
-
-
-//	uint32_t adc0;
-//uint8_t structregpointer = 0;
-char TotalUpdate[512];
 
 
 char *configFile = "config";
@@ -148,6 +138,7 @@ uint32_t runTime; //we need a runtime in seconds
 uint32_t stepEndTime = 0;
 uint32_t stepStartTime = 0;
 
+uint32_t middlewareConnectTime = 0;
 
 double referenceForce = 0; //the reference to get the zero of the scale
 uint8_t scaleReady = 0;
@@ -183,6 +174,24 @@ uint8_t blinkState = 0;
 
 FILE *logFilePointer;
 
+char* middlewareHostname = "10.0.0.1";
+int middlewarePortno = 8000;
+char* oldSendedString = "";
+int sockfd = -1;
+bool useMiddleware = true;
+bool useFile = false;
+char middlewareBuffer[256];
+
+
+
+
+char TotalUpdate[512];
+uint32_t value[15];
+char names[15][10];
+
+bool dataChanged = true;
+bool timeChanged = true;
+
 char curSegmentDisplay = ' ';
 
 bool simulationMode = false;
@@ -212,10 +221,13 @@ The Modes:
 void printUsage(){
 	printf("Usage: ecfirmware [OPTIONS]\r\n");
 	printf("programm options:\r\n");
-	printf("  -s,  --sim        start in simulation mode, and will increase weight/temp/press automaticaly\r\n");
-	printf("  -s7, --sim7seg    show 7Segment display in simulation Mode\r\n");
-	printf("  -d,  --debug      activate Debug output\r\n");
-	printf("  -?,  --help       show this help\r\n");
+	printf("  -s,  --sim                  start in simulation mode, and will increase weight/temp/press automaticaly\r\n");
+	printf("  -s7, --sim7seg              show 7Segment display in simulation Mode\r\n");
+	printf("  -d,  --debug                activate Debug output\r\n");
+	printf("  -d2, --debug2               activate Debug output for basic functions\r\n");
+	printf("  -nm, --no-middleware        don't use middleware, use file\r\n");
+	printf("  -mf, --middleware-and-file  use middleware and file(on read as backup)\r\n");
+	printf("  -?,  --help                 show this help\r\n");
 }
 
 
@@ -231,7 +243,15 @@ int main(int argc, const char* argv[]){
 		} else if(strcmp(argv[i], "--sim7seg") == 0 || strcmp(argv[i], "-s7") == 0){
 			simulationModeShow7Segment = true;
 		} else if(strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0){
-			debug_enabled = 1;
+			debug_enabled = true;
+		} else if(strcmp(argv[i], "--debug2") == 0 || strcmp(argv[i], "-d2") == 0){
+			setDebugEnabled(true);
+		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
+			useMiddleware = false;
+			useFile = true;
+		} else if(strcmp(argv[i], "--middleware-and-file") == 0 || strcmp(argv[i], "-mf") == 0){
+			useMiddleware = true;
+			useFile = true;
 		} else if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-?") == 0){
 			printUsage();
 			return 0;
@@ -264,18 +284,77 @@ int main(int argc, const char* argv[]){
 	runTime = millis()/1000;
 	stepStartTime = runTime;
 	
-	while (1){
+	uint32_t lastRunTime = 0;
+	
+	const uint8_t dataType = TYPE_TEXT;
+	uint8_t recivedDataType = 0;
+	while (true){
 		//try {
 			if (debug_enabled){printf("loop...\n");}
 			runTime = millis()/1000; //calculate runtime in seconds
 			//TODO_wia use system time???
-			if (ReadFile()){
-				ProcessCommand();
-				runTime = millis()/1000;
-				time = runTime - stepStartTime;
-				WriteFile();
+			if (lastRunTime != runTime){
+				timeChanged = true;
+				lastRunTime = runTime;
+			}
+			bool valueChanged = false;
+			if (useMiddleware){
+				if (sockfd < 0){
+					if (runTime - middlewareConnectTime > 5){
+						//only try to connect to middleware every 5 sec.
+						middlewareConnectTime = runTime;
+						sockfd = connectToMiddleware(middlewareHostname, middlewarePortno);
+					}
+				}
+				if (sockfd>=0 && isSocketReady(sockfd)){
+					//if (reciveFromSock(sockfd, middlewareBuffer) ){
+					if (recivePackageFromSock(sockfd, middlewareBuffer, &recivedDataType)){
+						valueChanged = true;
+						if (debug_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, middlewareBuffer);}
+						if (recivedDataType != dataType){
+							error("ERROR recived dataType unknown");
+						}
+						parseSockInput(middlewareBuffer);
+					} else {
+						error("ERROR reading from socket");
+						sockfd = -14;
+					}
+				}
+				if (sockfd<0){
+					if (useFile && ReadFile()){
+						valueChanged = true;
+					} else {
+						delay(10000);
+					}
+				}
 			} else {
-				delay(10000);
+				if (useFile && ReadFile()){
+					valueChanged = true;
+				} else {
+					delay(10000);
+				}
+			}
+			
+			if (valueChanged){
+				evaluateInput();
+			}
+			ProcessCommand();
+			runTime = millis()/1000;
+			time = runTime - stepStartTime;
+			prepareState(TotalUpdate);
+			
+			if (dataChanged){// || timeChanged){
+				if (useMiddleware && sockfd>=0){
+					if (!sendToSock(sockfd, TotalUpdate, dataType)){
+						error("ERROR writing to socket");
+						sockfd = -13;
+					}
+				}
+				if (useFile) {
+					WriteFile(TotalUpdate);
+				}
+				dataChanged = false;
+				timeChanged = false;
 			}
 			if (debug_enabled){printf("loop end.\n");}
 		/*} catch(exception e){
@@ -304,6 +383,9 @@ void initOutputFile(void){
 void resetValues(){
 	isBuzzing = 1; //to be sure first send a off to buzzer
 	oldSegmentDisplay = ' ';
+	stepId=-1;
+	dataChanged = true;
+	timeChanged = true;
 }
 
 
@@ -311,12 +393,14 @@ void resetValues(){
 void ProcessCommand(void){
 	if (setStepId != stepId){
 		if (setStepId < stepId){
+			//-1 stop/not aus
 			//TODO is reset/stop? or is someone try to begin new recipe before old is ended?
 		}
 		oldMode = mode;
 		mode=setMode;
 		stepId = setStepId;
 		stepStartTime = runTime;
+		dataChanged = true;
 		
 		if (debug_enabled){printf("stepId changed, new mode is: %d\n", mode);}
 		if (debug_enabled || simulationMode){printf("ProcessCommand: T0: %d, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %d, STIME: %d, SMODE: %d, SID: %d\n", setTemp, setPress, setMotorRpm, setMotorOn, setMotorOff, setWeight, setTime, setMode, setStepId);}
@@ -602,6 +686,11 @@ void TempControl(){
 			oldTemp = temp;
 			uint32_t TempValue = readTemp();
 			temp=TempValue;
+			
+			if (oldTemp != temp){
+				dataChanged = true;
+			}
+			
 			int DeltaT=setTemp-temp;
 			if (mode==MODE_HEATUP || mode==MODE_COOK) {
 				if (DeltaT<=0) {
@@ -625,6 +714,8 @@ void TempControl(){
 				stepEndTime=nextTempCheckTime+1;
 			}
 		}
+	} else {
+		//TODO: temp lesen
 	}
 }
 
@@ -637,8 +728,11 @@ void PressControl(){
 			oldPress = press;
 			uint32_t pressValue = readPress();
 			press=pressValue;
-			//SerialUSB.println("Pressure control: ");
-			//SerialUSB.print(press);  SerialUSB.print(" kPa Pressure");
+			
+			if (oldPress != press){
+				dataChanged = true;
+			}
+			
 			int DeltaP=setPress-press;
 			if (mode==MODE_PRESSUP || mode==MODE_PRESSHOLD) {
 				if (DeltaP<=0) {
@@ -651,7 +745,6 @@ void PressControl(){
 				else if (DeltaP <= 10) { nextTempCheckTime=runTime+5; HeatOn(); }
 				else if (DeltaP <= 50) { nextTempCheckTime=runTime+10; HeatOn();}
 				else {nextTempCheckTime=runTime+20; HeatOn();}
-				//SerialUSB.print("runTime is now: ");SerialUSB.print(runTime);SerialUSB.print(" s Next Pressure Check at: ");SerialUSB.print(nextTempCheckTime);SerialUSB.println(" s"); 
 			}
 			if (mode==MODE_PRESSUP && heatPowerStatus==1) { //pressure up
 				stepEndTime=nextTempCheckTime+1;
@@ -665,11 +758,15 @@ void PressControl(){
 		}
 	} else if (mode>=MIN_TEMP_MODE && mode<=MAX_TEMP_MODE) {
 		if (runTime>=nextTempCheckTime || heatPowerStatus==0){
-			//press=map(analogRead(PressPin),0,2000,0,100); //read pressure
-			uint32_t pressValue = readPress();
 			oldPress = press;
+			uint32_t pressValue = readPress();
 			press=pressValue;
+			if (oldPress != press){
+				dataChanged = true;
+			}
 		}
+	} else {
+		//TODO: press lesen
 	}
 }
 
@@ -749,6 +846,9 @@ void ScaleFunction () {
 			Delay=ShortDelay;
 			weight=(SumOfForces-referenceForce);
 			
+			if (oldWeight != weight){
+				dataChanged = true;
+			}
 			if (weight>=setWeight) {//If we have reached the required mass
 				if (mode != MODE_WEIGHT_REACHED){
 					if(BeepWeightReached > 0){
@@ -1002,14 +1102,10 @@ void Beep(){
 /*******************PI File read/write Code**********************/
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
 
-/* Get the adc datas and signals and write to the file "/var/www/readfile.txt"
- */
-void WriteFile(void){
-	if (debug_enabled){printf("WriteFile\n");}
+void prepareState(char* TotalUpdate){
 	char tempString[10];
 	StringClean(tempString, 10);
 	StringClean(TotalUpdate, 512);
-	FILE *fp;
 	
 	StringUnion(TotalUpdate, "{");
 	StringUnion(TotalUpdate, "\"T0\":");
@@ -1065,28 +1161,89 @@ void WriteFile(void){
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, "}");
 	
-	if (debug_enabled){printf("WriteFile: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, time, mode, stepId);}
+	if (debug_enabled){printf("prepareState: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, time, mode, stepId);}
+}
+
+/* Get the adc datas and signals and write to the file "/var/www/readfile.txt"
+ */
+void WriteFile(char* data){
+	if (debug_enabled){printf("WriteFile\n");}
 	
+	FILE *fp;
 	fp = fopen(statusFile, "w");
-	fputs(TotalUpdate, fp);
+	fputs(data, fp);
 	fclose(fp);
 	
-	StringUnion(TotalUpdate, "\n");
+	StringUnion(data, "\n");
 	if (debug_enabled){printf("WriteFile: before write\n");}
-	fputs(TotalUpdate, logFilePointer);
+	fputs(data, logFilePointer);
 	if (debug_enabled){printf("WriteFile: after write\n");}
-	StringClean(TotalUpdate, 512);
 }
 
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
 
-bool ReadFile(void){
+void parseSockInput(char* input){
+	if (debug_enabled){printf("parseSockInput\n");}
+	char tempName[10];
+	char tempValue[10];
+	uint8_t i = 0;
+	uint8_t ptr = 0;
+	uint8_t inputPos = 0;
+	char c;
+	
+	StringClean(tempName, 10);
+	StringClean(tempValue, 10);
+	c = input[inputPos];
+	++inputPos;
+	while (c != 0){
+		if (c == '"'){
+			c = input[inputPos];
+			++inputPos;
+			while (c != '"'){
+				tempName[i] = c;
+				c = input[inputPos];
+				++inputPos;
+				++i;
+			}
+			i = 0;
+		}
+		if (c == ':') {
+			c = input[inputPos];
+			++inputPos;
+			while (c == ' ' || c == 9){
+				c = input[inputPos];
+				++inputPos;
+			}
+			while (c >= 48 && c <= 58){
+				tempValue[i] = c;
+				c = input[inputPos];
+				++inputPos;
+				i++;
+			}
+			i = 0;
+			value[ptr] = StringConvertToNumber(tempValue);
+			
+			//names[ptr] = tempName;
+			int32_t j = 0;
+			for (; j < 10; ++j){
+				names[ptr][j] = tempName[j];
+			}
+			
+			if (debug_enabled){printf("found %s with value %d\r\n", names[ptr], value[ptr]);}
+			StringClean(tempName, 10);
+			StringClean(tempValue, 10);
+			++ptr;
+		}
+		c = input[inputPos];
+		++inputPos;
+	}
+}
+
+bool ReadFile(){
 	if (debug_enabled){printf("ReadFile\n");}
 	FILE *fp;
 	char tempName[10];
 	char tempValue[10];
-	uint32_t value[15];
-	char names[15][10];
 	uint8_t i = 0;
 	uint8_t ptr = 0;
 	char c;
@@ -1128,6 +1285,8 @@ bool ReadFile(void){
 				names[ptr][j] = tempName[j];
 			}
 			
+			if (debug_enabled){printf("found %s with value %d\r\n", names[ptr], value[ptr]);}
+			
 			StringClean(tempName, 10);
 			StringClean(tempValue, 10);
 			ptr++;
@@ -1135,8 +1294,15 @@ bool ReadFile(void){
 	}
 	fclose(fp);
 	
+	return true;
+}
+
+
+void evaluateInput(){
 	//TODO only set "setXXX" values if stepId changed, other wise ignore "new/changed values".
+	int i;
 	for(i = 0; i < 15; ++i){
+		//if (debug_enabled){printf("check %s with value %d\r\n", names[i], value[i]);}
 		if(strcmp(names[i], "T0") == 0){
 			setTemp = value[i];
 		} else if(strcmp(names[i], "P0") == 0){
@@ -1157,101 +1323,13 @@ bool ReadFile(void){
 			setStepId = value[i];
 		}
 	}
-	if (debug_enabled){printf("ReadFile: T0: %d, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %d, STIME: %d, SMODE: %d, SID: %d\n", setTemp, setPress, setMotorRpm, setMotorOn, setMotorOff, setWeight, setTime, setMode, setStepId);}
+	if (debug_enabled){printf("evaluateInput: T0: %d, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %d, STIME: %d, SMODE: %d, SID: %d\n", setTemp, setPress, setMotorRpm, setMotorOn, setMotorOff, setWeight, setTime, setMode, setStepId);}
 	
 	if(setTemp>200) {setTemp=200;}
 	if(setPress>200) {setPress=200;}
 	if (setMotorOn>0 && setMotorOn<2) setMotorOn=2;
 	if (setMotorOff>0 && setMotorOff<2) setMotorOff=2;
-	return true;
 }
-
-/* Convert a number to a string
- *
- */
-void NumberConvertToString(uint32_t num, char *str){
-	uint8_t i = 0;
-	uint32_t value, mutiplecand = 1;
-
-	value = num;
-	do {
-		mutiplecand = mutiplecand*10;
-		i++;
-	//} while (value >= mutiplecand || i > 9); //TODO: this would get en endloos loop if i>9...
-	} while (value >= mutiplecand);
-	
-	while (mutiplecand != 1){
-		mutiplecand = mutiplecand/10;
-		*str++ = num/mutiplecand+48;
-		num = num%mutiplecand;
-	}
-}
-/* Clean the string
- *
- */
-void StringClean(char *str, uint32_t len){
-	uint32_t i = 0;
-
-	for (; i< len; i++){
-		str[i] = 0x00;
-	}
-}
-/* Combine two strings to one string
- *
- */
-void StringUnion(char *fristString, char *secondString){
-	uint8_t i = 0, fristEndPtr = 0;
-
-	while (fristString[fristEndPtr]){
-		fristEndPtr++;
-	}
-	while (secondString[i]){
-		fristString[fristEndPtr+i] = secondString[i];
-		i++;
- 	}
-}
-/* convert a string to a number
- *
- */
-uint32_t StringConvertToNumber(char *str){
-	uint32_t value = 0 ,len = 0, mutiple = 1;
-
-	while (str[len]){
-		len++;
-		mutiple *= 10;
-	}
-	len = 0;	
-	while (str[len]){
-		mutiple = mutiple/10;
-		value = value + (str[len]-48)*mutiple;
-		len++;
-	}
-	return value;
-}
-
-double StringConvertToDouble(char *str){
-	double value = 0.0, mutiple = 1.0;
-	uint32_t len = 0;
-
-	while (str[len]){
-		if (str[len] == '.'){
-			break;
-		}
-		len++;
-		mutiple *= 10.0;
-	}
-	len = 0;	
-	while (str[len]){
-		if (str[len] != '.'){
-			mutiple = mutiple/10.0;
-			value = value + (str[len]-48)*mutiple;
-		}
-		len++;
-	}
-	return value;
-}
-
-
 
 
 
@@ -1269,52 +1347,51 @@ void ReadConfigurationFile(void){
 	uint8_t i = 0;
 	uint8_t ptr = 0;
 	char c;
+	char c2;
 	StringClean(keyString, 30);
 	StringClean(valueString, 100);
 	fp = fopen(configFile, "r");
 	if (fp != NULL){
-		while ((c = fgetc(fp)) != 255){
-			//c = fgetc(fp);
+		c = fgetc(fp);
+		while (c != 255){
 			if (c == '#'){
 				if (debug_enabled){printf("\tline with # found\n");}
-				while (c != '\n'){
+				while (c != '\r' && c != '\n'){
 					c = fgetc(fp);
 				}
 			} else if (c == '\n'){
-				//Empty line
+				//Empty line or end of last line
 			} else if (c == '\r'){
 				//Empty line
 			} else {
 				i = 0;
-				while (c != '='){
+				while (c != '=' && c != '\r' && c != '\n'){
 					keyString[i] = c;
 					c = fgetc(fp);
 					++i;
 				}
 				i = 0;
 				c = fgetc(fp); //currently its '=' so read next
-				while (c != '\n'){
+				while (c != '\r' && c != '\n'){
 					if (c == '#'){
 						//allow coment behind value
 						break;
 					}
-					if (c != '\r'){
-						valueString[i] = c;
-					}
+					valueString[i] = c;
 					c = fgetc(fp);
 					++i;
 				}
 				//remove spaces at end of value
-				i=i-2;
+				--i;
 				if (i>0){
-					c = valueString[i];
-					while (c == ' ' || c == '\t'){
+					c2 = valueString[i];
+					while (c2 == ' ' || c2 == '\t'){
 						valueString[i] = 0x00;
 						--i;
 						if (i < 0){
 							break;
 						}
-						c = valueString[i];
+						c2 = valueString[i];
 					}
 				}
 				
@@ -1452,11 +1529,22 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "ShortDelay") == 0){
 					ShortDelay = StringConvertToNumber(valueString);
 					if (debug_enabled){printf("\tShortDelay: %d\n", ShortDelay);} // (old: %d)
+					
+				} else if(strcmp(keyString, "middlewareHostname") == 0){
+					//TODO: alloc new mem
+					//middlewareHostname = valueString;
+					if (debug_enabled){printf("\tmiddlewareHostname: %s\n", middlewareHostname);}
+				} else if(strcmp(keyString, "middlewarePortno") == 0){
+					middlewarePortno = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\tmiddlewarePortno: %d\n", middlewarePortno);}
 				} else {
 					if (debug_enabled){printf("\tkey not Found\n");}
 				}
 				StringClean(keyString, 30);
 				StringClean(valueString, 100);
+			}
+			if (c != '#'){
+				c = fgetc(fp);
 			}
 		}
 	}
@@ -1486,17 +1574,6 @@ void ReadConfigurationFile(void){
 	
 	fclose(fp);
 	if (debug_enabled){printf("done.\n");}
-}
-/*
-*/
-int POWNTimes(uint32_t num, uint8_t n){
-	int i = 0;
-
-	while (num > 1){
-		num = num / n;
-		i++;
-	}
-	return i;
 }
 
 

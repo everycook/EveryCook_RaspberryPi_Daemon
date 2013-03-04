@@ -56,8 +56,11 @@
 
 void resetValues();
 void ProcessCommand(void);
-void WriteFile(void);
-bool ReadFile(void);
+void prepareState(char* TotalUpdate);
+void WriteFile(char* data);
+void parseSockInput(char* input);
+bool ReadFile();
+void evaluateInput();
 void ReadConfigurationFile(void);
 
 

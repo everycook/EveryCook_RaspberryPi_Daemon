@@ -29,7 +29,7 @@ LIBS    = -lwiringPi -lpthread -lm #lm needed for math.h
 # Should not alter anything below this line
 ###############################################################################
 
-SRC	=	virtualspi.c virtuali2c.c basic_functions.c firmware.c
+SRC	=	virtualspi.c virtuali2c.c basic_functions.c firmware.c middlewareSocket.c convertFunctions.c
 
 OBJ	=	$(SRC:.c=.o)
 
@@ -78,6 +78,7 @@ install:	$(TARGET)
 	@install -m 0644 virtualspi.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 virtuali2c.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 basic_functions.h		$(DESTDIR)$(PREFIX)/include
+	@install -m 0644 middlewareSocket.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 firmware.h		$(DESTDIR)$(PREFIX)/include
 	
 #	@install -m 0755 -d			$(DESTDIR)$(PREFIX)/lib
@@ -95,6 +96,7 @@ uninstall:
 	@rm -f $(DESTDIR)$(PREFIX)/include/virtuali2c.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/basic_functions.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/firmware.h
+	@rm -f $(DESTDIR)$(PREFIX)/include/middlewareSocket.h
 #	@rm -f $(DESTDIR)$(PREFIX)/lib/$(LIBARY_NAME).*
 	@ldconfig
 
@@ -109,3 +111,5 @@ virtualspi.o: virtualspi.h
 virtuali2c.o: virtuali2c.h
 firmware.o: firmware.h
 basic_functions.o: basic_functions.h
+middlewareSocket.o: middlewareSocket.h
+convertFunctions.o: convertFunctions.h
