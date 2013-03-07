@@ -30,6 +30,7 @@ void initHardware(){
 	VirtualSPIInit();
 	VirtualI2CInit();
 	GPIOInit();
+	
 	PCA9685Init();
 	AD7794Init();
 }
@@ -53,12 +54,14 @@ void GPIOInit(void){
 	pinMode(22 ,INPUT);	//SIG4
 	pinMode(7 ,INPUT);	//SIG5
 	pinMode(17 ,INPUT);	//SIG6
-
 	pinMode(14, OUTPUT);	//KEY1
 	pinMode(15, OUTPUT);	//KEY2
 	pinMode(18, OUTPUT);	//KEY3
 	pinMode(23, OUTPUT);	//KEY4
-	
+	/*writeRaspberryPin(14,0);
+	writeRaspberryPin(15,0);
+	writeRaspberryPin(18,0);
+	writeRaspberryPin(23,0);*/
 }
 void PCA9685Init(void){
 	if (debug_enabled2){printf("PCA9685Init\n");}

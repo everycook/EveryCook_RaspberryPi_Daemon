@@ -1,13 +1,15 @@
 #configuration file for the EveryCook_RaspberryPi_Deamon
 #lines starting with a # are comments
 
-#the conversion factor between ADC values and grams
-ForceScaleFactor=1
-
-#two calibrations points between ADC values and pressure in kPa
-PressADC1=8822000
+#the conversion factor between ADC values and grams 8714000 0 8720000 100
+ForceADC1=1000
+ForceADC2=2000
+ForceValue1=0
+ForceValue2=100
+#two calibrations points between adc values and pressure in kpa
+PressADC1=10015000
 PressValue1=0
-PressADC2=8815000
+PressADC2=11800000
 PressValue2=100.0
 
 #two calibrations points between ADC values and temperature in °C
@@ -33,15 +35,16 @@ Gain_LoadCellFrontLeft=8
 Gain_LoadCellFrontRight=8
 Gain_LoadCellBackLeft=8
 Gain_LoadCellBackRight=8
-GainPress=8
-GainTemp=4
+Gain_Press=8
+Gain_Temp=4
 
 #beep time in seconds 0=no beep
 BeepWeightReached=1
 BeepStepEnd=1
 
 #logging
-DeleteLogOnStart=1  #delete log at start saves disk space set 0 to keep log
+DeleteLogOnStart=1  
+#delete log at start saves disk space set 0 to keep log
 LogFile=/var/log/EveryCook_Deamon.log
 
 #communication

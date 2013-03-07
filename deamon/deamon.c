@@ -65,10 +65,10 @@ char *logFile = "/var/log/EveryCook_Deamon.log";
 double ForceScaleFactor=0.1; //Conversion between digital Units and grams
 
 double PressScaleFactor=0.1;
-uint32_t PressOffset=1000;
+double PressOffset=1000;
 
 double TempScaleFactor=0.1;
-uint32_t TempOffset=1000;
+double TempOffset=1000;
 
 //two calibrations points between ADC values and pressure in kPa
 uint32_t PressADC1=100;
@@ -89,13 +89,6 @@ uint32_t ForceADC2=1000;
 double ForceValue2=100.0;
 
 
-uint8_t GainScale_1=8;
-uint8_t GainScale_2=8;
-uint8_t GainScale_3=8;
-uint8_t GainScale_4=8;
-uint8_t GainPress=8;
-uint8_t GainTemp=4;
-
 uint8_t BeepWeightReached=1;
 uint8_t BeepStepEnd=1;
 
@@ -108,9 +101,6 @@ uint32_t LowPress = 40;
 //delay for normal operation and scale mode
 uint32_t LongDelay = 500;
 uint32_t ShortDelay = 1;
-
-
-
 
 //Command values
 uint32_t setTemp = 0;
@@ -137,9 +127,6 @@ uint32_t oldMode = 0;
 double oldTemp = 0;
 double oldPress = 0;
 double oldWeight = 0;
-
-
-
 
 //Processing Values
 uint32_t Delay = 1;
@@ -276,7 +263,6 @@ int main(int argc, const char* argv[]){
 		//try {
 			if (debug_enabled){printf("main loop...\n");}
 			runTime = millis()/1000; //calculate runtime in seconds
-			//TODO_wia use system time???
 			
 			if (calibration){
 			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
@@ -428,7 +414,7 @@ double readPress(){
 		return pressValue;
 	} else {
 		uint32_t pressValueInt = readADC(ADC_Press);
-		double pressValue = (double)pressValueInt* PressScaleFactor+(double)PressOffset;
+		double pressValue = pressValueInt* PressScaleFactor+PressOffset;
 		if (debug_enabled || calibration){printf("readPress %d digits %.1f kPa\n", pressValueInt, pressValue);}
 		return pressValue;
 	}
@@ -655,8 +641,6 @@ void PressControl(){
 			oldPress = press;
 			uint32_t pressValue = readPress();
 			press=pressValue;
-			//SerialUSB.println("Pressure control: ");
-			//SerialUSB.print(press);  SerialUSB.print(" kPa Pressure");
 			int DeltaP=setPress-press;
 			if (mode==MODE_PRESSUP || mode==MODE_PRESSHOLD) {
 				if (DeltaP<=0) {
@@ -683,7 +667,6 @@ void PressControl(){
 		}
 	} else if (mode>=MIN_TEMP_MODE && mode<=MAX_TEMP_MODE) {
 		if (runTime>=nextTempCheckTime || heatPowerStatus==0){
-			//press=map(analogRead(PressPin),0,2000,0,100); //read pressure
 			uint32_t pressValue = readPress();
 			oldPress = press;
 			press=pressValue;
@@ -695,10 +678,6 @@ void MotorControl(){
 	if (mode==MODE_CUT || mode>=MIN_TEMP_MODE){
 		if (mode==MODE_CUT) stepEndTime=runTime+1;
 		if (setMotorRpm > 0 && mode<=MAX_STATUS_MODE) {
-			//  SerialUSB.println("Motor Control");
-			// SerialUSB.print("Encoder Changes"); SerialUSB.println(EncoderChanges);
-			// SerialUSB.print("Last Encoder Changes"); SerialUSB.println(LastEncoderChanges);
-
 			if  (setMotorOn > 0 && setMotorOff > 0) {
 				if (runTime >= motorStartTime+setMotorOn && runTime < motorStartTime+setMotorOn+setMotorOff) { 
 					motorRpm = 0; 
@@ -711,10 +690,6 @@ void MotorControl(){
 				motorRpm = setMotorRpm;
 				motorStartTime=runTime;
 			}
-			/*  SerialUSB.print("runTime: ");  SerialUSB.print(runTime);  SerialUSB.print(" motorStartTime: ");  SerialUSB.print(motorStartTime);
-			SerialUSB.print(" MotorrunTime: ");  SerialUSB.print(setMotorOn);  SerialUSB.print(" MotorPauseTime: ");  SerialUSB.print(setMotorOff);
-			SerialUSB.print(" Motor Rpm: ");  SerialUSB.println(motorRpm);
-			*/
 		}
 	} else {
 		//SerialUSB.println(" Motor off: ");
@@ -1292,7 +1267,7 @@ void ReadConfigurationFile(void){
 		while ((c = fgetc(fp)) != 255){
 			//c = fgetc(fp);
 			if (c == '#'){
-				if (debug_enabled){printf("\tline with # found\n");}
+				if (debug_enabled || calibration){printf("\tline with # found\n");}
 				while (c != '\n'){
 					c = fgetc(fp);
 				}
@@ -1334,124 +1309,125 @@ void ReadConfigurationFile(void){
 					}
 				}
 				
-				if (debug_enabled){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
+				if (debug_enabled || calibration){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
 				
 				//ParseConfigValue
+				//scale
 				if(strcmp(keyString, "ForceADC1") == 0){
 					ForceADC1 = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tForceADC1: %d\n", ForceADC1);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tForceADC1: %d\n", ForceADC1);} // (old: %d)
 				} else if(strcmp(keyString, "ForceValue1") == 0){
 					ForceValue1 = StringConvertToDouble(valueString);
-					if (debug_enabled){printf("\tForceValue1: %f\n", ForceValue1);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tForceValue1: %f\n", ForceValue1);} // (old: %d)
 				} else if(strcmp(keyString, "ForceADC2") == 0){
 					ForceADC2 = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tForceADC2: %d\n", ForceADC2);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tForceADC2: %d\n", ForceADC2);} // (old: %d)
 				} else if(strcmp(keyString, "ForceValue2") == 0){
 					ForceValue2 = StringConvertToDouble(valueString);
-					if (debug_enabled){printf("\tForceValue2: %f\n", ForceValue2);} // (old: %d)
-				
+					if (debug_enabled || calibration){printf("\tForceValue2: %f\n", ForceValue2);} // (old: %d)
+				//pressure
 				} else if(strcmp(keyString, "PressADC1") == 0){
 					PressADC1 = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tPressADC1: %d\n", PressADC1);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tPressADC1: %d\n", PressADC1);} // (old: %d)
 				} else if(strcmp(keyString, "PressValue1") == 0){
 					PressValue1 = StringConvertToDouble(valueString);
-					if (debug_enabled){printf("\tPressValue1: %f\n", PressValue1);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tPressValue1: %f\n", PressValue1);} // (old: %d)
 				} else if(strcmp(keyString, "PressADC2") == 0){
 					PressADC2 = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tPressADC2: %d\n", PressADC2);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tPressADC2: %d\n", PressADC2);} // (old: %d)
 				} else if(strcmp(keyString, "PressValue2") == 0){
 					PressValue2 = StringConvertToDouble(valueString);
-					if (debug_enabled){printf("\tPressValue2: %f\n", PressValue2);} // (old: %d)
-				
+					if (debug_enabled || calibration){printf("\tPressValue2: %f\n", PressValue2);} // (old: %d)
+				//temperature
 				} else if(strcmp(keyString, "TempADC1") == 0){
 					TempADC1 = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tTempADC1: %d\n", TempADC1);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tTempADC1: %d\n", TempADC1);} // (old: %d)
 				} else if(strcmp(keyString, "TempValue1") == 0){
 					TempValue1 = StringConvertToDouble(valueString);
-					if (debug_enabled){printf("\tTempValue1: %f\n", TempValue1);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tTempValue1: %f\n", TempValue1);} // (old: %d)
 				} else if(strcmp(keyString, "TempADC2") == 0){
 					TempADC2 = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tTempADC2: %d\n", TempADC2);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tTempADC2: %d\n", TempADC2);} // (old: %d)
 				} else if(strcmp(keyString, "TempValue2") == 0){
 					TempValue2 = StringConvertToDouble(valueString);
-					if (debug_enabled){printf("\tTempValue2: %f\n", TempValue2);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tTempValue2: %f\n", TempValue2);} // (old: %d)
 				
-				
+				//adc channels
 				} else if(strcmp(keyString, "ADC_LoadCellFrontLeft") == 0){
 					ADC_LoadCellFrontLeft = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tADC_LoadCellFrontLeft: %d\n", ADC_LoadCellFrontLeft);}
+					if (debug_enabled || calibration){printf("\tADC_LoadCellFrontLeft: %d\n", ADC_LoadCellFrontLeft);}
 
 				} else if(strcmp(keyString, "ADC_LoadCellFrontRight") == 0){
 					ADC_LoadCellFrontRight = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tLADC_oadCellFrontRight: %d\n", ADC_LoadCellFrontRight);}
+					if (debug_enabled || calibration){printf("\tLADC_oadCellFrontRight: %d\n", ADC_LoadCellFrontRight);}
 
 				} else if(strcmp(keyString, "ADC_LoadCellBackLeft") == 0){
 					ADC_LoadCellBackLeft = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tADC_LoadCellBackLeft: %d\n", ADC_LoadCellBackLeft);}
+					if (debug_enabled || calibration){printf("\tADC_LoadCellBackLeft: %d\n", ADC_LoadCellBackLeft);}
 
 				} else if(strcmp(keyString, "ADC_LoadCellBackRight") == 0){
 					ADC_LoadCellBackRight = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tADC_LoadCellBackRight: %d\n", ADC_LoadCellBackRight);}
+					if (debug_enabled || calibration){printf("\tADC_LoadCellBackRight: %d\n", ADC_LoadCellBackRight);}
 
 				} else if(strcmp(keyString, "ADC_Press") == 0){
 					ADC_Press = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tADC_Press: %d\n", ADC_Press);}
+					if (debug_enabled || calibration){printf("\tADC_Press: %d\n", ADC_Press);}
 
 				} else if(strcmp(keyString, "ADC_Temp") == 0){
 					ADC_Temp = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tADC_Temp: %d\n", ADC_Temp);}
+					if (debug_enabled || calibration){printf("\tADC_Temp: %d\n", ADC_Temp);}
 					
 				} else if(strcmp(keyString, "Gain_LoadCellFrontLeft") == 0){
+					ptr = ADC_LoadCellFrontLeft;
+					newADCConfig[ptr] = StringConvertToNumber(valueString);
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
+					if (debug_enabled || calibration){printf("\tGain_LoadCellFrontLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
+				} else if(strcmp(keyString, "Gain_LoadCellFrontRight") == 0){
 					ptr = ADC_LoadCellFrontRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
 					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
-					if (debug_enabled){printf("\tGain_LoadCellFrontLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				} else if(strcmp(keyString, "Gain_LoadCellFrontRight") == 0){
+					if (debug_enabled || calibration){printf("\tGain_LoadCellFrontRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
+				} else if(strcmp(keyString, "Gain_LoadCellBackLeft") == 0){
 					ptr = ADC_LoadCellBackLeft;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
 					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
-					if (debug_enabled){printf("\tGain_LoadCellFrontRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				} else if(strcmp(keyString, "Gain_LoadCellBackLeft") == 0){
-					ptr = ADC_LoadCellBackRight;
-					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
-					if (debug_enabled){printf("\tGain_LoadCellBackLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tGain_LoadCellBackLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellBackRight") == 0){
 					ptr = ADC_LoadCellBackRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
 					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
-					if (debug_enabled){printf("\tGain_LoadCellBackRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tGain_LoadCellBackRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Press") == 0){
 					ptr = ADC_Press;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
 					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
-					if (debug_enabled){printf("\tGain_Press: %04X\n", newADCConfig[ptr]);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tGain_Press: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Temp") == 0){
 					ptr = ADC_Temp;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
 					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
-					if (debug_enabled){printf("\tGain_Temp: %04X\n", newADCConfig[ptr]);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tGain_Temp: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				
 				} else if(strcmp(keyString, "BeepWeightReached") == 0){
 					BeepWeightReached = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tBeepWeightReached: %d\n", BeepWeightReached);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tBeepWeightReached: %d\n", BeepWeightReached);} // (old: %d)
 				} else if(strcmp(keyString, "BeepStepEnd") == 0){
 					BeepStepEnd = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tBeepStepEnd: %d\n", BeepStepEnd);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tBeepStepEnd: %d\n", BeepStepEnd);} // (old: %d)
 				} else if(strcmp(keyString, "doRememberBeep") == 0){
 					doRememberBeep = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tdoRememberBeep: %d\n", doRememberBeep);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tdoRememberBeep: %d\n", doRememberBeep);} // (old: %d)
 				} else if(strcmp(keyString, "DeleteLogOnStart") == 0){
 					DeleteLogOnStart = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tDeleteLogOnStart: %d\n", DeleteLogOnStart);} // (old: %d)
+					if (debug_enabled || calibration){printf("\tDeleteLogOnStart: %d\n", DeleteLogOnStart);} // (old: %d)
 				} else if(strcmp(keyString, "LogFile") == 0){
 					//TODO: alloc new mem
 					//logFile = valueString;
-					if (debug_enabled){printf("\tLogFile: %s\n", logFile);} // (old: %s)
+					if (debug_enabled || calibration){printf("\tLogFile: %s\n", logFile);} // (old: %s)
 				} else if(strcmp(keyString, "CommandFile") == 0){
 					//TODO: alloc new mem
 					//commandFile = valueString;
-					if (debug_enabled){printf("\tCommandFile: %s\n", commandFile);} // (old: %s)
+					if (debug_enabled || calibration){printf("\tCommandFile: %s\n", commandFile);} // (old: %s)
 				} else if(strcmp(keyString, "StatusFile") == 0){
 					//TODO: alloc new mem
 					//statusFile = valueString;
@@ -1476,29 +1452,21 @@ void ReadConfigurationFile(void){
 			}
 		}
 	}
-	/*
-	ForceScaleFactor=100.0/((double)ForceValue100-(double)ForceValue0);
-	PressScaleFactor=100.0/((double)PressValue100-(double)PressValue0);
-	PressOffset=PressValue0;
-	TempScaleFactor=100.0/((double)TempValue100-(double)TempValue0);
-	TempOffset=TempValue0;
-	*/
-	
 	ForceScaleFactor=(ForceValue2-ForceValue1)/((double)ForceADC2-(double)ForceADC1);
 	
 	PressScaleFactor=(PressValue2-PressValue1)/((double)PressADC2-(double)PressADC1);
-	//PressOffset=PressScaleFactor/PressValue1;
 	PressOffset=PressValue1 - PressADC1*PressScaleFactor ;  //offset in ADC-Value
 	
 	TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
+	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in ADC-Value
+	
 	//int debug=TempADC1;
 	//TempOffset=TempScaleFactor/TempValue1;	//falsch
 	//TempOffset=TempADC1*TempScaleFactor - TempValue1;  //offset in °C
-	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in ADC-Value
 	
 	//TempOffset=TempValue1-TempADC1*TempScaleFactor;
 	//printf("debugvalue %d.\n",debug);
-	if (debug_enabled){printf("ForceScaleFactor: %f, PressScaleFactor: %f, PressOffset: %d, TempScaleFactor: %e, TempOffset: %d\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
+	if (debug_enabled || calibration){printf("ForceScaleFactor: %.2e, PressScaleFactor: %.2e, PressOffset: %f, TempScaleFactor: %.2e, TempOffset: %f\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
 	
 	fclose(fp);
 	if (debug_enabled){printf("done.\n");}
