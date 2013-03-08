@@ -1,3 +1,18 @@
+/*
+This is the EveryCook Raspberry Pi deamon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
+EveryCook is an open source platform for collecting all data about food and make it available to all kinds of cooking devices.
+
+This program is copyright (C) by EveryCook. Written by Samuel Werder, Peter Turczak and Alexis Wiasmitinow.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+See GPLv3.htm in the main folder for details.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -7,7 +22,6 @@
 
 #include <softPwm.h>
 #include <wiringPi.h>
-
 
 #include <string.h>
 
@@ -29,9 +43,6 @@ uint32_t StringConvertToNumber(char *str);
 double StringConvertToDouble(char *str);
 int POWNTimes(uint32_t num, uint8_t n);
 
-
-
-
 void initOutputFile(void);
 double readTemp();
 double readPress();
@@ -45,8 +56,6 @@ double readWeightSeparate(double* values);
 
 void blink7Segment();
 
-
-
 //	uint32_t adc0;
 //uint8_t structregpointer = 0;
 char TotalUpdate[512];
@@ -54,9 +63,6 @@ char TotalUpdate[512];
 
 char *configFile = "config";
 
-//Configurable Values
-//char *commandFile = "/var/www/writefile.txt";
-//char *statusFile = "/var/www/readfile.txt";
 char *commandFile = "/dev/shm/command";
 char *statusFile = "/dev/shm/status";
 char *logFile = "/var/log/EveryCook_Deamon.log";
@@ -70,28 +76,21 @@ double PressOffset=1000;
 double TempScaleFactor=0.1;
 double TempOffset=1000;
 
-//two calibrations points between ADC values and pressure in kPa
-uint32_t PressADC1=100;
-double PressValue1=0.1;
-uint32_t PressADC2=1000;
-double PressValue2=100.0;
-
-//two calibrations points between ADC values and temperature in °C
-uint32_t TempADC1=100;
-double TempValue1=0.1;
-uint32_t TempADC2=1000;
-double TempValue2=100.0;
-
-//two calibrations points between ADC values and weight
-uint32_t ForceADC1=100;
-double ForceValue1=0.1;
-uint32_t ForceADC2=1000;
-double ForceValue2=100.0;
-
-
+//all these values are read from the config file. chnanging them here is useless
+uint32_t PressADC1=0;
+double PressValue1=0;
+uint32_t PressADC2=0;
+double PressValue2=0;
+uint32_t TempADC1=0;
+double TempValue1=0;
+uint32_t TempADC2=0;
+double TempValue2=0;
+uint32_t ForceADC1=0;
+double ForceValue1=0;
+uint32_t ForceADC2=0;
+double ForceValue2=0;
 uint8_t BeepWeightReached=1;
 uint8_t BeepStepEnd=1;
-
 uint8_t DeleteLogOnStart=1;  //delete log at start saves disk space set 0 to keep log
 
 //Values for change 7seg display
@@ -142,13 +141,7 @@ uint8_t scaleReady = 0;
 
 uint8_t heatPowerStatus = 0; //Induction heater power 0=off >0=on
 uint32_t nextTempCheckTime=0; //when did we do the last Temperature Check???
-
-
-//uint8_t MotorDir =0; //0=cw 1=ccw
 uint32_t motorStartTime =0; //When did we start the motor?
-
-//double ForceScaleFactor = 4; //12.33 Conversion between digital Units and grams
-//double ForceScaleFactor = 1;
 uint32_t RemainTime=0;
 uint32_t BeepEndTime=0; //when to stop the beeper
 
@@ -209,7 +202,6 @@ void printUsage(){
 	printf("  -?,  --help       show this help\r\n");
 }
 
-
 int main(int argc, const char* argv[]){
 	printf("starting EveryCook deamon...\n");
 	if (debug_enabled){printf("main\n");}
@@ -226,7 +218,6 @@ int main(int argc, const char* argv[]){
 		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
 			calibration = 1;
 			printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
-			//debug_enabled = 1;
 		} else if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-?") == 0){
 			printUsage();
 			return 0;
@@ -254,11 +245,10 @@ int main(int argc, const char* argv[]){
 	
 	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
 	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
-	
-	
-	runTime = time(NULL);
+		
+	runTime = time(NULL); //TODO WIA CHANGE THIS
 	//printf("runtime is now: %d \n",runTime);
-	stepStartTime = runTime;
+	stepStartTime = runTime; //TODO WIA CHANGE THIS
 	while (1){
 		//try {
 			if (debug_enabled){printf("main loop...\n");}
@@ -273,8 +263,8 @@ int main(int argc, const char* argv[]){
 			}
 			else if (ReadFile()){
 				ProcessCommand();
-				runTime = time(NULL);
-				elapsedTime = runTime - stepStartTime;
+				runTime = time(NULL); //TODO WIA CHANGE THIS
+				elapsedTime = runTime - stepStartTime; //TODO WIA CHANGE THIS
 				WriteFile();
 			} else {
 				delay(10000);
@@ -285,7 +275,6 @@ int main(int argc, const char* argv[]){
 		}*/
 		delay(Delay);
 	}
-	
 	//fputs(TotalUpdate, fp);
 	fclose(logFilePointer);
 }
@@ -685,31 +674,20 @@ void MotorControl(){
 					motorRpm = setMotorRpm;
 					motorStartTime=runTime;
 				}
-				//  SerialUSB.println("Interval mode");
 			} else {
 				motorRpm = setMotorRpm;
 				motorStartTime=runTime;
 			}
 		}
 	} else {
-		//SerialUSB.println(" Motor off: ");
 		motorRpm=0;
 	}
-	/*
-	if (motorRpm>0 && LastEncoderChanges==EncoderChanges){
-		mode=42;
-		motorRpm=0;
-	}
-	*/
-	//pwmWrite(RPMPin,motorRpm);
 	setMotorPWM(motorRpm);
-	//LastEncoderChanges=EncoderChanges;
 }
 
 void ValveControl(){
 	if (mode==MODE_PRESSVENT) {
 		HeatOff();
-		//servo1.write(ValveOpenAngle);
 		setServoOpen(1);
 		stepEndTime=runTime+1;
 		if (press < LowPress) {
@@ -717,7 +695,6 @@ void ValveControl(){
 			mode=MODE_PRESSURELESS;
 		}
 	} else {
-		//servo1.write(ValveClosedAngle);
 		setServoOpen(0);
 	}
 }
@@ -753,7 +730,6 @@ void ScaleFunction() {
 				}
 				mode=MODE_WEIGHT_REACHED;
 				RemainTime=0;
-				//SerialUSB.println("Mass reached");
 			}
 			if (debug_enabled){printf("\t\tweight: %f / old: %f\n", weight, oldWeight);}
 		}
@@ -766,12 +742,6 @@ void ScaleFunction() {
 }
 
 void SegmentDisplay(){
-	/*if (mode==53) {
-		digitalWrite(Seg1Pin,HIGH);
-		digitalWrite(Seg2Pin,LOW);
-		return;
-	}*/ 
-	
 	char curSegmentDisplay = ' ';
 	if (press>=LowPress){
 		curSegmentDisplay = 'P';
@@ -965,9 +935,6 @@ void Beep(){
 			}
 		}
 	}
-	
-	//if (runTime<BeepEndTime) digitalWrite(BeepPin,HIGH);
-	//else digitalWrite(BeepPin,LOW);
 	if (runTime<BeepEndTime){
 		if (!isBuzzing){
 			isBuzzing = 1;
@@ -980,16 +947,6 @@ void Beep(){
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
 
 
 /*******************PI File read/write Code**********************/
