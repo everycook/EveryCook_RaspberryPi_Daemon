@@ -372,7 +372,7 @@ double readTemp(){
 		uint32_t tempValueInt = readADC(ADC_Temp);
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
-		if (debug_enabled || calibration){printf("readTemp %d digits %.0f Â°C ", tempValueInt, tempValue);}
+		if (debug_enabled || calibration){printf("Temp %d dig %.0f °C ", tempValueInt, tempValue);}
 		return tempValue;
 	}
 }
@@ -404,7 +404,7 @@ double readPress(){
 	} else {
 		uint32_t pressValueInt = readADC(ADC_Press);
 		double pressValue = pressValueInt* PressScaleFactor+PressOffset;
-		if (debug_enabled || calibration){printf("readPress %d digits %.1f kPa\n", pressValueInt, pressValue);}
+		if (debug_enabled || calibration){printf("Press %d digits %.1f kPa ", pressValueInt, pressValue);}
 		return pressValue;
 	}
 }
@@ -508,8 +508,8 @@ double readWeight(){
 		double weightValue = (double)weightValueSum;
 		weightValue *=ForceScaleFactor;
 		weightValue = roundf(weightValue);
-		if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams ", weightValueSum, weightValue);}
-		//if (debug_enabled || calibration){printf("readWeight %d digits, %f grams (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
+		//if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams\n", weightValueSum, weightValue);}
+		if (debug_enabled || calibration){printf("Weight %d dig %.1f g FL %d FR %d RL %d RR %d\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
 		return weightValue;
 	}
 }
@@ -1484,46 +1484,3 @@ void blink7Segment(){
 	writeI2CPin(I2C_7SEG_PERIOD,I2C_7SEG_OFF);
 	delay(500);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		
-	
-	
-	
-	
-	
-	
