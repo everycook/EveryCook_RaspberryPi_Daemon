@@ -18,9 +18,12 @@ $classLoader->register();
 $classLoader = new SplClassLoader('EveryCook', __DIR__ . '/lib');
 $classLoader->register();
 
+set_include_path(get_include_path() . PATH_SEPARATOR . '/var/www/db_wsd/protected/components/' . PATH_SEPARATOR . '/var/www/db_wsd/protected/models/');
+
 //$yii = $_SERVER['DOCUMENT_ROOT'].'/yii/framework/yii.php';
-$yii = 'E:/htdocs/EveryCook/lib/yii/framework/yii.php';
-//require_once($yii);
+//$yii = 'E:/htdocs/EveryCook/lib/yii/framework/yii.php';
+$yii='/var/www/db_wsd/lib/yii/framework/yii.php';
+require_once($yii);
 //YiiBase::registerAutoloader($my_autoload, true);
 
 /*
@@ -59,6 +62,13 @@ $server = new \EveryCook\EveryCookServer('ws://10.0.0.1:8000/', array(
      )
 ));
 
-$server->registerApplication('everycook', new \EveryCook\Application\EveryCookApplication());
+
+
+$server->registerApplication('everycook', new \EveryCook\Application\EveryCookApplication(array(
+	'deviceWritePath'=>'/dev/shm/command',
+	'deviceReadPath'=>'/dev/shm/status',
+	'deviceWriteUrl'=>'/hw/sendcommand.php?command=',
+	'deviceReadUrl'=>'/hw/status',
+	)));
 
 $server->run();

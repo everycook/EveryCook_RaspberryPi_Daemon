@@ -3,6 +3,7 @@
 namespace EveryCook\Frame;
 
 use Wrench\Protocol\Protocol;
+use Wrench\Frame\Frame;
 use Wrench\Exception\FrameException;
 use \InvalidArgumentException;
 

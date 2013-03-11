@@ -2,12 +2,14 @@
 
 namespace EveryCook;
 
+use EveryCook\Protocol\ServerConnectProtocol;
+
 use Wrench\Connection;
 use Wrench\Socket\ServerClientSocket;
 use Wrench\Exception\ConnectionException;
+use Wrench\ConnectionManager;
 
 use Wrench\Protocol\Protocol;
-use Wrench\Protocol\ServerConnectProtocol;
 use Wrench\Payload\Payload;
 use Wrench\Payload\PayloadHandler;
 

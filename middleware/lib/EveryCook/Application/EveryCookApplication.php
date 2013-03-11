@@ -9,28 +9,114 @@ use Wrench\Application\Application;
  */
 class EveryCookApplication extends Application
 {
+
+	const STANDBY=0;
+	const CUT=1;
+	const MOTOR=1;
+	const SCALE=2;
+	const HEADUP=10;
+	const COOK=11;
+	const COOLDOWN=12;
+	const PRESSUP=20;
+	const PRESSHOLD=21;
+	const PRESSDOWN=22;
+	const PRESSVENT=23;
+	
+	const HOT=30;
+	const PRESSURIZED=31;
+	const COLD=32;
+	const PRESSURELESS=33;
+	const WEIGHT_REACHED=34;
+	const COOK_TIMEEND=35;
+	const RECIPE_END=39;
+	
+	const INPUT_ERROR=40;
+	const EMERGANCY_SHUTDOWN=41;
+	const MOTOR_OVERLOAD=42;
+	
+	const COMMUNICATION_ERROR=53;
+	
+	
+	const COOK_WITH_OTHER = 0;
+	const COOK_WITH_LOCAL = 1;
+	const COOK_WITH_IP = 2;
+	const COOK_WITH_IP_DEFAULT = '10.0.0.1';
+	const COOK_WITH_EVERYCOOK_COI = 1;
+	
+	
+	
     protected $_clients = array();
     protected $_lastTimestamp = null;
 	protected $_firmware_client = null;
 	protected $_server = null;
 	
-	private function readActionFromFirmware($info, $recipeNr){
+	protected $_deviceReadPath = null;
+	protected $_deviceReadUrl = null;
+	protected $_options = null;
+	protected $debug = false;
+	
+	protected $_memcached = null;
+	
+	protected function getMemcached(){
+		if ($this->_memcached == null){
+			$this->_memcached = new \Memcached();
+			$this->_memcached->addServer($this->_options['memcachedHost'], $this->_options['memcachedPort']);
+		}
+		return $this->_memcached;
+	}
+	
+	protected function getFromCache($name){
+		//return Yii::app()->session[$name];
+		//return apc_fetch($name);
+		$memcached = $this->getMemcached();
+		return $memcached->get($name."_stdobj");
+	}
+	
+	protected function saveToCache($name, $value){
+		//Yii::app()->session['cookingInfo'] = $info;
+		//if(apc_store($name, $value)){
+		$memcached = $this->getMemcached();
+		if($memcached->set($name."_stdobj", $value)){
+		/*
+			echo "save successfull...";
+		} else {
+			echo "save failed...";
+		*/
+		}
+	}
+	
+	public function __construct($options){
+        $this->_options = array_merge(array(
+			'deviceWritePath'=>'/dev/shm/command',
+			'deviceReadPath'=>'/dev/shm/status',
+			'deviceWriteUrl'=>'/hw/sendcommand.php?command=',
+			'deviceReadUrl'=>'/hw/status',
+			'memcachedHost'=>'localhost',
+			'memcachedPort'=>11211,
+        ), $options);
+	}
+	
+	private function readFromFirmware($info, $recipeNr){
 		$dest = $info->cookWith[$recipeNr];
 		$inhalt = '';
 		if ($dest[0] == self::COOK_WITH_LOCAL){
-			$fw = fopen(Yii::app()->params['deviceReadPath'], "r");
-			if ($fw !== false){
-				while (!feof($fw)) {
-					$inhalt .= fread($fw, 128);
+			if(file_exists($this->_options['deviceReadPath'])){
+				$fw = fopen($this->_options['deviceReadPath'], "r");
+				if ($fw !== false){
+					while (!feof($fw)) {
+						$inhalt .= fread($fw, 128);
+					}
+					fclose($fw);
+				} else {
+					//TODO: error on read status
+					$inhalt = 'ERROR: $errstr ($errno)';
 				}
-				fclose($fw);
 			} else {
-				//TODO: error on read status
-				$inhalt = 'ERROR: $errstr ($errno)';
+				$inhalt = 'ERROR: file ' . $this->_options['deviceReadPath'] . ' does not exist';
 			}
 		} else if ($dest[0] == self::COOK_WITH_IP){
 			require_once("remotefileinfo.php");
-			$inhalt=remote_file('http://'.$dest[2].Yii::app()->params['deviceReadUrl']);
+			$inhalt=remote_file('http://'.$dest[2].$this->_options['deviceReadUrl']);
 		}
 		
 		//$inhalt='{"T0":100,"P0":0,"M0RPM":0,"M0ON":0,"M0OFF":0,"W0":0,"STIME":5,"SMODE":1,"SID":0}';
@@ -45,24 +131,13 @@ class EveryCookApplication extends Application
 		}
 	}
 	
-	public function getUpdateState($recipeNr){
-		$info = null;
-		if (apc_exists('cookingInfo')){
-			$info = apc_fetch('cookingInfo');
-		}
-		if (!$info){
-			return '{"error":"Current cooking information not found!"}';
-		}
-		//$info = Yii::app()->session['cookingInfo'];
-		
-		if (isset($info->cookWith[$recipeNr]) && $info->cookWith[$recipeNr][0]!=self::COOK_WITH_OTHER){
-			$state = $this->readActionFromFirmware($info, $recipeNr);
-			if (is_string($state) && strpos($state,"ERROR: ") !== false){
-				return '{"error":"' . substr($state, 7) . '"}';
-			}
-			
+	public function getUpdateState($info, $recipeNr, $state){
+		echo "getUpdateState\r\n";
+		if (isset($info->cookWith[$recipeNr]) && isset($info->cookWith[$recipeNr][0]) && $info->cookWith[$recipeNr][0]!=self::COOK_WITH_OTHER){
 			$mealStep = $info->steps[$recipeNr];
 			$mealStep->HWValues = $state;
+			print_r($state);
+			$this->saveToCache('HWValues', $state);
 			
 			if ($info->steps[$recipeNr]->endReached){
 				$additional=', T0:' . $state->T0;
@@ -81,6 +156,8 @@ class EveryCookApplication extends Application
 			$mealStep->nextStepIn = $stepStartTime - $currentTime + $mealStep->nextStepTotal;
 			$mealStep->inTime = $stepStartTime + $mealStep->nextStepTotal < $currentTime;
 			$restTime = $mealStep->nextStepIn;
+			
+			printf("executetTime:%s, currentTime:%s, stepStartTime:%s, restTime:%s", $executetTime, $currentTime, $stepStartTime, $restTime);
 			
 			//$restTime = $state->STIME;
 			$additional='';
@@ -157,19 +234,112 @@ class EveryCookApplication extends Application
 				}
 			}
 			
+			
+			printf("additional:%s", $additional);
+			
 			$mealStep->percent = $percent;
 			$mealStep->nextStepIn = $restTime;
 			
-			if (apc_store('cookingInfo', $info)){
-				//error storig attribute...
-			}
+			$this->saveToCache('cookingInfo', $info);
 			
 			$additional.=', T0:' . $state->T0;
 			$additional.=', P0:' . $state->P0;
 			
-			return '{percent:' . $percent . ', restTime:' . $restTime .$additional . ', startTime:'.$_GET['startTime'] . '}';
+			return '{percent:' . $percent . ', restTime:' . $restTime .$additional . '}'; //', startTime:'.$_GET['startTime']
 			
 			//{"T0":100,"P0":0,"M0RPM":0,"M0ON":0,"M0OFF":0,"W0":0,"STIME":30,"SMODE":10,"SID":0}
+		}
+	}
+	
+	private function sendState($firmwareState){
+		$recipeNr = 0;
+		$info = $this->getFromCache('cookingInfo');
+		if (!$info){
+			$this->_sendAll('{"error":"Current cooking information not found!"}');
+			return;
+		}
+		$firmwareState = json_decode($firmwareState);
+		
+		$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
+		$this->_sendAll($state);
+	}
+	
+	private function getAndSendState(){
+		$recipeNr = 0;
+		$info = $this->getFromCache('cookingInfo');
+		if (!$info){
+			$this->_sendAll('{"error":"Current cooking information not found!"}');
+			return;
+		}
+		//$info = Yii::app()->session['cookingInfo'];
+		
+		$firmwareState = $this->readFromFirmware($info, $recipeNr);
+		
+		if (is_string($firmwareState) && strpos($firmwareState,"ERROR: ") !== false){
+			$this->_sendAll('{"error":"' . substr($firmwareState, 7) . '"}');
+			return;
+		}
+		
+		$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
+		$this->_sendAll($state);
+	}
+	
+	private function sendCommand($command){
+		$recipeNr = 0;
+		$info = $this->getFromCache('cookingInfo');
+		if (!$info){
+			$this->_sendAll('{"error":"Current cooking information not found!"}');
+			return;
+		}
+		
+		$this->sendActionToFirmware($info, $recipeNr, $command);
+	}
+	
+	private function sendActionToFirmware($info, $recipeNr, $command){
+		try{
+			if (isset($info->cookWith[$recipeNr]) && count($info->cookWith[$recipeNr])>0 && $info->cookWith[$recipeNr][0]!=self::COOK_WITH_OTHER){
+				if (isset($info->recipeSteps[$recipeNr][$info->stepNumbers[$recipeNr]])){
+					if ($this->debug){
+						echo '<script type="text/javascript"> if(console && console.log){ console.log(\'sendActionToFirmware, command: '.$command.'\')}</script>';
+					}
+					
+					$dest = $info->cookWith[$recipeNr];
+					//TODO: remove return
+					return;
+					if ($dest[0] == self::COOK_WITH_LOCAL){
+						$fw = fopen(Yii::app()->params['deviceWritePath'], "w");
+						if (fwrite($fw, $command)) {
+						} else {
+							//TODO error an send command...
+						}
+						fclose($fw);
+					} else if ($dest[0] == self::COOK_WITH_IP){
+						require_once("remotefileinfo.php");
+						$inhalt=remote_fileheader('http://'.$dest[2].Yii::app()->params['deviceWriteUrl'].$command); //remote_file
+						if (is_string($inhalt) && strpos($inhalt, 'ERROR: ') !== false){
+							//TODO error an send command...
+						}
+					}
+				} else {
+					if ($this->debug){
+						echo 'console.log(\'sendActionToFirmware, $info->recipeSteps[$recipeNr][$info->stepNumbers[$recipeNr]] not set\');';
+						//echo 'console.log(\'sendActionToFirmware, count($info->course->couToRecs['.$recipeNr.']->recipe->steps) = '.count($info->course->couToRecs[$recipeNr]->recipe->steps).'\');';
+						//echo 'console.log(\'sendActionToFirmware, $info->stepNumbers['.$recipeNr.'] = '.$info->stepNumbers[$recipeNr].'\');';
+					}
+				}
+			} else {
+				if ($this->debug){
+					echo 'console.log(\'sendActionToFirmware, isset($info->cookWith['.$recipeNr.'])='.isset($info->cookWith[$recipeNr]).'\');';
+					if (isset($info->cookWith[$recipeNr])){
+						echo 'console.log(\'sendActionToFirmware, count($info->cookWith['.$recipeNr.'])='.count($info->cookWith[$recipeNr]).' \');';
+						if (count($info->cookWith[$recipeNr])>0){
+							echo 'console.log(\'sendActionToFirmware, $info->cookWith['.$recipeNr.'][0]= '.$info->cookWith[$recipeNr][0].'\');';
+						}
+					}
+				}
+			}
+		} catch(Exception $e) {
+			if ($this->debug) echo 'Exception occured in sendActionToFirmware for recipeIndex ' . $recipeNr . ', Exeption was: ' . $e;
 		}
 	}
 	
@@ -181,15 +351,15 @@ class EveryCookApplication extends Application
 			if (count($this->_clients) < 1) {
 				return false;
 			}
-			if ($this->_firmware_client == null){
-				//TODO: if no server connected, read status from filesystem...
-			}
 			
 			// limit updates to once per second
 			if(time() > $this->_lastTimestamp) {
 				$this->_lastTimestamp = time();
-				//$this->_sendAll(date('d-m-Y H:i:s'));;
-				//$this->_sendAll($this->getUpdateState(0));
+				if ($this->_firmware_client == null){
+					//TODO: if no server connected, read status from filesystem...
+					//$this->_sendAll(date('d-m-Y H:i:s'));
+					$this->getAndSendState();
+				}
 			}
 		} catch(Exception $e) {
 			if ($this->_server != null){
@@ -213,11 +383,12 @@ class EveryCookApplication extends Application
 		try {
 			if ($client === $this->_firmware_client){
 				$client->log("send all: " . $payload);
-				$this->_sendAll($payload);
+				//$this->_sendAll($payload);
+				$this->sendState($payload->getPayload());
 			} else {
-				$client->log("send all, from other client?: " . $payload);
 				//TODO what to do when there are a messge from other server?
-				$this->_sendAll($payload);
+				$client->log("data from other server???: " . $payload);
+				$this->sendState($payload->getPayload());
 			}
 		} catch(Exception $e) {
 			if ($client != null){
@@ -236,6 +407,7 @@ class EveryCookApplication extends Application
 				$this->_firmware_client->send($payload);
 			} else {
 				$client->log("data from client, but no firmware connected: " . $payload);
+				$this->sendCommand($payload);
 			}
 		} catch(Exception $e) {
 			if ($client != null){

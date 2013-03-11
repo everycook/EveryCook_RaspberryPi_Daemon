@@ -3,6 +3,7 @@
 namespace EveryCook\Payload;
 
 use EveryCook\Frame\ServerConnectFrame;
+use Wrench\Payload\Payload;
 use Wrench\Exception\PayloadException;
 
 /**
