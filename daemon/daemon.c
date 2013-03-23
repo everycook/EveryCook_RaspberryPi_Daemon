@@ -56,8 +56,6 @@ double readWeightSeparate(double* values);
 
 void blink7Segment();
 
-//	uint32_t adc0;
-//uint8_t structregpointer = 0;
 char TotalUpdate[512];
 
 
