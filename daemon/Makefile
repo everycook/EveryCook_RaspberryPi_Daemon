@@ -11,7 +11,7 @@ PREFIX=/local
 #STATIC=$(LIBARY_NAME).a
 #DYNAMIC=$(LIBARY_NAME).so.$(VERSION)
 
-DEAMON=ecdeamon
+DEAMON=ecdaemon
 
 #DEBUG	= -g -O0
 DEBUG	= -O2
@@ -27,7 +27,7 @@ LIBS    = -lwiringPi -lpthread -lm #lm needed for math.h
 # Should not alter anything below this line
 ###############################################################################
 
-SRC	=	virtualspi.c virtuali2c.c basic_functions.c deamon.c
+SRC	=	virtualspi.c virtuali2c.c basic_functions.c daemon.c
 
 OBJ	=	$(SRC:.c=.o)
 
@@ -76,7 +76,7 @@ install:	$(TARGET)
 	@install -m 0644 virtualspi.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 virtuali2c.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 basic_functions.h		$(DESTDIR)$(PREFIX)/include
-	@install -m 0644 deamon.h		$(DESTDIR)$(PREFIX)/include
+	@install -m 0644 daemon.h		$(DESTDIR)$(PREFIX)/include
 	
 #	@install -m 0755 -d			$(DESTDIR)$(PREFIX)/lib
 #	@install -m 0755 $(LIBARY_NAME).a		$(DESTDIR)$(PREFIX)/lib
@@ -92,7 +92,7 @@ uninstall:
 	@rm -f $(DESTDIR)$(PREFIX)/include/virtualspi.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/virtuali2c.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/basic_functions.h
-	@rm -f $(DESTDIR)$(PREFIX)/include/deamon.h
+	@rm -f $(DESTDIR)$(PREFIX)/include/daemon.h
 #	@rm -f $(DESTDIR)$(PREFIX)/lib/$(LIBARY_NAME).*
 	@ldconfig
 
@@ -105,5 +105,5 @@ depend:
 
 virtualspi.o: virtualspi.h
 virtuali2c.o: virtuali2c.h
-deamon.o: deamon.h
+daemon.o: daemon.h
 basic_functions.o: basic_functions.h

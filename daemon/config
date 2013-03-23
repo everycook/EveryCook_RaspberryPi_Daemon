@@ -22,8 +22,8 @@ TempValue2=98
 
 #ADC channels
 ADC_LoadCellFrontLeft=0
-ADC_LoadCellFrontRight=1
-ADC_LoadCellBackLeft=2
+ADC_LoadCellFrontRight=2
+ADC_LoadCellBackLeft=1
 ADC_LoadCellBackRight=4
 ADC_Press=3
 ADC_Temp=5

@@ -251,9 +251,11 @@ int main()
 	while (!ad7794_check_if_ready(&adc))
 	 {
 	 }
+	printf("selecting channel 6\n");
 	ad7794_select_channel(&adc, 6);
 	printf("Data = %06x\n",ad7794_read_data(&adc));
 	printf("Data = %06x\n",ad7794_run_conversion(&adc));
+	printf("selecting channel 2\n");
 	ad7794_select_channel(&adc, 2);
 	printf("Data = %06x\n",ad7794_run_conversion(&adc));
 

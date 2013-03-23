@@ -1,5 +1,5 @@
 /*
-This is the EveryCook Raspberry Pi deamon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
+This is the EveryCook Raspberry Pi daemon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
 EveryCook is an open source platform for collecting all data about food and make it available to all kinds of cooking devices.
 
 This program is copyright (C) by EveryCook. Written by Samuel Werder, Peter Turczak and Alexis Wiasmitinow.
@@ -26,7 +26,7 @@ See GPLv3.htm in the main folder for details.
 #include <string.h>
 
 #include "basic_functions.h"
-#include "deamon.h"
+#include "daemon.h"
 
 uint8_t ADC_LoadCellFrontLeft=0;
 uint8_t ADC_LoadCellFrontRight=1;
@@ -193,7 +193,7 @@ The Modes:
 
 
 void printUsage(){
-	printf("Usage: ecdeamon [OPTIONS]\r\n");
+	printf("Usage: ecdaemon [OPTIONS]\r\n");
 	printf("programm options:\r\n");
 	printf("  -s,  --sim        start in simulation mode, and will increase weight/temp/press automaticaly\r\n");
 	printf("  -s7, --sim7seg    show 7Segment display in simulation Mode\r\n");
@@ -203,7 +203,7 @@ void printUsage(){
 }
 
 int main(int argc, const char* argv[]){
-	printf("starting EveryCook deamon...\n");
+	printf("starting EveryCook daemon...\n");
 	if (debug_enabled){printf("main\n");}
 	int i;
 	//char* param;
@@ -372,7 +372,7 @@ double readTemp(){
 		uint32_t tempValueInt = readADC(ADC_Temp);
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
-		if (debug_enabled || calibration){printf("readTemp %d digits %.0f Â°C ", tempValueInt, tempValue);}
+		if (debug_enabled || calibration){printf("Temp %d dig %.0f °C ", tempValueInt, tempValue);}
 		return tempValue;
 	}
 }
@@ -404,7 +404,7 @@ double readPress(){
 	} else {
 		uint32_t pressValueInt = readADC(ADC_Press);
 		double pressValue = pressValueInt* PressScaleFactor+PressOffset;
-		if (debug_enabled || calibration){printf("readPress %d digits %.1f kPa\n", pressValueInt, pressValue);}
+		if (debug_enabled || calibration){printf("Press %d digits %.1f kPa ", pressValueInt, pressValue);}
 		return pressValue;
 	}
 }
@@ -508,8 +508,8 @@ double readWeight(){
 		double weightValue = (double)weightValueSum;
 		weightValue *=ForceScaleFactor;
 		weightValue = roundf(weightValue);
-		if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams ", weightValueSum, weightValue);}
-		//if (debug_enabled || calibration){printf("readWeight %d digits, %f grams (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
+		//if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams\n", weightValueSum, weightValue);}
+		if (debug_enabled || calibration){printf("Weight %d dig %.1f g FL %d FR %d RL %d RR %d\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
 		return weightValue;
 	}
 }
@@ -1484,46 +1484,3 @@ void blink7Segment(){
 	writeI2CPin(I2C_7SEG_PERIOD,I2C_7SEG_OFF);
 	delay(500);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		
-	
-	
-	
-	
-	
-	
