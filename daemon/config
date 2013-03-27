@@ -1,33 +1,34 @@
-#configuration file for the EveryCook_RaspberryPi_Deamon
+#configuration file for the EveryCook_RaspberryPi_Daemon
 #lines starting with a # are comments
 
-#the conversion factor between ADC values and grams
-ForceADC1=100
+#the conversion factor between ADC values and grams 8714000 0 8720000 100
+ForceADC1=9045000
+ForceADC2=9051000
 ForceValue1=0
-ForceADC2=10000
 ForceValue2=100
-
-#two calibrations points between ADC values and pressure in kPa
-PressADC1=10046321
+#two calibrations points between adc values and pressure in kpa
+PressADC1=10015000
 PressValue1=0
-PressADC2=11780000
+PressADC2=11800000
 PressValue2=100.0
 
 #two calibrations points between ADC values and temperature in °C
-TempADC1=3687000
+TempADC1=6753000
 #digits
-TempValue1=0.2
+TempValue1=19.3
 #degrees
-TempADC2=4200049
-TempValue2=92.5
+TempADC2=6355000
+TempValue2=97.5
 
-#AD7794 ADC channel configuration
+#ADC channels
 ADC_LoadCellFrontLeft=0
-ADC_LoadCellFrontRight=1
-ADC_LoadCellBackLeft=2
-ADC_LoadCellBackRight=3
-ADC_Press=4
+ADC_LoadCellFrontRight=2
+ADC_LoadCellBackLeft=1
+ADC_LoadCellBackRight=4
+ADC_Press=3
 ADC_Temp=5
+
+
 
 #AD7794 ADC programmable gain configuration
 Gain_LoadCellFrontLeft=8
@@ -42,8 +43,9 @@ BeepWeightReached=1
 BeepStepEnd=1
 
 #logging
-DeleteLogOnStart=1  #delete log at start saves disk space set 0 to keep log
-LogFile=/var/log/EveryCook_Deamon.log
+DeleteLogOnStart=1  
+#delete log at start saves disk space set 0 to keep log
+LogFile=/var/log/EveryCook_Daemon.log
 
 #PWM Channels Configuration
 Motor=1
@@ -61,7 +63,6 @@ DisplaySegDP=10
 PowerOnPin=4
 
 #communication
-#LogFile=/opt/EveryCook/firmware/output.log
 CommandFile=/run/shm/command
 StatusFile=/run/shm/status
 

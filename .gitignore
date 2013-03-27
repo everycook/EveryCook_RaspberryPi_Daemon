@@ -1,0 +1,2 @@
+daemon/ecdaemon
+daemon/*.o

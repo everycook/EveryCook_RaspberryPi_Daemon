@@ -1,3 +1,18 @@
+/*
+This is the EveryCook Raspberry Pi daemon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
+EveryCook is an open source platform for collecting all data about food and make it available to all kinds of cooking devices.
+
+This program is copyright (C) by EveryCook. Written by Samuel Werder, Peter Turczak and Alexis Wiasmitinow.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+See GPLv3.htm in the main folder for details.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -30,6 +45,7 @@ void initHardware(){
 	VirtualSPIInit();
 	VirtualI2CInit();
 	GPIOInit();
+	
 	PCA9685Init();
 	AD7794Init();
 }
@@ -53,12 +69,14 @@ void GPIOInit(void){
 	pinMode(22 ,INPUT);	//SIG4
 	pinMode(7 ,INPUT);	//SIG5
 	pinMode(17 ,INPUT);	//SIG6
-
 	pinMode(14, OUTPUT);	//KEY1
 	pinMode(15, OUTPUT);	//KEY2
 	pinMode(18, OUTPUT);	//KEY3
 	pinMode(23, OUTPUT);	//KEY4
-	
+	/*writeRaspberryPin(14,0);
+	writeRaspberryPin(15,0);
+	writeRaspberryPin(18,0);
+	writeRaspberryPin(23,0);*/
 }
 void PCA9685Init(void){
 	if (debug_enabled2){printf("PCA9685Init\n");}
@@ -141,10 +159,10 @@ void writeRaspberryPin(uint8_t i, uint8_t on){
 void buzzer(uint8_t on, uint32_t pwm){
 	if (debug_enabled2){printf("buzzer(=pin %d): on:%d pwm:%d\n", PI_PIN_BUZZER, on, pwm);}
 	if (on){
-		softPwmWrite(PI_PIN_BUZZER, 0);
+	//	softPwmWrite(PI_PIN_BUZZER, 0);
 	} else {
-		softPwmCreate(PI_PIN_BUZZER, 0, pwm);
-		softPwmWrite(PI_PIN_BUZZER, pwm/10);
+	//	softPwmCreate(PI_PIN_BUZZER, 0, pwm);
+	//	softPwmWrite(PI_PIN_BUZZER, pwm/10);
 	}
 }
 
