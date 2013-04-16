@@ -370,7 +370,7 @@ double readTemp(){
 		uint32_t tempValueInt = readADC(ADC_Temp);
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
-		if (debug_enabled || calibration){printf("Temp %d dig %.0f °C ", tempValueInt, tempValue);}
+		if (debug_enabled || calibration){printf("Temp %d dig %.0f ï¿½C ", tempValueInt, tempValue);}
 		return tempValue;
 	}
 }
@@ -413,10 +413,9 @@ void HeatOn() {
 	if (heatPowerStatus==0) { //if its off
 		if (debug_enabled || simulationMode || calibration){printf("HeatOn status was: %d\n", heatPowerStatus);}
 		if (!simulationMode){
-			writeControllButtonPin(IND_KEY4, 0);
-			writeControllButtonPin(IND_KEY4, 1); //"press" the power button
+			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
 			delay(500);
-			writeControllButtonPin(IND_KEY4, 0);
+			writeControllButtonPin(IND_KEY4, 1);
 		}
 		heatPowerStatus=1; //save that we turned it on
 	}
@@ -427,9 +426,9 @@ void HeatOff(){
 	if (heatPowerStatus>0) { //if its on
 		if (debug_enabled || simulationMode){printf("HeatOff\n");}
 		if (!simulationMode){
-			writeControllButtonPin(IND_KEY4, 1); //"press" the power button
-			delay(50);
-			writeControllButtonPin(IND_KEY4, 0);
+			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
+			delay(500);
+			writeControllButtonPin(IND_KEY4, 1);
 		}
 		heatPowerStatus=0; //save that we turned it off
 	}

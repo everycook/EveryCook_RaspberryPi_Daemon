@@ -72,10 +72,10 @@ void GPIOInit(void){
 	pinMode(15, OUTPUT);	//KEY2
 	pinMode(18, OUTPUT);	//KEY3
 	pinMode(23, OUTPUT);	//KEY4
-	/*writeRaspberryPin(14,0);
-	writeRaspberryPin(15,0);
-	writeRaspberryPin(18,0);
-	writeRaspberryPin(23,0);*/
+	writeRaspberryPin(14,1);
+	writeRaspberryPin(15,1);
+	writeRaspberryPin(18,1);
+	writeRaspberryPin(23,1);
 }
 void PCA9685Init(void){
 	if (debug_enabled2){printf("PCA9685Init\n");}
