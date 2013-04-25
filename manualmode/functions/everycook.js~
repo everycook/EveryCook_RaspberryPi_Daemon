@@ -1,0 +1,65 @@
+function ProgressBar(OuterId,InnerId,Value,MaxValue,Width) {
+	//alert("scaling mode"+Value+" "+MaxValue);
+if (Value>0 && MaxValue>0){
+	var percent=Math.round(Value*100/MaxValue);
+	Value=Math.round(Value/MaxValue*Width);
+	Value=Math.min(Value,Width);
+	//alert("scaling mode");
+	//Width=Width+5;
+	document.getElementById(OuterId).style.width=Width+"px";
+	document.getElementById(InnerId).innerHTML="&nbsp;"+percent+"%";
+	document.getElementById(InnerId).style.width=Value+"px";
+	document.getElementById(OuterId).style.visibility="visible";
+	document.getElementById(InnerId).style.visibility="visible";
+	}
+else {
+	document.getElementById(OuterId).style.visibility="hidden";
+	document.getElementById(InnerId).style.visibility="hidden";
+}
+}
+function CookProgress(){
+remainingtime=TotalSec-elapsedtime;
+if (remainingtime>0) {
+	elapsedtime=elapsedtime+SecPerPixel;
+	barwidth++;
+}
+remaining=HumanTime(remainingtime);
+elapsed=HumanTime(elapsedtime);
+}
+function LeadingZero(Value)
+{
+	if (Value<10) Value="0"+Value;
+	return Value;
+}
+
+function HumanTime(InputTime){
+	Hours=Math.floor(InputTime/(60*60));
+	Minutes=Math.floor(InputTime/60-Hours*60);
+	Seconds=Math.round(InputTime-Minutes*60-Hours*60*60);
+	if (Hours>0) TimeString ='' +Hours+' h '+Minutes+' m '+Seconds+' s'; 
+	else if (Seconds>0) TimeString =''+Minutes+' m '+Seconds+' s';
+	else TimeString = Seconds+' s';
+	return TimeString;
+}
+
+
+function SendCommand(){
+LastGrams=0;	
+var xmlhttp2;
+if (window.XMLHttpRequest)  {  xmlhttp2=new XMLHttpRequest();  }
+else  {  xmlhttp2=new ActiveXObject("Microsoft.XMLHTTP");  }
+var SetMode=0;
+if (document.InputData.SetMode.options[1].selected == true) SetMode=1;
+else if (document.InputData.SetMode.options[2].selected == true) SetMode=2;
+else if (document.InputData.SetMode.options[3].selected == true) SetMode=3;
+else if (document.InputData.SetMode.options[4].selected == true) SetMode=4;
+else if (document.InputData.SetMode.options[5].selected == true) SetMode=5;
+var command="{T0:" + document.InputData.SetTbot.value + ",P0:" + document.InputData.SetPress.value+",M0RPM:"  + document.InputData.SetRpm.value + ",M0ON:" +document.InputData.SetRun.value + ",M0OFF:" + document.InputData.SetPause.value + ",W0:" + document.InputData.SetGrams.value + ",STIME:" + document.InputData.SetTime.value + ",SMODE:" + SetMode + ",SID:0}";
+//alert("Debug:" + command);
+if (SetMode==3) SetGrams=document.InputData.SetGrams.value;
+else SetGrams=0;
+xmlhttp2.open("GET","functions/sendcommand.php?command="+command,true);
+xmlhttp2.send();
+}
+
+

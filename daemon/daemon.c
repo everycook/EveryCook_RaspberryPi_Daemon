@@ -57,6 +57,7 @@ double readWeightSeparate(double* values);
 void blink7Segment();
 
 char TotalUpdate[512];
+char LogString[512];
 
 
 char *configFile = "config";
@@ -64,6 +65,10 @@ char *configFile = "config";
 char *commandFile = "/dev/shm/command";
 char *statusFile = "/dev/shm/status";
 char *logFile = "/var/log/EveryCook_Deamon.log";
+
+
+uint32_t lastLogSave=0;
+uint8_t logSaveInterval=5; //setting for logging interval in seconds
 
 
 double ForceScaleFactor=0.1; //Conversion between digital Units and grams
@@ -74,7 +79,7 @@ double PressOffset=1000;
 double TempScaleFactor=0.1;
 double TempOffset=1000;
 
-//all these values are read from the config file. chnanging them here is useless
+//all these values are read from the config file. changing them here is useless
 uint32_t PressADC1=0;
 double PressValue1=0;
 uint32_t PressADC2=0;
@@ -128,6 +133,9 @@ double oldWeight = 0;
 //Processing Values
 uint32_t Delay = 1;
 uint32_t runTime; //we need a runtime in seconds
+time_t nowTime;
+struct tm *localTime;
+
 
 //uint32_t stepRunTime = 0;
 uint32_t stepEndTime = 0;
@@ -231,12 +239,6 @@ int main(int argc, const char* argv[]){
 	ReadConfigurationFile();
 	
 	initOutputFile();
-	
-	//if (DeleteLogOnStart){
-		logFilePointer = fopen(logFile, "w");
-	/*} else {
-		logFilePointer = fopen(logFile, "w+");
-	}*/
 	Delay = LongDelay;
 	
 	resetValues();
@@ -274,7 +276,6 @@ int main(int argc, const char* argv[]){
 		delay(Delay);
 	}
 	//fputs(TotalUpdate, fp);
-	fclose(logFilePointer);
 }
 
 
@@ -287,7 +288,14 @@ void initOutputFile(void){
 	//fputs(TotalUpdate, fp);
 	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":0}", fp);
 	fclose(fp);
-	//StringClean(TotalUpdate, 512);
+	if (DeleteLogOnStart){
+		logFilePointer = fopen(logFile, "w");
+		fprintf(logFilePointer,"Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode\n");
+	} else {
+		logFilePointer = fopen(logFile, "a");
+	}
+	
+	fclose(logFilePointer);
 }
 
 void resetValues(){
@@ -951,8 +959,8 @@ void Beep(){
 
 void WriteFile(void){
 	if (debug_enabled){printf("WriteFile\n");}
-	char tempString[10];
-	StringClean(tempString, 10);
+	char tempString[20];
+	StringClean(tempString, 20);
 	StringClean(TotalUpdate, 512);
 	FILE *fp;
 	
@@ -961,49 +969,49 @@ void WriteFile(void){
 	NumberConvertToString((uint32_t)temp, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"P0\":");
 	NumberConvertToString((uint32_t)press, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"M0RPM\":");
 	NumberConvertToString(motorRpm, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"M0ON\":");
 	NumberConvertToString(motorOn, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"M0OFF\":");
 	NumberConvertToString(motorOff, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"W0\":");
 	NumberConvertToString((uint32_t)weight, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"STIME\":");
 	NumberConvertToString(elapsedTime, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"SMODE\":");
 	NumberConvertToString(mode, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 10);
+	StringClean(tempString, 20);
 	
 	StringUnion(TotalUpdate, "\"SID\":");
 	NumberConvertToString(stepId, tempString);
@@ -1015,12 +1023,20 @@ void WriteFile(void){
 	fp = fopen(statusFile, "w");
 	fputs(TotalUpdate, fp);
 	fclose(fp);
+	nowTime = time(NULL);
+	localTime=localtime(&nowTime);
+	StringClean(tempString, 20);
+	strftime(tempString, 20,"%F %T",localTime);
 	
-	StringUnion(TotalUpdate, "\n");
 	if (debug_enabled){printf("WriteFile: before write\n");}
-	fputs(TotalUpdate, logFilePointer);
+	if (runTime>=lastLogSave+logSaveInterval)
+	{
+	logFilePointer = fopen(logFile, "a");
+	fprintf(logFilePointer,"%s, %.1f, %.1f, %i, %.1f,%i, %i, %i, %i, %i, %i\n",tempString, temp, press, motorRpm, weight, setTemp, setPress, setMotorRpm, setWeight, setMode, mode );
+	fclose(logFilePointer);
+	lastLogSave=runTime;
+	}
 	if (debug_enabled){printf("WriteFile: after write\n");}
-	StringClean(TotalUpdate, 512);
 }
 
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
