@@ -36,9 +36,8 @@ uint8_t ADC_Press=4;
 uint8_t ADC_Temp=5;
 
 //Other functions
-void NumberConvertToString(uint32_t num, char *str);
+
 void StringClean(char *str, uint32_t len);
-void StringUnion(char *fristString, char *secondString);
 uint32_t StringConvertToNumber(char *str);
 double StringConvertToDouble(char *str);
 int POWNTimes(uint32_t num, uint8_t n);
@@ -283,9 +282,7 @@ void initOutputFile(void){
 	if (debug_enabled){printf("iniOutputFile\n");}
 	//StringClean(TotalUpdate, 512);
 	FILE *fp;
-	//StringUnion(TotalUpdate, "{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":0}");
 	fp = fopen(statusFile, "w");
-	//fputs(TotalUpdate, fp);
 	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":0}", fp);
 	fclose(fp);
 	if (DeleteLogOnStart){
@@ -961,67 +958,11 @@ void WriteFile(void){
 	if (debug_enabled){printf("WriteFile\n");}
 	char tempString[20];
 	StringClean(tempString, 20);
-	StringClean(TotalUpdate, 512);
 	FILE *fp;
-	
-	StringUnion(TotalUpdate, "{");
-	StringUnion(TotalUpdate, "\"T0\":");
-	NumberConvertToString((uint32_t)temp, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"P0\":");
-	NumberConvertToString((uint32_t)press, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"M0RPM\":");
-	NumberConvertToString(motorRpm, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"M0ON\":");
-	NumberConvertToString(motorOn, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"M0OFF\":");
-	NumberConvertToString(motorOff, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"W0\":");
-	NumberConvertToString((uint32_t)weight, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"STIME\":");
-	NumberConvertToString(elapsedTime, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"SMODE\":");
-	NumberConvertToString(mode, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, ",");
-	StringClean(tempString, 20);
-	
-	StringUnion(TotalUpdate, "\"SID\":");
-	NumberConvertToString(stepId, tempString);
-	StringUnion(TotalUpdate, tempString);
-	StringUnion(TotalUpdate, "}");
-	
 	if (debug_enabled){printf("WriteFile: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);}
 	
 	fp = fopen(statusFile, "w");
-	fputs(TotalUpdate, fp);
+	fprintf(fp,"{\"T0\":%.2f,\"P0\":%.2f,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d}\n", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);
 	fclose(fp);
 	nowTime = time(NULL);
 	localTime=localtime(&nowTime);
@@ -1127,26 +1068,7 @@ bool ReadFile(void){
 	return true;
 }
 
-/* Convert a number to a string
- *
- */
-void NumberConvertToString(uint32_t num, char *str){
-	uint8_t i = 0;
-	uint32_t value, mutiplecand = 1;
 
-	value = num;
-	do {
-		mutiplecand = mutiplecand*10;
-		i++;
-	//} while (value >= mutiplecand || i > 9); //TODO: this would get en endloos loop if i>9...
-	} while (value >= mutiplecand);
-	
-	while (mutiplecand != 1){
-		mutiplecand = mutiplecand/10;
-		*str++ = num/mutiplecand+48;
-		num = num%mutiplecand;
-	}
-}
 /* Clean the string
  *
  */
@@ -1156,20 +1078,6 @@ void StringClean(char *str, uint32_t len){
 	for (; i< len; i++){
 		str[i] = 0x00;
 	}
-}
-/* Combine two strings to one string
- *
- */
-void StringUnion(char *fristString, char *secondString){
-	uint8_t i = 0, fristEndPtr = 0;
-
-	while (fristString[fristEndPtr]){
-		fristEndPtr++;
-	}
-	while (secondString[i]){
-		fristString[fristEndPtr+i] = secondString[i];
-		i++;
- 	}
 }
 /* convert a string to a number
  *
