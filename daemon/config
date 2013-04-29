@@ -44,6 +44,8 @@ BeepStepEnd=1
 DeleteLogOnStart=1  
 #delete log at start saves disk space set 0 to keep log
 LogFile=/var/log/EveryCook_Deamon.log
+#interval between two log file writes in seconds
+logSaveInterval=2
 
 #communication
 CommandFile=/run/shm/command

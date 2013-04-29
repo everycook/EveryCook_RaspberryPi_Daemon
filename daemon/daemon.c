@@ -1322,6 +1322,9 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "ShortDelay") == 0){
 					ShortDelay = StringConvertToNumber(valueString);
 					if (debug_enabled){printf("\tShortDelay: %d\n", ShortDelay);} // (old: %d)
+				} else if(strcmp(keyString, "logSaveInterval") == 0){
+					logSaveInterval = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\tlogSaveInterval: %d\n", logSaveInterval);} // (old: %d)
 				} else {
 					if (debug_enabled){printf("\tkey not Found\n");}
 				}
