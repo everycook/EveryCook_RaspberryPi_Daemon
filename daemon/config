@@ -66,5 +66,5 @@ PowerOnPin=4
 CommandFile=/run/shm/command
 StatusFile=/run/shm/status
 
-middlewareHostname=10.0.0.1
+middlewareHostname=127.0.0.1
 middlewarePortno=8000

@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 /*
-This is the EveryCook Raspberry Pi daemon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
+This is the EveryCook Middleware. It's a Websocket-Server for communications between the EveryCook Daemon and the CookAssistant from EveryCook Recipe Database.
 EveryCook is an open source platform for collecting all data about food and make it available to all kinds of cooking devices.
 
 This program is copyright (C) by EveryCook. Written by Samuel Werder.
@@ -18,6 +18,19 @@ See GPLv3.htm in the main folder for details.
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
+/*
+class ServerThread extends \Thread {
+    protected $_server = null;
+	
+    public function __construct($server){
+        $this->_server = $server;
+    }
+	
+    public function run() {
+        $_server->run();
+    }
+}
+*/
 require(__DIR__ . '/lib/SplClassLoader.php');
 
 $classLoader = new SplClassLoader('Wrench', __DIR__ . '/lib');
@@ -40,19 +53,38 @@ require(__DIR__ . '/EveryCookServer.php');
 require(__DIR__ . '/EveryCookConnection.php');
 */
 
+/*
 $ip = exec('/opt/EveryCook/getServerIp.sh');
 if ($ip == ''){
 	$ip = '10.0.0.1';
 }
 
-$server = new \EveryCook\EveryCookServer('ws://'.$ip.':8000/', array(
+$uris = array();
+$uris[] = 'ws://127.0.0.1:8000/';
+$uris[] = 'ws://'.$ip.':8000/';
+
+if ($ip != '10.0.0.1'){
+	$ip = '10.0.0.1';
+	$uris[] = 'ws://'.$ip.':8000/';
+}
+*/
+
+$ips=array();
+exec('/opt/EveryCook/getAllIps.sh', $ips);
+$uris = array();
+foreach($ips as $ip){
+	$uris[] = 'ws://'.$ip.':8000/';
+}
+
+$server = new \EveryCook\EveryCookServer($uris, array(
     'allowed_origins'            => array(
         'mysite.localhost'
     ),
 // Optional defaults:
 //     'check_origin'               => true,
 //     'connection_manager_class'   => 'Wrench\ConnectionManager',
-     'connection_manager_options' => array(
+	'connection_manager_class'   => 'EveryCook\MultiURIConnectionManager',
+	'connection_manager_options' => array(
 //         'timeout_select'           => 0,
 //         'timeout_select_microsec'  => 200000,
 //         'socket_master_class'      => 'Wrench\Socket\ServerSocket',
@@ -65,23 +97,24 @@ $server = new \EveryCook\EveryCookServer('ws://'.$ip.':8000/', array(
 //             'timeout_socket'         => 5,
 //         ),
 //         'connection_class'         => 'Wrench\Connection',
-		 'connection_class'         => 'EveryCook\EveryCookConnection',
+		'connection_class'         => 'EveryCook\EveryCookConnection',
 //         'connection_options'       => array(
 //             'socket_class'           => 'Wrench\Socket\ServerClientSocket',
 //             'socket_options'         => array(),
 //             'connection_id_secret'   => 'asu5gj656h64Da(0crt8pud%^WAYWW$u76dwb',
 //             'connection_id_algo'     => 'sha512'
 //         )
-     )
+	)
 ));
 
 
-
-$server->registerApplication('everycook', new \EveryCook\Application\EveryCookApplication(array(
+$application = new \EveryCook\Application\EveryCookApplication(array(
 	'deviceWritePath'=>'/dev/shm/command',
 	'deviceReadPath'=>'/dev/shm/status',
 	'deviceWriteUrl'=>'/hw/sendcommand.php?command=',
 	'deviceReadUrl'=>'/hw/status',
-	)));
+	'cacheMethode'=>'memcached',
+));
+$server->registerApplication('everycook', $application);
 
 $server->run();

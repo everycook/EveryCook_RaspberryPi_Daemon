@@ -25,6 +25,9 @@ See GPLv3.htm in the main folder for details.
 
 #include <string.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include "bool.h"
 #include "basic_functions.h"
 #include "convertFunctions.h"
@@ -102,7 +105,7 @@ uint32_t setMotorOff = 0;
 uint32_t setWeight = 0;
 uint32_t setTime = 0;
 uint32_t setMode = 0;
-uint32_t setStepId = 0;
+uint32_t setStepId = -2;
 
 double temp = 0;
 double press = 0;
@@ -112,7 +115,7 @@ uint32_t motorOff = 0;
 double weight = 0;
 uint32_t elapsedTime = 0;
 uint32_t mode = 0;
-uint32_t stepId = -1;
+uint32_t stepId = -2;
 
 uint32_t oldMode = 0;
 double oldTemp = 0;
@@ -164,7 +167,7 @@ int sockfd = -1;
 bool useMiddleware = true;
 bool useFile = false;
 char middlewareBuffer[256];
-
+time_t lastFileChangeTime = 0;
 
 
 
@@ -182,6 +185,7 @@ bool simulationModeShow7Segment = false;
 uint32_t simulationUpdateTime = 0;
 
 bool debug_enabled = false;
+bool debug3_enabled = false;
 
 bool calibration = false;
 
@@ -203,6 +207,15 @@ The Modes:
 */
 
 
+time_t get_mtime(const char *path){
+    struct stat statbuf;
+    if (stat(path, &statbuf) == -1) {
+        perror(path);
+    }
+    return statbuf.st_mtime;
+}
+
+
 void printUsage(){
 	printf("Usage: ecdaemon [OPTIONS]\r\n");
 	printf("programm options:\r\n");
@@ -210,6 +223,7 @@ void printUsage(){
 	printf("  -s7, --sim7seg                show 7Segment display in simulation Mode\r\n");
 	printf("  -d,  --debug                  activate Debug output\r\n");
 	printf("  -d2, --debug2                 activate Debug output for basic functions\r\n");
+	printf("  -d3, --debug3                 activate Debug output for main logic functions\r\n");
 	printf("  -c,  --calibrate              calibration mode, will output raw adc values\r\n");
 	printf("  -nm, --no-middleware          don't use middleware, use file\r\n");
 	printf("  -mf, --middleware-and-file    use middleware and file(on read as backup)\r\n");
@@ -233,6 +247,8 @@ int main(int argc, const char* argv[]){
 			debug_enabled = true;
 		} else if(strcmp(argv[i], "--debug2") == 0 || strcmp(argv[i], "-d2") == 0){
 			setDebugEnabled(true);
+		} else if(strcmp(argv[i], "--debug3") == 0 || strcmp(argv[i], "-d3") == 0){
+			debug3_enabled = true;
 		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
 			calibration = true;
 			printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");
@@ -289,7 +305,7 @@ int main(int argc, const char* argv[]){
 	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
 		
 	runTime = time(NULL); //TODO WIA CHANGE THIS
-	//printf("runtime is now: %d \n",runTime);
+	printf("runtime is now: %d \n",runTime);
 	stepStartTime = runTime; //TODO WIA CHANGE THIS
 	
 	uint32_t lastRunTime = 0;
@@ -325,7 +341,7 @@ int main(int argc, const char* argv[]){
 						//if (reciveFromSock(sockfd, middlewareBuffer) ){
 						if (recivePackageFromSock(sockfd, middlewareBuffer, &recivedDataType)){
 							valueChanged = true;
-							if (debug_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, middlewareBuffer);}
+							if (debug_enabled || debug3_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, middlewareBuffer);}
 							if (recivedDataType != dataType){
 								error("ERROR recived dataType unknown");
 							}
@@ -341,6 +357,17 @@ int main(int argc, const char* argv[]){
 						} else {
 							delay(10000);
 						}
+					} else if (useFile){
+						time_t changeTime = get_mtime(commandFile);
+						//TODO: changeTime = localtime(changeTime);
+						
+						if (changeTime > lastFileChangeTime){
+							if (ReadFile()){
+								valueChanged = true;
+							}
+						} else {
+							if (debug_enabled || debug3_enabled){printf("commandFile to old, is:%ld, last:%ld\n",changeTime,lastFileChangeTime);}
+						}
 					}
 				} else {
 					if (useFile && ReadFile()){
@@ -349,16 +376,20 @@ int main(int argc, const char* argv[]){
 						delay(10000);
 					}
 				}
-			
+				
+				runTime = time(NULL); //TODO WIA CHANGE THIS
+				
 				if (valueChanged){
+					if (debug_enabled){printf("valueChanged=true\n");}
+					//TODO: lastFileChangeTime = runTime;
 					evaluateInput();
 				}
 				ProcessCommand();
-				runTime = time(NULL); //TODO WIA CHANGE THIS
 				elapsedTime = runTime - stepStartTime; //TODO WIA CHANGE THIS
 				prepareState(TotalUpdate);
 			
 				if (dataChanged){// || timeChanged){
+					if (debug_enabled){printf("dataChanged=true\n");}
 					if (useMiddleware && sockfd>=0){
 						if (!sendToSock(sockfd, TotalUpdate, dataType)){
 							error("ERROR writing to socket");
@@ -390,7 +421,7 @@ void initOutputFile(void){
 	//StringUnion(TotalUpdate, "{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":0}");
 	fp = fopen(statusFile, "w");
 	//fputs(TotalUpdate, fp);
-	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":0}", fp);
+	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":-2}", fp);
 	fclose(fp);
 	//StringClean(TotalUpdate, 512);
 }
@@ -398,9 +429,24 @@ void initOutputFile(void){
 void resetValues(){
 	isBuzzing = 1; //to be sure first send a off to buzzer
 	oldSegmentDisplay = ' ';
-	stepId=-1;
+	setStepId=-2;
+	stepId=-2;
 	dataChanged = true;
 	timeChanged = true;
+	lastFileChangeTime = 0;
+	
+	temp = 0;
+	press = 0;
+	weight = 0;
+	elapsedTime = 0;
+	mode = 0;
+	
+	oldMode = 0;
+	oldTemp = 0;
+	oldPress = 0;
+	oldWeight = 0;
+	
+	Delay = LongDelay;
 }
 
 
@@ -409,16 +455,26 @@ void ProcessCommand(void){
 	if (setStepId != stepId){
 		if (setStepId < stepId){
 			//-1 stop/not aus
+			if(setStepId == -1){
+				setMotorPWM(0);
+				HeatOff();
+			}
 			//TODO is reset/stop? or is someone try to begin new recipe before old is ended?
+			if(setStepId==0){
+				resetValues();
+				setStepId=0;
+			}
 		}
 		oldMode = mode;
 		mode=setMode;
 		stepId = setStepId;
 		stepStartTime = runTime;
 		dataChanged = true;
+		stepEndTime = stepStartTime + setTime;
+		nextTempCheckTime = 0;
 		
 		if (debug_enabled){printf("stepId changed, new mode is: %d\n", mode);}
-		if (debug_enabled || simulationMode){printf("ProcessCommand: T0: %d, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %d, STIME: %d, SMODE: %d, SID: %d\n", setTemp, setPress, setMotorRpm, setMotorOn, setMotorOff, setWeight, setTime, setMode, setStepId);}
+		if (debug_enabled || simulationMode || debug3_enabled){printf("ProcessCommand: T0: %d, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %d, STIME: %d, SMODE: %d, SID: %d\n", setTemp, setPress, setMotorRpm, setMotorOn, setMotorOff, setWeight, setTime, setMode, setStepId);}
 		
 		OptionControl();
 	}
@@ -434,11 +490,13 @@ void ProcessCommand(void){
 		RemainTime=0;
 		if (mode==MODE_COOK || mode == MODE_PRESSHOLD){
 			mode=MODE_COOK_TIMEEND;
+			dataChanged=true;
 			if (BeepStepEnd>0){
 				BeepEndTime = runTime+BeepStepEnd;
 			}
 		} else if (mode != MODE_STANDBY){
 			mode=MODE_STANDBY;
+			dataChanged=true;
 			if (BeepStepEnd>0){
 				BeepEndTime = runTime+BeepStepEnd;
 			}
@@ -454,24 +512,28 @@ void ProcessCommand(void){
 
 double readTemp(){
 	if (simulationMode){
-		int DeltaT=setTemp-oldTemp;
-		double tempValue = oldTemp;	
-		if (mode==MODE_HEATUP || mode==MODE_COOK) {
-			if (DeltaT<0) {
+		double tempValue = oldTemp;
+		if (nextTempCheckTime != 0){
+			int DeltaT=setTemp-oldTemp;
+			if (mode==MODE_HEATUP || mode==MODE_COOK) {
+				if (DeltaT<0) {
+					tempValue = oldTemp-1;
+				} else if (DeltaT==0) {
+					tempValue = oldTemp;
+				} else if (DeltaT <= 10) {
+					tempValue = oldTemp+1;
+				} else if (DeltaT <= 20) {
+					tempValue = oldTemp+5;
+				} else if (DeltaT <= 50) {
+					tempValue = oldTemp+25;
+				} else {
+					tempValue = oldTemp+40;
+				}
+			} else if (mode==MODE_COOLDOWN){
 				tempValue = oldTemp-1;
-			} else if (DeltaT==0) {
-				tempValue = oldTemp;
-			} else if (DeltaT <= 10) {
-				tempValue = oldTemp+1;
-			} else if (DeltaT <= 20) {
-				tempValue = oldTemp+5;
-			} else if (DeltaT <= 50) {
-				tempValue = oldTemp+25;
-			} else {
-				tempValue = oldTemp+40;
 			}
-		} else if (mode==MODE_COOLDOWN){
-			tempValue = oldTemp-1;
+		//} else {
+			//is first call, no change yet
 		}
 		//if (debug_enabled){printf("readTemp, new Value is %f\n", tempValue);}
 		printf("readTemp, new Value is %f\n", tempValue);
@@ -488,24 +550,27 @@ double readTemp(){
 
 double readPress(){
 	if (simulationMode){
-		int DeltaP=setPress-oldPress;
 		double pressValue = oldPress;
-		if (mode==MODE_PRESSUP || mode==MODE_PRESSHOLD) {
-			if (DeltaP<0) {
-				--pressValue;
-			} else if (DeltaP==0) {
-				//Nothing //pressValue = oldPress;
-			} else if (DeltaP <= 10) {
-				pressValue = oldPress+2;
-			} else if (DeltaP <= 50) {
-				pressValue = oldPress+5;
-			} else {
-				pressValue = oldPress+10;
+		if (nextTempCheckTime != 0){
+			int DeltaP=setPress-oldPress;
+			if (mode==MODE_PRESSUP || mode==MODE_PRESSHOLD) {
+				if (DeltaP<0) {
+					--pressValue;
+				} else if (DeltaP==0) {
+					//Nothing //pressValue = oldPress;
+				} else if (DeltaP <= 10) {
+					pressValue = oldPress+2;
+				} else if (DeltaP <= 50) {
+					pressValue = oldPress+5;
+				} else {
+					pressValue = oldPress+10;
+				}
+			} else if (mode==MODE_PRESSDOWN){
+				pressValue = oldPress-1;
 			}
-		} else if (mode==MODE_PRESSDOWN){
-			pressValue = oldPress-1;
+		//} else {
+			//is first call, no change yet
 		}
-		
 		//if (debug_enabled){printf("readPress, new Value is %f\n", pressValue);}
 		printf("readPress, new Value is %f\n", pressValue);
 		return pressValue;
@@ -691,6 +756,7 @@ void OptionControl(){
 		blink7Segment();
 	}
     mode=MODE_STANDBY;
+	dataChanged=true;
   }
 }
 
@@ -715,6 +781,7 @@ void TempControl(){
 					if (mode==MODE_HEATUP) {//heatup function
 						stepEndTime=runTime-2;
 						mode=MODE_HOT; //we are hot
+						dataChanged=true;
 					}
 				}
 				else if (DeltaT <= 10) { nextTempCheckTime=runTime+5; HeatOn(); }
@@ -726,6 +793,7 @@ void TempControl(){
 			} else if (mode==MODE_COOLDOWN && DeltaT>=0) { //cooldown function
 				stepEndTime=runTime-2;
 				mode=MODE_COLD;
+				dataChanged=true;
 			} else if (mode==MODE_COOLDOWN) {
 				nextTempCheckTime=runTime+1;
 				stepEndTime=nextTempCheckTime+1;
@@ -757,6 +825,7 @@ void PressControl(){
 					if (mode==MODE_PRESSUP) {//pressup function
 						stepEndTime=runTime-2;
 						mode=MODE_PRESSURIZED; //we are pressurized
+						dataChanged=true;
 					}
 				}
 				else if (DeltaP <= 10) { nextTempCheckTime=runTime+5; HeatOn(); }
@@ -768,6 +837,7 @@ void PressControl(){
 			} else if (mode==MODE_PRESSDOWN && DeltaP>=0) { //pressure down function
 				stepEndTime=runTime-2;
 				mode=MODE_PRESSURELESS;
+				dataChanged=true;
 			} else if (mode==MODE_PRESSDOWN) {
 				nextTempCheckTime=runTime+1;
 				stepEndTime=nextTempCheckTime+1;
@@ -817,6 +887,7 @@ void ValveControl(){
 		if (press < LowPress) {
 			delay(2000);
 			mode=MODE_PRESSURELESS;
+			dataChanged=true;
 		}
 	} else {
 		setServoOpen(0);
@@ -855,7 +926,10 @@ void ScaleFunction() {
 				} else {
 					if (debug_enabled){printf("\tweight reached...\n");}
 				}
-				mode=MODE_WEIGHT_REACHED;
+				if (mode != MODE_WEIGHT_REACHED){
+					mode=MODE_WEIGHT_REACHED;
+					dataChanged=true;
+				}
 				RemainTime=0;
 			}
 			if (debug_enabled){printf("\t\tweight: %f / old: %f\n", weight, oldWeight);}
@@ -1084,12 +1158,15 @@ void prepareState(char* TotalUpdate){
 	StringClean(tempString, 10);
 	StringClean(TotalUpdate, 512);
 	
+	sprintf(TotalUpdate, "{\"T0\":%.0f,\"P0\":%.0f,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d}", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);
+	/*
 	StringUnion(TotalUpdate, "{");
 	StringUnion(TotalUpdate, "\"T0\":");
 	NumberConvertToString((uint32_t)temp, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, ",");
 	StringClean(tempString, 10);
+	if (debug_enabled){printf("1.part\n");}
 	
 	StringUnion(TotalUpdate, "\"P0\":");
 	NumberConvertToString((uint32_t)press, tempString);
@@ -1133,16 +1210,17 @@ void prepareState(char* TotalUpdate){
 	StringUnion(TotalUpdate, ",");
 	StringClean(tempString, 10);
 	
+	if (debug_enabled){printf("before sid\n");}
 	StringUnion(TotalUpdate, "\"SID\":");
 	NumberConvertToString(stepId, tempString);
 	StringUnion(TotalUpdate, tempString);
 	StringUnion(TotalUpdate, "}");
+	if (debug_enabled){printf("after sid\n");}
+	*/
 	
 	if (debug_enabled){printf("prepareState: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);}
 }
 
-/* Get the adc datas and signals and write to the file "/var/www/readfile.txt"
- */
 void WriteFile(char* data){
 	if (debug_enabled){printf("WriteFile\n");}
 	
@@ -1154,13 +1232,14 @@ void WriteFile(char* data){
 	StringUnion(data, "\n");
 	if (debug_enabled){printf("WriteFile: before write\n");}
 	fputs(data, logFilePointer);
+	fflush(logFilePointer);
+	if (debug_enabled || debug3_enabled){printf("WriteFile: value: %s\n", data);}
 	if (debug_enabled){printf("WriteFile: after write\n");}
 }
 
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
 
 void parseSockInput(char* input){
-	if (debug_enabled){printf("parseSockInput\n");}
 	char tempName[10];
 	char tempValue[10];
 	uint8_t i = 0;

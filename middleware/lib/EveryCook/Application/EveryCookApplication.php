@@ -20,7 +20,6 @@ use Wrench\Application\Application;
 
 class EveryCookApplication extends Application
 {
-
 	const STANDBY=0;
 	const CUT=1;
 	const MOTOR=1;
@@ -55,9 +54,13 @@ class EveryCookApplication extends Application
 	const COOK_WITH_EVERYCOOK_COI = 1;
 	
 	
+	const COOKING_INFOS = 'cookingInfo';
+	const COOKING_INFOS_CHANGEAMOUNT = 'cookingInfoChangeAmount';
+	
 	
     protected $_clients = array();
     protected $_lastTimestamp = null;
+	protected $_lastFirmwareState = '';
 	protected $_firmware_client = null;
 	protected $_server = null;
 	
@@ -68,6 +71,13 @@ class EveryCookApplication extends Application
 	
 	protected $_memcached = null;
 	
+	protected $_debug = false;
+	
+	protected $_cookingInfoChangeCounter;
+	
+	protected $_lastState;
+	protected $_lastStateTime;
+	
 	protected function getMemcached(){
 		if ($this->_memcached == null){
 			$this->_memcached = new \Memcached();
@@ -77,22 +87,42 @@ class EveryCookApplication extends Application
 	}
 	
 	protected function getFromCache($name){
-		//return Yii::app()->session[$name];
-		//return apc_fetch($name);
-		$memcached = $this->getMemcached();
-		return $memcached->get($name."_stdobj");
+		if ($this->_options['cacheMethode'] == 'session'){
+			return $_SESSION[$name];
+		} else if ($this->_options['cacheMethode'] == 'apc'){
+			return apc_fetch($name);
+		} else /*if ($this->_options['cacheMethode'] == 'memcached')*/{
+			$memcached = $this->getMemcached();
+			return $memcached->get($name);
+		}
 	}
 	
-	protected function saveToCache($name, $value){
-		//Yii::app()->session['cookingInfo'] = $info;
-		//if(apc_store($name, $value)){
-		$memcached = $this->getMemcached();
-		if($memcached->set($name."_stdobj", $value)){
-		/*
+	protected function saveToCache($name, $value, $expirationTime=0){
+		if ($this->_options['cacheMethode'] == 'session'){
+			$_SESSION[$name] = $value;
+		} else if ($this->_options['cacheMethode'] == 'apc'){
+			if(apc_store($name, $value, $expirationTime)){
+			/*
 			echo "save successfull...";
-		} else {
-			echo "save failed...";
-		*/
+			} else {
+				echo "save failed...";
+			*/
+			}
+		} else /*if ($this->_options['cacheMethode'] == 'memcached')*/{
+			$memcached = $this->getMemcached();
+			//$memcached->set($name, $value, $expirationTime);
+			//$value = Functions::objectToArray($value);
+			//$value = Functions::arrayToObject($value);
+			//$value = Functions::mapCActiveRecordToSimpleClass($value);
+			//print_r($value);
+			//if($memcached->set($name."_stdobj", $value, $expirationTime)){
+			if($memcached->set($name, $value, $expirationTime)){
+			/*
+				echo "save successfull...";
+			} else {
+				echo "save failed...";
+			*/
+			}
 		}
 	}
 	
@@ -104,41 +134,47 @@ class EveryCookApplication extends Application
 			'deviceReadUrl'=>'/hw/status',
 			'memcachedHost'=>'localhost',
 			'memcachedPort'=>11211,
+			'cacheMethode'=>'memcached',
+			'stateValidTimeout'=>30000, //=30 sec
         ), $options);
 	}
 	
 	private function readFromFirmware($info, $recipeNr){
 		$dest = $info->cookWith[$recipeNr];
 		$inhalt = '';
-		if ($dest[0] == self::COOK_WITH_LOCAL){
-			if(file_exists($this->_options['deviceReadPath'])){
-				$fw = fopen($this->_options['deviceReadPath'], "r");
-				if ($fw !== false){
-					while (!feof($fw)) {
-						$inhalt .= fread($fw, 128);
+		if (isset($dest[0])){
+			if ($dest[0] == self::COOK_WITH_LOCAL){
+				if(file_exists($this->_options['deviceReadPath'])){
+					$fw = fopen($this->_options['deviceReadPath'], "r");
+					if ($fw !== false){
+						while (!feof($fw)) {
+							$inhalt .= fread($fw, 128);
+						}
+						fclose($fw);
+					} else {
+						//TODO: error on read status
+						$inhalt = 'ERROR: $errstr ($errno)';
 					}
-					fclose($fw);
 				} else {
-					//TODO: error on read status
-					$inhalt = 'ERROR: $errstr ($errno)';
+					$inhalt = 'ERROR: file ' . $this->_options['deviceReadPath'] . ' does not exist';
 				}
-			} else {
-				$inhalt = 'ERROR: file ' . $this->_options['deviceReadPath'] . ' does not exist';
+			} else if ($dest[0] == self::COOK_WITH_IP){
+				require_once("remotefileinfo.php");
+				$inhalt=remote_file('http://'.$dest[2].$this->_options['deviceReadUrl']);
 			}
-		} else if ($dest[0] == self::COOK_WITH_IP){
-			require_once("remotefileinfo.php");
-			$inhalt=remote_file('http://'.$dest[2].$this->_options['deviceReadUrl']);
-		}
-		
-		//$inhalt='{"T0":100,"P0":0,"M0RPM":0,"M0ON":0,"M0OFF":0,"W0":0,"STIME":5,"SMODE":1,"SID":0}';
-		if (strpos($inhalt,"ERROR: ") !== false){
-			$inhalt = str_replace("\r\n","", $inhalt);
-			$inhalt = str_replace("<br />","", $inhalt);
-			$inhalt = trim($inhalt);
-			return $inhalt;
+			
+			//$inhalt='{"T0":100,"P0":0,"M0RPM":0,"M0ON":0,"M0OFF":0,"W0":0,"STIME":5,"SMODE":1,"SID":0}';
+			if (strpos($inhalt,"ERROR: ") !== false){
+				$inhalt = str_replace("\r\n","", $inhalt);
+				$inhalt = str_replace("<br />","", $inhalt);
+				$inhalt = trim($inhalt);
+				return $inhalt;
+			} else {
+				$jsonValue=json_decode($inhalt);
+				return $jsonValue;
+			}
 		} else {
-			$jsonValue=json_decode($inhalt);
-			return $jsonValue;
+			return "ERROR: CookWith not yet set.";
 		}
 	}
 	
@@ -147,18 +183,25 @@ class EveryCookApplication extends Application
 		if (isset($info->cookWith[$recipeNr]) && isset($info->cookWith[$recipeNr][0]) && $info->cookWith[$recipeNr][0]!=self::COOK_WITH_OTHER){
 			$mealStep = $info->steps[$recipeNr];
 			$mealStep->HWValues = $state;
-			print_r($state);
-			$this->saveToCache('HWValues', $state);
+			if ($this->_debug) {print_r($state);}
+			$this->saveToCache('HWValues', $state, 10*60); //only valid vor max. 10 min
 			
 			if ($info->steps[$recipeNr]->endReached){
 				$additional=', T0:' . $state->T0;
 				$additional.=', P0:' . $state->P0;
 				$mealStep->currentTemp = $state->T0;
 				$mealStep->currentPress = $state->P0;
-				return '{percent:1, restTime:0' .$additional . ', startTime:'.$_GET['startTime'] . '}';
+				return '{percent:1, restTime:0' .$additional . /*', startTime:'.$_GET['startTime'] .*/ '}';
 			}
 			
-			$recipe = $info->course->couToRecs[$recipeNr]->recipe;
+			$recipe = $info->meal->meaToCous[$info->courseNr]->course->couToRecs[$recipeNr]->recipe;
+			if ($this->_debug) {
+				echo "recipeNr: $recipeNr\r\n";
+				echo "info->stepNumbers[recipeNr]: " .$info->stepNumbers[$recipeNr]. "\r\n";
+			}
+			if ($info->stepNumbers[$recipeNr] == -1){
+				return '{"error":"' . 'Not yet start cooking."}';
+			}
 			$step = $info->recipeSteps[$recipeNr][$info->stepNumbers[$recipeNr]];
 			$executetTime = time() - $info->stepStartTime[$recipeNr];
 			
@@ -168,7 +211,7 @@ class EveryCookApplication extends Application
 			$mealStep->inTime = $stepStartTime + $mealStep->nextStepTotal < $currentTime;
 			$restTime = $mealStep->nextStepIn;
 			
-			printf("executetTime:%s, currentTime:%s, stepStartTime:%s, restTime:%s", $executetTime, $currentTime, $stepStartTime, $restTime);
+			printf("executetTime:%s, currentTime:%s, stepStartTime:%s, restTime:%s\r\n", $executetTime, $currentTime, $stepStartTime, $restTime);
 			
 			//$restTime = $state->STIME;
 			$additional='';
@@ -189,24 +232,33 @@ class EveryCookApplication extends Application
 				$additional=', W0:' . $state->W0;
 				if ($percent>0.05){ //>5%
 					//$restTime = round(($executetTime / $percent) - $executetTime);
-					$text = '<span class=\"ingredient\">' . $step['ING_NAME_' . Yii::app()->session['lang']] . '</span> <span class=\"amount\">' . $step['STE_GRAMS'] . 'g' . '</span>: ' . round($percent*100) . '% / ' . round($state->W0) . 'g';
+					$text = '<span class=\"ingredient\">' . $step['ING_NAME'] . '</span> <span class=\"amount\">' . $step['STE_GRAMS'] . 'g' . '</span>: ' . round($percent*100) . '% / ' . round($state->W0) . 'g';
 					if ($percent>1.05){
 						$text = '<span class=\"toMuch\">' . $text . '</span>';
 					}
 					$additional .= ', text: "' . $text . '"';
 				}
 			} else if ($state->SMODE==self::HEADUP || $state->SMODE==self::HOT){
-				$percent = $state->T0 / $step['STE_CELSIUS'];
+				if ($step['STE_CELSIUS'] != 0){
+					$percent = $state->T0 / $step['STE_CELSIUS'];
+				} else {
+					$percent = 1;
+				}
 				if ($percent>0.05){ //>5%
 					$restTime = round(($executetTime / $percent) - $executetTime);
 				}
+				$additional .= ', executetTime: "' . $executetTime . '", totaltime: "' . ($executetTime / $percent)  . '", STIME: "' . $state->STIME . '"'; ;
 			} else if ($state->SMODE==self::COOLDOWN || $state->SMODE==self::COLD){
 				$percent = $step['STE_CELSIUS'] / $state->T0; //TODO: correct?
 				if ($percent>0.05){ //>5%
 					$restTime = round(($executetTime / $percent) - $executetTime);
 				}
 			} else if ($state->SMODE==self::PRESSUP || $state->SMODE==self::PRESSURIZED){
-				$percent = $state->P0 / $step['STE_KPA'];
+				if ($step['STE_KPA'] != 0){
+					$percent = $state->P0 / $step['STE_KPA'];
+				} else {
+					$percent = 1;
+				}
 				if ($percent>0.05){ //>5%
 					$restTime = round(($executetTime / $percent) - $executetTime);
 				}
@@ -233,9 +285,12 @@ class EveryCookApplication extends Application
 						if ($mealStep->percent == $percent && $mealStep->weightReachedTime != 0){
 							if ($currentTime - $mealStep->weightReachedTime >=5){
 								$additional.=', gotoNext: true';
+							} else {
+								$additional.=', gotoNextTime: ' . ($currentTime - $mealStep->weightReachedTime);
 							}
 						} else {
 							$mealStep->weightReachedTime = $currentTime;
+							$additional.=', gotoNextTime: 5';
 						}
 					} else {
 						$mealStep->weightReachedTime = 0;
@@ -245,18 +300,23 @@ class EveryCookApplication extends Application
 				}
 			}
 			
-			
-			printf("additional:%s", $additional);
-			
 			$mealStep->percent = $percent;
 			$mealStep->nextStepIn = $restTime;
 			
-			$this->saveToCache('cookingInfo', $info);
+			$cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+			if ($this->_cookingInfoChangeCounter == $cookingInfoChangeCounter){
+				$this->saveToCache(self::COOKING_INFOS, $info);
+				$this->saveToCache(self::COOKING_INFOS_CHANGEAMOUNT, $cookingInfoChangeCounter+1);
+			} else {
+				$this->_server->log('Conncurent Modification Exception, counter is ' . $cookingInfoChangeCounter . ' but was ' . $this->_cookingInfoChangeCounter .' before.', 'warn');
+			}
 			
 			$additional.=', T0:' . $state->T0;
 			$additional.=', P0:' . $state->P0;
 			
-			return '{percent:' . $percent . ', restTime:' . $restTime .$additional . '}'; //', startTime:'.$_GET['startTime']
+			printf(" percent:%s, restTime:%s, SID:%s, additional:%s\r\n", $state->SID, $percent, $restTime, $additional);
+			
+			return '{percent:' . $percent . ', restTime:' . $restTime .$additional . ', SID:' . $state->SID . '}'; //', startTime:'.$_GET['startTime']
 			
 			//{"T0":100,"P0":0,"M0RPM":0,"M0ON":0,"M0OFF":0,"W0":0,"STIME":30,"SMODE":10,"SID":0}
 		}
@@ -264,7 +324,8 @@ class EveryCookApplication extends Application
 	
 	private function sendState($firmwareState){
 		$recipeNr = 0;
-		$info = $this->getFromCache('cookingInfo');
+		$info = $this->getFromCache(self::COOKING_INFOS);
+		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 		if (!$info){
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
 			return;
@@ -272,32 +333,38 @@ class EveryCookApplication extends Application
 		$firmwareState = json_decode($firmwareState);
 		
 		$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
+		$this->_lastState = $state;
+		$this->_lastStateTime = time();
 		$this->_sendAll($state);
 	}
 	
 	private function getAndSendState(){
 		$recipeNr = 0;
-		$info = $this->getFromCache('cookingInfo');
+		$info = $this->getFromCache(self::COOKING_INFOS);
+		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 		if (!$info){
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
 			return;
 		}
-		//$info = Yii::app()->session['cookingInfo'];
 		
 		$firmwareState = $this->readFromFirmware($info, $recipeNr);
 		
-		if (is_string($firmwareState) && strpos($firmwareState,"ERROR: ") !== false){
-			$this->_sendAll('{"error":"' . substr($firmwareState, 7) . '"}');
-			return;
+		if ($firmwareState != $this->_lastFirmwareState){
+			$this->_lastFirmwareState = $firmwareState;
+			if (is_string($firmwareState) && strpos($firmwareState,"ERROR: ") !== false){
+				$this->_sendAll('{"error":"' . substr($firmwareState, 7) . '"}');
+				return;
+			}
+			$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
+			$this->_lastState = $state;
+			$this->_lastStateTime = time();
+			$this->_sendAll($state);
 		}
-		
-		$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
-		$this->_sendAll($state);
 	}
 	
 	private function sendCommand($command){
 		$recipeNr = 0;
-		$info = $this->getFromCache('cookingInfo');
+		$info = $this->getFromCache(self::COOKING_INFOS);
 		if (!$info){
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
 			return;
@@ -316,7 +383,7 @@ class EveryCookApplication extends Application
 					
 					$dest = $info->cookWith[$recipeNr];
 					//TODO: remove return
-					return;
+					//return;
 					if ($dest[0] == self::COOK_WITH_LOCAL){
 						$fw = fopen(Yii::app()->params['deviceWritePath'], "w");
 						if (fwrite($fw, $command)) {
@@ -328,13 +395,13 @@ class EveryCookApplication extends Application
 						require_once("remotefileinfo.php");
 						$inhalt=remote_fileheader('http://'.$dest[2].Yii::app()->params['deviceWriteUrl'].$command); //remote_file
 						if (is_string($inhalt) && strpos($inhalt, 'ERROR: ') !== false){
-							//TODO error an send command...
+							//TODO error on send command...
 						}
 					}
 				} else {
 					if ($this->debug){
 						echo 'console.log(\'sendActionToFirmware, $info->recipeSteps[$recipeNr][$info->stepNumbers[$recipeNr]] not set\');';
-						//echo 'console.log(\'sendActionToFirmware, count($info->course->couToRecs['.$recipeNr.']->recipe->steps) = '.count($info->course->couToRecs[$recipeNr]->recipe->steps).'\');';
+						//echo 'console.log(\'sendActionToFirmware, count($info->meal->meaToCous[$info->courseNr]->course->couToRecs['.$recipeNr.']->recipe->steps) = '.count($info->meal->meaToCous[$info->courseNr]->course->couToRecs[$recipeNr]->recipe->steps).'\');';
 						//echo 'console.log(\'sendActionToFirmware, $info->stepNumbers['.$recipeNr.'] = '.$info->stepNumbers[$recipeNr].'\');';
 					}
 				}
@@ -408,17 +475,61 @@ class EveryCookApplication extends Application
 		}
     }
 	
+	private function clientCommand_getState($client, $params){
+		if (time()-$this->_lastStateTime < $this->_options['stateValidTimeout'] && !isset($params['reload'])){
+			$client->send($this->_lastState);
+		} else {
+			$recipeNr = 0;
+			$info = $this->getFromCache(self::COOKING_INFOS);
+			$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+			if (!$info){
+				$client->send('{"error":"Current cooking information not found!"}');
+				return;
+			}
+			$firmwareState = $this->readFromFirmware($info, $recipeNr);
+			if (is_string($firmwareState) && strpos($firmwareState,"ERROR: ") !== false){
+				$client->send('{"error":"' . substr($firmwareState, 7) . '"}');
+				return;
+			}
+			$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
+			$this->_lastState = $state;
+			$this->_lastStateTime = tine();
+			$client->send($state);
+		}
+	}
+	
     /**
      * @see Wrench\Application.Application::onData()
      */
     public function onData($payload, $client){
 		try {
-			if ($this->_firmware_client != null){
-				$client->log("data from client, send it to firmware: " . $payload);
-				$this->_firmware_client->send($payload);
+			$message = $payload->__toString();
+			if (substr($message,0,1)=='{'){
+				//is json
+				if ($this->_firmware_client != null){
+					$client->log("data from client, send it to firmware: " . $payload);
+					$this->_firmware_client->send($payload);
+				} else {
+					$client->log("data from client, but no firmware connected: " . $payload);
+					$this->sendCommand($payload);
+				}
 			} else {
-				$client->log("data from client, but no firmware connected: " . $payload);
-				$this->sendCommand($payload);
+				//parse command
+				@list($command, $params) = explode("?", $message, 2);
+				$command = "clientCommand_" .$command;
+				if(method_exists($this, $command)) {
+					$paramArray = array();
+					if (isset($params) && strlen($params)>0){
+						$params = explode("&", $params);
+						foreach($params as $param){
+							@list($key, $value) = explode("=", $param, 2);
+							$key = urldecode($key);
+							$value = urldecode($value);
+							$paramArray[$key]=$value;
+						}
+					}
+					$this->$command($client, $paramArray);
+				}
 			}
 		} catch(Exception $e) {
 			if ($client != null){
