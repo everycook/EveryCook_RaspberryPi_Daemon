@@ -1,7 +1,7 @@
-EveryCook_RaspberryPi_Deamon
+EveryCook_RaspberryPi_Daemon
 ============================
 
-A Deamon, written in C to read the EveryCook sensors and control the actors
+A Daemon, written in C to read the EveryCook sensors and control the actors.
 
 Files:
 /etc/EveryCookDeamon.conf

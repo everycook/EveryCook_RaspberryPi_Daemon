@@ -1,5 +1,5 @@
 /*
-This is the EveryCook Raspberry Pi deamon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
+This is the EveryCook Raspberry Pi daemon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
 EveryCook is an open source platform for collecting all data about food and make it available to all kinds of cooking devices.
 
 This program is copyright (C) by EveryCook. Written by Samuel Werder, Peter Turczak and Alexis Wiasmitinow.

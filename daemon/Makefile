@@ -11,7 +11,7 @@ PREFIX=/local
 #STATIC=$(LIBARY_NAME).a
 #DYNAMIC=$(LIBARY_NAME).so.$(VERSION)
 
-DEAMON=ecdaemon
+DAEMON=ecdaemon
 
 #DEBUG	= -g -O0
 DEBUG	= -O2
@@ -27,12 +27,12 @@ LIBS    = -lwiringPi -lpthread -lm #lm needed for math.h
 # Should not alter anything below this line
 ###############################################################################
 
-SRC	=	virtualspi.c virtuali2c.c basic_functions.c daemon.c
+SRC	=	virtualspi.c virtuali2c.c basic_functions.c daemon.c middlewareSocket.c convertFunctions.c
 
 OBJ	=	$(SRC:.c=.o)
 
-#all:		$(STATIC) $(DYNAMIC) $(DEAMON)
-all:		$(DEAMON)
+#all:		$(STATIC) $(DYNAMIC) $(DAEMON)
+all:		$(DAEMON)
 #all:		$(DYNAMIC)
 
 #$(STATIC):	$(OBJ)
@@ -45,7 +45,7 @@ all:		$(DEAMON)
 #	@echo "[Link (Dynamic)]"
 #	@$(CC) -shared -Wl,-soname,$(LIBARY_NAME).so.$(DYN_VERS_MAJ) -o $(LIBARY_NAME).so.$(VERSION) -lpthread $(OBJ)
 
-$(DEAMON): $(OBJ)
+$(DAEMON): $(OBJ)
 	@echo [Link]
 	@$(CC) -o $@ $(OBJ) $(LDFLAGS) $(LIBS)
 
@@ -76,6 +76,7 @@ install:	$(TARGET)
 	@install -m 0644 virtualspi.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 virtuali2c.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 basic_functions.h		$(DESTDIR)$(PREFIX)/include
+	@install -m 0644 middlewareSocket.h		$(DESTDIR)$(PREFIX)/include
 	@install -m 0644 daemon.h		$(DESTDIR)$(PREFIX)/include
 	
 #	@install -m 0755 -d			$(DESTDIR)$(PREFIX)/lib
@@ -92,6 +93,7 @@ uninstall:
 	@rm -f $(DESTDIR)$(PREFIX)/include/virtualspi.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/virtuali2c.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/basic_functions.h
+	@rm -f $(DESTDIR)$(PREFIX)/include/middlewareSocket.h
 	@rm -f $(DESTDIR)$(PREFIX)/include/daemon.h
 #	@rm -f $(DESTDIR)$(PREFIX)/lib/$(LIBARY_NAME).*
 	@ldconfig
@@ -107,3 +109,5 @@ virtualspi.o: virtualspi.h
 virtuali2c.o: virtuali2c.h
 daemon.o: daemon.h
 basic_functions.o: basic_functions.h
+middlewareSocket.o: middlewareSocket.h
+convertFunctions.o: convertFunctions.h
