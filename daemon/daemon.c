@@ -41,8 +41,29 @@ uint8_t ADC_LoadCellBackRight=3;
 uint8_t ADC_Press=4;
 uint8_t ADC_Temp=5;
 
+//values for noise measurement
+uint32_t MaxWeight1=0;
+uint32_t MinWeight1=1000000000;
+uint32_t DeltaWeight1=0;
+uint32_t MaxWeight2=0;
+uint32_t MinWeight2=1000000000;
+uint32_t DeltaWeight2=0;
+uint32_t MaxWeight3=0;
+uint32_t MinWeight3=1000000000;
+uint32_t DeltaWeight3=0;
+uint32_t MaxWeight4=0;
+uint32_t MinWeight4=1000000000;
+uint32_t DeltaWeight4=0;
+uint32_t MaxTemp=0;
+uint32_t MinTemp=1000000000;
+uint32_t DeltaTemp=0;
+uint32_t MaxPress=0;
+uint32_t MinPress=1000000000;
+uint32_t DeltaPress=0;
+
 
 void initOutputFile(void);
+
 double readTemp();
 double readPress();
 void HeatOn();
@@ -195,6 +216,7 @@ bool debug_enabled = false;
 bool debug3_enabled = false;
 
 bool calibration = false;
+bool measure_noise = false;
 
 /*
 The Modes:
@@ -236,6 +258,7 @@ void printUsage(){
 	printf("  -mf, --middleware-and-file    use middleware and file(on read as backup)\r\n");
 	printf("  -cg, --config <path>          set configfile path to <file>\r\n");
 	printf("  -ms, --middleware-server <ip> set middleware Server to <ip>\r\n");
+	printf("  -r, --random-noise 		measure and output random noise\r\n");
 	printf("  -?,  --help                   show this help\r\n");
 }
 
@@ -259,6 +282,9 @@ int main(int argc, const char* argv[]){
 		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
 			calibration = true;
 			printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");
+		} else if(strcmp(argv[i], "--random-noise") == 0 || strcmp(argv[i], "-r") == 0){
+			measure_noise = true;
+			printf("we measure random noise\n");
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
 			useMiddleware = false;
 			useFile = true;
@@ -317,9 +343,9 @@ int main(int argc, const char* argv[]){
 		//try {
 			if (debug_enabled){printf("main loop...\n");}
 			//runTime = millis()/1000; //calculate runtime in seconds
-			if (calibration){
+			if (calibration || measure_noise){
 				//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
-				HeatOn();
+				if (calibration) HeatOn();
 				readTemp();
 				readPress();
 				readWeight();
@@ -549,6 +575,13 @@ double readTemp(){
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
 		if (debug_enabled || calibration){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
+		if (measure_noise)
+		{
+		if (tempValueInt>MaxTemp) MaxTemp=tempValueInt;
+		if (tempValueInt<MinTemp) MinTemp=tempValueInt;
+		DeltaTemp=MaxTemp-MinTemp;
+		printf("NoiseTemp %d | ", DeltaTemp);
+		}
 		return tempValue;
 	}
 }
@@ -584,6 +617,13 @@ double readPress(){
 		uint32_t pressValueInt = readADC(ADC_Press);
 		double pressValue = pressValueInt* PressScaleFactor+PressOffset;
 		if (debug_enabled || calibration){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
+		if (measure_noise)
+		{
+		if (pressValueInt>MaxPress) MaxPress=pressValueInt;
+		if (pressValueInt<MinPress) MinPress=pressValueInt;
+		DeltaPress=MaxPress-MinPress;
+		printf("NoisePress %d |", DeltaPress);
+		}
 		return pressValue;
 	}
 }
@@ -688,6 +728,25 @@ double readWeight(){
 		weightValue = roundf(weightValue);
 		//if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams\n", weightValueSum, weightValue);}
 		if (debug_enabled || calibration){printf("Weight %d dig %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
+		if (measure_noise)
+		{
+		if (weightValue1>MaxWeight1) MaxWeight1=weightValue1;
+		if (weightValue1<MinWeight1) MinWeight1=weightValue1;
+		DeltaWeight1=MaxWeight1-MinWeight1;
+		printf("NoiseWeightFL %d | ", DeltaWeight1);
+		if (weightValue2>MaxWeight2) MaxWeight2=weightValue2;
+		if (weightValue2<MinWeight2) MinWeight2=weightValue2;
+		DeltaWeight2=MaxWeight2-MinWeight2;
+		printf("NoiseWeightFR %d | ", DeltaWeight2);
+		if (weightValue3>MaxWeight3) MaxWeight3=weightValue3;
+		if (weightValue3<MinWeight3) MinWeight3=weightValue3;
+		DeltaWeight3=MaxWeight3-MinWeight3;
+		printf("NoiseWeightBL %d | ", DeltaWeight3);
+		if (weightValue4>MaxWeight4) MaxWeight4=weightValue4;
+		if (weightValue4<MinWeight4) MinWeight4=weightValue4;
+		DeltaWeight4=MaxWeight4-MinWeight4;
+		printf("NoiseWeightBR %d\n", DeltaWeight4);
+		}
 		return weightValue;
 	}
 }
