@@ -83,3 +83,18 @@ int POWNTimes(uint32_t num, uint8_t n){
 	}
 	return i;
 }
+
+/* Combine two strings to one string
+ *
+ */
+void StringUnion(char *fristString, char *secondString){
+  uint8_t i = 0, fristEndPtr = 0;
+
+  while (fristString[fristEndPtr]){
+    fristEndPtr++;
+  }
+  while (secondString[i]){
+    fristString[fristEndPtr+i] = secondString[i];
+    i++;
+   }
+}
