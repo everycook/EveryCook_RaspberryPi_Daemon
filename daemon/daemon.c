@@ -368,6 +368,11 @@ int main(int argc, const char* argv[]){
 	
 	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
 	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
+	
+	//remove commandfile so no unexpectet action will be done
+	if (remove(commandFile) != 0){
+		printf("Error while remove old commandfile: %s\n", commandFile);
+	}
 		
 	runTime = time(NULL); //TODO WIA CHANGE THIS
 	printf("runtime is now: %d \n",runTime);
