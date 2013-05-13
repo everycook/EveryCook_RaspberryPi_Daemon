@@ -73,7 +73,8 @@ See GPLv3.htm in the main folder for details.
 void resetValues();
 void ProcessCommand(void);
 void prepareState(char* TotalUpdate);
-void WriteFile(char* data);
+void writeStatus(char* data);
+void writeLog();
 void parseSockInput(char* input);
 bool ReadFile();
 void evaluateInput();

@@ -108,10 +108,7 @@ bool doHandshake(int sockfd, char* application){
 	int n;
 	char sendBuffer[256];
 	bzero(sendBuffer,256);
-	StringUnion(sendBuffer, "ServerConnect\r\n");
-	StringUnion(sendBuffer, "application: ");
-	StringUnion(sendBuffer, application);
-	StringUnion(sendBuffer, "\r\n");
+	sprintf(sendBuffer, "ServerConnect\r\napplication: %s\r\n", application);
 	//add other "headers/parameters if needed ("<param>: <value>")
 	
 	n = write(sockfd,sendBuffer,strlen(sendBuffer));

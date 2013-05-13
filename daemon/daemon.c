@@ -113,6 +113,15 @@ uint8_t BeepWeightReached=1;
 uint8_t BeepStepEnd=1;
 uint8_t DeleteLogOnStart=1;  //delete log at start saves disk space set 0 to keep log
 
+uint8_t i2c_7seg_top=I2C_7SEG_TOP;					//SegAPin
+uint8_t i2c_7seg_top_left=I2C_7SEG_TOP_LEFT;		//SegBPin
+uint8_t i2c_7seg_top_right=I2C_7SEG_TOP_RIGHT;		//SegFPin
+uint8_t i2c_7seg_center=I2C_7SEG_CENTER;			//SegGPin
+uint8_t i2c_7seg_bottom_left=I2C_7SEG_BOTTOM_LEFT;	//SegEPin
+uint8_t i2c_7seg_bottom_right=I2C_7SEG_BOTTOM_RIGHT;		//SegCPin
+uint8_t i2c_7seg_bottom=I2C_7SEG_BOTTOM;			//SegDPin
+uint8_t i2c_7seg_period=I2C_7SEG_PERIOD;			//SegDPPin
+
 //Values for change 7seg display
 uint32_t LowTemp = 40;
 uint32_t LowPress = 40;
@@ -168,6 +177,7 @@ uint32_t nextTempCheckTime=0; //when did we do the last Temperature Check???
 uint32_t motorStartTime =0; //When did we start the motor?
 uint32_t RemainTime=0;
 uint32_t BeepEndTime=0; //when to stop the beeper
+uint32_t lastBlinkTime=0; //when to stop the beeper
 
 //Servo stuff
 const uint32_t ValveOpenAngle=4000;
@@ -424,11 +434,12 @@ int main(int argc, const char* argv[]){
 						}
 					}
 					if (useFile) {
-						WriteFile(TotalUpdate);
+						writeStatus(TotalUpdate);
 					}
 					dataChanged = false;
 					timeChanged = false;
 				}
+				writeLog();
 			}
 			if (debug_enabled){printf("main loop end.\n");}
 		/*} catch(exception e){
@@ -817,6 +828,10 @@ void OptionControl(){
     } else if (mode==MODE_OPTION_REMEMBER_BEEP_OFF){
       doRememberBeep=false;
     } else if (mode==MODE_OPTION_7SEGMENT_BLINK){
+		SegmentDisplaySimple(' ');
+		blink7Segment();
+		blink7Segment();
+		blink7Segment();
 		blink7Segment();
 	}
     mode=MODE_STANDBY;
@@ -864,7 +879,13 @@ void TempControl(){
 			}
 		}
 	} else {
-		//TODO: temp lesen
+		oldTemp = temp;
+		uint32_t TempValue = readTemp();
+		temp=TempValue;
+		
+		if (oldTemp != temp){
+			dataChanged = true;
+		}
 	}
 }
 
@@ -917,7 +938,13 @@ void PressControl(){
 			}
 		}
 	} else {
-		//TODO: press lesen
+		oldPress = press;
+		uint32_t pressValue = readPress();
+		press=pressValue;
+		
+		if (oldPress != press){
+			dataChanged = true;
+		}
 	}
 }
 
@@ -1020,19 +1047,23 @@ void SegmentDisplay(){
 		if (!simulationMode || simulationModeShow7Segment){
 			SegmentDisplaySimple(curSegmentDisplay);
 			//SegmentDisplayOptimized(curSegmentDisplay);
-			
-			//togglePin(I2C_7SEG_PERIOD);
-			if (blinkState){
-				writeI2CPin(I2C_7SEG_PERIOD,I2C_7SEG_OFF);
-				blinkState = 0;
-				if (debug_enabled){printf("SegmentDisplay: blink off\n");}
-			} else {
-				blinkState = 1;
-				writeI2CPin(I2C_7SEG_PERIOD,I2C_7SEG_ON);
-				if (debug_enabled){printf("SegmentDisplay: blink on\n");}
-			}
 		} else {
 			oldSegmentDisplay = curSegmentDisplay;
+		}
+	}
+	if (!simulationMode || simulationModeShow7Segment){
+		if (lastBlinkTime != runTime){
+			lastBlinkTime = runTime;
+			//togglePin(i2c_7seg_period);
+			if (blinkState){
+				writeI2CPin(i2c_7seg_period,I2C_7SEG_OFF);
+				blinkState = false;
+				if (debug_enabled || (simulationMode && !simulationModeShow7Segment)){printf("SegmentDisplay: blink off\n");}
+			} else {
+				blinkState = true;
+				writeI2CPin(i2c_7seg_period,I2C_7SEG_ON);
+				if (debug_enabled || (simulationMode && !simulationModeShow7Segment)){printf("SegmentDisplay: blink on\n");}
+			}
 		}
 	}
 }
@@ -1040,40 +1071,40 @@ void SegmentDisplay(){
 void SegmentDisplaySimple(char curSegmentDisplay){
 	if (curSegmentDisplay == 'P'){
 		oldSegmentDisplay = 'P';
-		writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 	} else if (curSegmentDisplay == 'H'){
 		oldSegmentDisplay = 'H';
-		writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 	} else if (curSegmentDisplay == '0'){
 		oldSegmentDisplay = '0';
-		writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-		writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
 	} else {
 		oldSegmentDisplay = ' ';
-		writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 	}
 }
 
@@ -1081,102 +1112,102 @@ void SegmentDisplayOptimized(char curSegmentDisplay){
 	if (curSegmentDisplay == 'P'){
 		if (curSegmentDisplay != oldSegmentDisplay){
 			if (oldSegmentDisplay == 'H'){
-				writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_OFF);
-				//writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 			} else if (oldSegmentDisplay == '0'){
-				//writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_OFF);
-				writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 			} else if (oldSegmentDisplay == ' '){
 				//Is initial do all
-				writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_OFF);
-				writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 			}
 			oldSegmentDisplay = curSegmentDisplay;
 		}
 	} else if (curSegmentDisplay == 'H'){
 		if (curSegmentDisplay != oldSegmentDisplay){
 			if (oldSegmentDisplay == 'P'){
-				writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_OFF);
-				//writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 			} else if (oldSegmentDisplay == '0'){
-				writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_OFF);
-				//writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 			} else if (oldSegmentDisplay == ' '){
 				//Is initial do all
-				writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_OFF);
-				writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 			}
 			oldSegmentDisplay = curSegmentDisplay;
 		}
 	} else if (curSegmentDisplay == '0'){
 		if (curSegmentDisplay != oldSegmentDisplay){
 			if (oldSegmentDisplay == 'H'){
-				writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_OFF);
-				//writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
 			} else if (oldSegmentDisplay == 'P'){
-				//writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_OFF);
-				//writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				//writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
 			} else if (oldSegmentDisplay == ' '){
 				//Is initial do all
-				writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_OFF);
-				writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
-				writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
+				writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
 			}
 			oldSegmentDisplay = curSegmentDisplay;
 		}
 	} else {
 		//Empty all
-		writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_OFF);
-		writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 		oldSegmentDisplay = ' ';
 	}
 }
@@ -1225,18 +1256,23 @@ void prepareState(char* TotalUpdate){
 	if (debug_enabled){printf("prepareState: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);}
 }
 
-void WriteFile(char* data){
-	if (debug_enabled){printf("WriteFile\n");}
+void writeStatus(char* data){
+	if (debug_enabled){printf("WriteStatus\n");}
 	
 	FILE *fp;
 	fp = fopen(statusFile, "w");
 	fputs(data, fp);
 	fclose(fp);
 	
+	if (debug_enabled){printf("WriteStatus: after write\n");}
+}
+
+
+void writeLog(){
+	if (debug_enabled){printf("writeLog\n");}
 	nowTime = time(NULL);
 	localTime=localtime(&nowTime);
 	
-	if (debug_enabled){printf("WriteFile: before write\n");}
 	if (runTime>=lastLogSave+logSaveInterval){
 		char tempString[20];
 		StringClean(tempString, 20);
@@ -1248,7 +1284,7 @@ void WriteFile(char* data){
 		//fclose(logFilePointer);
 		lastLogSave=runTime;
 	}
-	if (debug_enabled){printf("WriteFile: after write\n");}
+	if (debug_enabled){printf("writeLog: after write\n");}
 }
 
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
@@ -1613,6 +1649,33 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "middlewarePortno") == 0){
 					middlewarePortno = StringConvertToNumber(valueString);
 					if (debug_enabled){printf("\tmiddlewarePortno: %d\n", middlewarePortno);}
+					
+					
+				} else if(strcmp(keyString, "i2c_7seg_top") == 0){
+					i2c_7seg_top = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_top: %d\n", i2c_7seg_top);}
+				} else if(strcmp(keyString, "i2c_7seg_top_left") == 0){
+					i2c_7seg_top_left = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_top_left: %d\n", i2c_7seg_top_left);}
+				} else if(strcmp(keyString, "i2c_7seg_top_right") == 0){
+					i2c_7seg_top_right = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_top_right: %d\n", i2c_7seg_top_right);}
+				} else if(strcmp(keyString, "i2c_7seg_center") == 0){
+					i2c_7seg_center = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_center: %d\n", i2c_7seg_center);}
+				} else if(strcmp(keyString, "i2c_7seg_bottom_left") == 0){
+					i2c_7seg_bottom_left = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_bottom_left: %d\n", i2c_7seg_bottom_left);}
+				} else if(strcmp(keyString, "i2c_7seg_bottom_right") == 0){
+					i2c_7seg_bottom_right = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_bottom_right: %d\n", i2c_7seg_bottom_right);}
+				} else if(strcmp(keyString, "i2c_7seg_bottom") == 0){
+					i2c_7seg_bottom = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_bottom: %d\n", i2c_7seg_bottom);}
+				} else if(strcmp(keyString, "i2c_7seg_period") == 0){
+					i2c_7seg_period = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_7seg_period: %d\n", i2c_7seg_period);}
+					
 				} else {
 					if (debug_enabled){printf("\tkey not Found\n");}
 				}
@@ -1647,44 +1710,44 @@ void ReadConfigurationFile(void){
 
 void blink7Segment(){
 	//mitte
-	writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_TOP,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
 	
 	//links
-	writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_TOP_LEFT,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
 	
 	//oben
-	writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_TOP_RIGHT,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
 	
 	
 	//rechts
-	writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_CENTER,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
 	
 	//ulinks
-	writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_BOTTOM_LEFT,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
 	
 	//unten
-	writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_BOTTOM_RIGHT,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 	
 	//urechts
-	writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_BOTTOM,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
 	
 	//punkt
-	writeI2CPin(I2C_7SEG_PERIOD,I2C_7SEG_ON);
+	writeI2CPin(i2c_7seg_period,I2C_7SEG_ON);
 	delay(500);
-	writeI2CPin(I2C_7SEG_PERIOD,I2C_7SEG_OFF);
+	writeI2CPin(i2c_7seg_period,I2C_7SEG_OFF);
 	delay(500);
 }

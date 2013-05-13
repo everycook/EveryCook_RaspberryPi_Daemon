@@ -41,7 +41,7 @@ var update = window.setInterval("ShowData()",250);
 </tr>
 <tr>
 <td class="mandata">Scale</td><td class="mandata"><span id="ActGrams"></span> Grams</td>
-<td class="mandata" colspan="2"><div id="WeightOuter" style="visibility:hidden;border:1px solid #000000;height:10px;width:50px;"><div id="WeightInner" style="visibility:hidden;background-color:red;width:1px;height:10px;"></div></div></td>
+<td class="mandata" colspan="2"><span class="StepID">ActStepID: <span id="ActStepID"></span></span> <div id="WeightOuter" style="visibility:hidden;border:1px solid #000000;height:10px;width:50px;"><div id="WeightInner" style="visibility:hidden;background-color:red;width:1px;height:10px;"></div></div></td>
 </tr>
 
 <tr>
@@ -74,7 +74,7 @@ var update = window.setInterval("ShowData()",250);
 </tr>
 <tr>
 <td class="mandata">Scale</td><td class="mandata">Grams <input id="SetGrams" type="number" size="2" value="0"></td>
-<td class="mandata" colspan="2"><input type="button" style="width:200px;" value="Go!" onclick="SendCommand()"></td>
+<td class="mandata" colspan="2"><span class="StepID">StepID: <input id="StepID" type="number" size="2" value="1"></span><input type="button" style="width:200px;" value="Go!" onclick="SendCommand()"></td>
 </tr>
 <tr>
 <td class="mandata" colspan="4"><input type="button" style="width:750px;" value="Stop!" onclick="StopNow()"></td>

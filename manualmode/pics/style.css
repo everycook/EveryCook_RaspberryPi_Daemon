@@ -45,9 +45,9 @@ a#courseselector {padding: 5px; width:100px; height:15px; border:1px solid #140d
 
 /*manual mode*/
 table.manmode { margin:auto;border-collapse:collapse; border:1px dashed #140d60; width:600px;}
-td.mandata { text-align:right; padding: 5px; border:1px dashed #140d60;}
+td.mandata { text-align:right; padding: 5px; border:1px dashed #140d60; width:25%; }
 td.mantitle { text-align:left; padding: 5px; border:1px dashed #140d60;}
-
+.StepID {float: left;}
 
 
 /*various stuff*/

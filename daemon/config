@@ -50,14 +50,26 @@ logSaveInterval=2
 #PWM Channels Configuration
 Motor=1
 Servo=2
-DisplaySegA=3
-DisplaySegB=4
-DisplaySegC=5
-DisplaySegD=6
-DisplaySegE=7
-DisplaySegF=8
-DisplaySegG=9
-DisplaySegDP=10
+#DisplaySegA
+i2c_7seg_top=7
+#DisplaySegB
+i2c_7seg_top_left=8
+#DisplaySegF
+i2c_7seg_top_right=6
+#DisplaySegG
+i2c_7seg_center=9
+#DisplaySegE
+i2c_7seg_bottom_left=2
+#DisplaySegC
+i2c_7seg_bottom_right=4
+#DisplaySegD
+i2c_7seg_bottom=3
+#DisplaySegDP
+i2c_7seg_period=5
+
+
+
+
 
 #Induction Heater GPIO pins
 PowerOnPin=4

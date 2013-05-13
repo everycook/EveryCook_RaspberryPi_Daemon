@@ -62,7 +62,7 @@ virtuali2c: virtuali2c.o
 	
 .PHONEY:	clean
 clean:
-	rm -f $(OBJ) *~ core tags Makefile.bak $(LIBARY_NAME).*
+	rm -f $(OBJ) $(DAEMON)
 
 .PHONEY:	tags
 tags:	$(SRC)
