@@ -25,6 +25,8 @@ See GPLv3.htm in the main folder for details.
 
 #include <string.h>
 
+#include <signal.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -62,6 +64,7 @@ uint32_t MinPress=1000000000;
 uint32_t DeltaPress=0;
 
 
+void handleSignal(int signum);
 void initOutputFile(void);
 
 double readTemp();
@@ -89,6 +92,7 @@ uint8_t logSaveInterval=5; //setting for logging interval in seconds
 
 
 double ForceScaleFactor=0.1; //Conversion between digital Units and grams
+double ForceOffset=0; //for default reference force in calibration mode only
 
 double PressScaleFactor=0.1;
 double PressOffset=1000;
@@ -184,6 +188,8 @@ const uint32_t ValveOpenAngle=4000;
 const uint32_t ValveClosedAngle=0;
 uint32_t ValveSetValue=0;
 
+double motorRpmToPwm = 4095.0/200.0;
+
 //Options
 bool doRememberBeep = 0;
 
@@ -227,6 +233,8 @@ bool debug3_enabled = false;
 
 bool calibration = false;
 bool measure_noise = false;
+
+bool running = true;
 
 /*
 The Modes:
@@ -328,6 +336,16 @@ int main(int argc, const char* argv[]){
 		}
 	}
 	
+	//define signal handler
+	signal (SIGTERM, handleSignal); //kill -term <pid>
+	signal (SIGINT, handleSignal); //Ctr+c
+	signal (SIGQUIT, handleSignal); //Ctrl+???
+	signal (SIGKILL, handleSignal); //kill -kill <pid> //handling not possible...
+	signal (SIGHUP, handleSignal); //hang-up signal is used to report that the user's terminal is disconnected
+	signal (SIGTSTP, handleSignal); //is interactive Job Control stop signal
+	
+	
+	
 	initHardware();
 	delay(30);
 	StringClean(TotalUpdate, 512);
@@ -337,6 +355,7 @@ int main(int argc, const char* argv[]){
 	Delay = LongDelay;
 	
 	resetValues();
+	referenceForce = ForceOffset; //for default reference Force in calibration mode
 	
 	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
 	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
@@ -349,7 +368,7 @@ int main(int argc, const char* argv[]){
 	
 	const uint8_t dataType = TYPE_TEXT;
 	uint8_t recivedDataType = 0;
-	while (true){
+	while (running){
 		//try {
 			if (debug_enabled){printf("main loop...\n");}
 			//runTime = millis()/1000; //calculate runtime in seconds
@@ -448,7 +467,27 @@ int main(int argc, const char* argv[]){
 		delay(Delay);
 	}
 	
+	SegmentDisplaySimple('S');
 	fclose(logFilePointer);
+	
+	return 0;
+}
+
+void handleSignal(int signum) {
+	/* signum is one of:
+	SIGTERM = 15
+	SIGINT = 2
+	SIGQUIT = 3
+	SIGKILL = 9
+	SIGHUP = 1
+	??? = 20 => ctr+z
+	*/
+	if (signum == SIGTERM || signum == SIGINT || signum == SIGQUIT || signum == SIGKILL || signum == SIGHUP){
+		printf("signal %d recived\n", signum);
+		running = false;
+	} else {
+		printf("not handled signal %d recived\n", signum);
+	}
 }
 
 
@@ -586,12 +625,11 @@ double readTemp(){
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
 		if (debug_enabled || calibration){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
-		if (measure_noise)
-		{
-		if (tempValueInt>MaxTemp) MaxTemp=tempValueInt;
-		if (tempValueInt<MinTemp) MinTemp=tempValueInt;
-		DeltaTemp=MaxTemp-MinTemp;
-		printf("NoiseTemp %d | ", DeltaTemp);
+		if (measure_noise) {
+			if (tempValueInt>MaxTemp) MaxTemp=tempValueInt;
+			if (tempValueInt<MinTemp) MinTemp=tempValueInt;
+			DeltaTemp=MaxTemp-MinTemp;
+			printf("NoiseTemp %d | ", DeltaTemp);
 		}
 		return tempValue;
 	}
@@ -628,12 +666,11 @@ double readPress(){
 		uint32_t pressValueInt = readADC(ADC_Press);
 		double pressValue = pressValueInt* PressScaleFactor+PressOffset;
 		if (debug_enabled || calibration){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
-		if (measure_noise)
-		{
-		if (pressValueInt>MaxPress) MaxPress=pressValueInt;
-		if (pressValueInt<MinPress) MinPress=pressValueInt;
-		DeltaPress=MaxPress-MinPress;
-		printf("NoisePress %d |", DeltaPress);
+		if (measure_noise){
+			if (pressValueInt>MaxPress) MaxPress=pressValueInt;
+			if (pressValueInt<MinPress) MinPress=pressValueInt;
+			DeltaPress=MaxPress-MinPress;
+			printf("NoisePress %d |", DeltaPress);
 		}
 		return pressValue;
 	}
@@ -738,25 +775,27 @@ double readWeight(){
 		weightValue *=ForceScaleFactor;
 		weightValue = roundf(weightValue);
 		//if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams\n", weightValueSum, weightValue);}
-		if (debug_enabled || calibration){printf("Weight %d dig %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);}
-		if (measure_noise)
-		{
-		if (weightValue1>MaxWeight1) MaxWeight1=weightValue1;
-		if (weightValue1<MinWeight1) MinWeight1=weightValue1;
-		DeltaWeight1=MaxWeight1-MinWeight1;
-		printf("NoiseWeightFL %d | ", DeltaWeight1);
-		if (weightValue2>MaxWeight2) MaxWeight2=weightValue2;
-		if (weightValue2<MinWeight2) MinWeight2=weightValue2;
-		DeltaWeight2=MaxWeight2-MinWeight2;
-		printf("NoiseWeightFR %d | ", DeltaWeight2);
-		if (weightValue3>MaxWeight3) MaxWeight3=weightValue3;
-		if (weightValue3<MinWeight3) MinWeight3=weightValue3;
-		DeltaWeight3=MaxWeight3-MinWeight3;
-		printf("NoiseWeightBL %d | ", DeltaWeight3);
-		if (weightValue4>MaxWeight4) MaxWeight4=weightValue4;
-		if (weightValue4<MinWeight4) MinWeight4=weightValue4;
-		DeltaWeight4=MaxWeight4-MinWeight4;
-		printf("NoiseWeightBR %d\n", DeltaWeight4);
+		if (debug_enabled || calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, (weightValue+referenceForce), weightValue1, weightValue2, weightValue3, weightValue4);}
+		if (measure_noise){
+			if (weightValue1>MaxWeight1) MaxWeight1=weightValue1;
+			if (weightValue1<MinWeight1) MinWeight1=weightValue1;
+			DeltaWeight1=MaxWeight1-MinWeight1;
+			printf("NoiseWeightFL %d | ", DeltaWeight1);
+			
+			if (weightValue2>MaxWeight2) MaxWeight2=weightValue2;
+			if (weightValue2<MinWeight2) MinWeight2=weightValue2;
+			DeltaWeight2=MaxWeight2-MinWeight2;
+			printf("NoiseWeightFR %d | ", DeltaWeight2);
+			
+			if (weightValue3>MaxWeight3) MaxWeight3=weightValue3;
+			if (weightValue3<MinWeight3) MinWeight3=weightValue3;
+			DeltaWeight3=MaxWeight3-MinWeight3;
+			printf("NoiseWeightBL %d | ", DeltaWeight3);
+			
+			if (weightValue4>MaxWeight4) MaxWeight4=weightValue4;
+			if (weightValue4<MinWeight4) MinWeight4=weightValue4;
+			DeltaWeight4=MaxWeight4-MinWeight4;
+			printf("NoiseWeightBR %d\n", DeltaWeight4);
 		}
 		return weightValue;
 	}
@@ -963,11 +1002,14 @@ void MotorControl(){
 				motorRpm = setMotorRpm;
 				motorStartTime=runTime;
 			}
+		} else {
+			motorRpm = 0;
 		}
 	} else {
 		motorRpm=0;
 	}
-	setMotorPWM(motorRpm);
+	uint16_t motorPwm = motorRpm * motorRpmToPwm;
+	setMotorPWM(motorPwm);
 }
 
 void ValveControl(){
@@ -1096,6 +1138,24 @@ void SegmentDisplaySimple(char curSegmentDisplay){
 		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
 		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
 		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
+	} else if (curSegmentDisplay == 'S'){
+		oldSegmentDisplay = 'S';
+		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
+	} else if (curSegmentDisplay == 'E'){
+		oldSegmentDisplay = 'E';
+		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
 	} else {
 		oldSegmentDisplay = ' ';
 		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
@@ -1136,6 +1196,8 @@ void SegmentDisplayOptimized(char curSegmentDisplay){
 				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
 				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
 				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
+			} else {
+				SegmentDisplaySimple(curSegmentDisplay);
 			}
 			oldSegmentDisplay = curSegmentDisplay;
 		}
@@ -1166,6 +1228,8 @@ void SegmentDisplayOptimized(char curSegmentDisplay){
 				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
 				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
 				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
+			} else {
+				SegmentDisplaySimple(curSegmentDisplay);
 			}
 			oldSegmentDisplay = curSegmentDisplay;
 		}
@@ -1196,10 +1260,14 @@ void SegmentDisplayOptimized(char curSegmentDisplay){
 				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
 				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
 				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
+			} else {
+				SegmentDisplaySimple(curSegmentDisplay);
 			}
 			oldSegmentDisplay = curSegmentDisplay;
 		}
 	} else {
+		SegmentDisplaySimple(curSegmentDisplay);
+		/*
 		//Empty all
 		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
 		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
@@ -1209,6 +1277,7 @@ void SegmentDisplayOptimized(char curSegmentDisplay){
 		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
 		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 		oldSegmentDisplay = ' ';
+		*/
 	}
 }
 
@@ -1573,32 +1642,32 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "Gain_LoadCellFrontLeft") == 0){
 					ptr = ADC_LoadCellFrontLeft;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellFrontLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellFrontRight") == 0){
 					ptr = ADC_LoadCellFrontRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellFrontRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellBackLeft") == 0){
 					ptr = ADC_LoadCellBackLeft;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellBackLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellBackRight") == 0){
 					ptr = ADC_LoadCellBackRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellBackRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Press") == 0){
 					ptr = ADC_Press;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_Press: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Temp") == 0){
 					ptr = ADC_Temp;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<9 | 1<<8 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_Temp: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				
 				} else if(strcmp(keyString, "BeepWeightReached") == 0){
@@ -1688,19 +1757,16 @@ void ReadConfigurationFile(void){
 		}
 	}
 	ForceScaleFactor=(ForceValue2-ForceValue1)/((double)ForceADC2-(double)ForceADC1);
+	ForceOffset=ForceValue1 - ForceADC1*ForceScaleFactor ;  //offset in g //for default reference force in calibration mode only
 	
 	PressScaleFactor=(PressValue2-PressValue1)/((double)PressADC2-(double)PressADC1);
-	PressOffset=PressValue1 - PressADC1*PressScaleFactor ;  //offset in ADC-Value
+	PressOffset=PressValue1 - PressADC1*PressScaleFactor ;  //offset in pa
 	
 	TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
 	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in °C
 	
-	//int debug=TempADC1;
-	//TempOffset=TempScaleFactor/TempValue1;	//falsch
-	//TempOffset=TempADC1*TempScaleFactor - TempValue1;  //offset in °C
+	setADCConfigReg(newADCConfig);
 	
-	//TempOffset=TempValue1-TempADC1*TempScaleFactor;
-	//printf("debugvalue %d.\n",debug);
 	if (showReadedConfigs){printf("ForceScaleFactor: %.2e, PressScaleFactor: %.2e, PressOffset: %f, TempScaleFactor: %.2e, TempOffset: %f\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
 	
 	fclose(fp);

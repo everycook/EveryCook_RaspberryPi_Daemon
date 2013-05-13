@@ -25,7 +25,7 @@ See GPLv3.htm in the main folder for details.
 #include "virtuali2c.h"
 #include "basic_functions.h"
 
-uint32_t ConfigurationReg[] = {0x710, 0x711, 0x712, 0x713, 0x714, 0x115};//For AD7794 conf-reg
+uint32_t ConfigurationReg[] = {0x390, 0x391, 0x392, 0x393, 0x914, 0x295};//For AD7794 conf-reg
 
 uint8_t PinNumSign[] = {24, 25, 27, 22, 7, 17};
 
