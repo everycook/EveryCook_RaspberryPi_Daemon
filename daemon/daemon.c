@@ -233,6 +233,7 @@ bool debug3_enabled = false;
 
 bool calibration = false;
 bool measure_noise = false;
+bool test_7seg = false;
 
 bool running = true;
 
@@ -276,7 +277,8 @@ void printUsage(){
 	printf("  -mf, --middleware-and-file    use middleware and file(on read as backup)\r\n");
 	printf("  -cg, --config <path>          set configfile path to <file>\r\n");
 	printf("  -ms, --middleware-server <ip> set middleware Server to <ip>\r\n");
-	printf("  -r, --random-noise 		measure and output random noise\r\n");
+	printf("  -tn, --test-noise 			measure and output random noise\r\n");
+	printf("  -t7, --test-7seg 				blink 7segments to evaluate correct config\r\n");
 	printf("  -?,  --help                   show this help\r\n");
 }
 
@@ -303,6 +305,12 @@ int main(int argc, const char* argv[]){
 		} else if(strcmp(argv[i], "--random-noise") == 0 || strcmp(argv[i], "-r") == 0){
 			measure_noise = true;
 			printf("we measure random noise\n");
+		} else if(strcmp(argv[i], "--test-noise") == 0 || strcmp(argv[i], "-tn") == 0){
+			measure_noise = true;
+			printf("we measure random noise\n");
+		} else if(strcmp(argv[i], "--test-7seg") == 0 || strcmp(argv[i], "-t7") == 0){
+			test_7seg = true;
+			printf("test 7seg config\n");
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
 			useMiddleware = false;
 			useFile = true;
@@ -356,6 +364,7 @@ int main(int argc, const char* argv[]){
 	
 	resetValues();
 	referenceForce = ForceOffset; //for default reference Force in calibration mode
+	SegmentDisplaySimple(' ');
 	
 	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
 	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
@@ -379,6 +388,8 @@ int main(int argc, const char* argv[]){
 				readPress();
 				readWeight();
 				SegmentDisplay();
+			} else if (test_7seg){
+				blink7Segment();
 			} else {
 				if (lastRunTime != runTime){
 					timeChanged = true;
@@ -883,7 +894,7 @@ void TempControl(){
 	if (mode>=MIN_TEMP_MODE && mode<=MAX_TEMP_MODE) {
 		if (runTime>=nextTempCheckTime || heatPowerStatus==0){
 			HeatOff();
-			delay(100);
+			delay(500);
 			oldTemp = temp;
 			uint32_t TempValue = readTemp();
 			temp=TempValue;
@@ -902,9 +913,9 @@ void TempControl(){
 						dataChanged=true;
 					}
 				}
-				else if (DeltaT <= 10) { nextTempCheckTime=runTime+5; HeatOn(); }
-				else if (DeltaT <= 50) { nextTempCheckTime=runTime+10; HeatOn();}
-				else {nextTempCheckTime=runTime+20; HeatOn();} 
+				else if (DeltaT <= 10) { nextTempCheckTime=runTime+15; HeatOn(); }
+				else if (DeltaT <= 50) { nextTempCheckTime=runTime+25; HeatOn();}
+				else {nextTempCheckTime=runTime+35; HeatOn();} 
 			}
 			if (mode==MODE_HEATUP && heatPowerStatus==1) { //heatup
 				stepEndTime=nextTempCheckTime+1;
@@ -1776,44 +1787,52 @@ void ReadConfigurationFile(void){
 
 void blink7Segment(){
 	//mitte
+	printf("center: %d\n", i2c_7seg_center);
 	writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
 	
 	//links
+	printf("top left: %d\n", i2c_7seg_top_left);
 	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
 	
 	//oben
+	printf("top: %d\n", i2c_7seg_top);
 	writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
 	
 	
 	//rechts
+	printf("top right: %d\n", i2c_7seg_top_right);
 	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
 	
 	//ulinks
+	printf("bottom left: %d\n", i2c_7seg_bottom_left);
 	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
 	
 	//unten
+	printf("bottom: %d\n", i2c_7seg_bottom);
 	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 	
 	//urechts
+	printf("bottom right: %d\n", i2c_7seg_bottom_right);
 	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
 	
 	//punkt
+	printf("period: %d\n", i2c_7seg_period);
 	writeI2CPin(i2c_7seg_period,I2C_7SEG_ON);
-	delay(500);
+	delay(2000);
 	writeI2CPin(i2c_7seg_period,I2C_7SEG_OFF);
-	delay(500);
+	delay(2000);
 }
