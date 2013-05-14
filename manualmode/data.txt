@@ -1,1 +1,1 @@
-/var/log/EveryCook_Deamon.log
+/var/log/EveryCook_Daemon.log

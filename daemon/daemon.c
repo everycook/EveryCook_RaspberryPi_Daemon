@@ -640,7 +640,7 @@ double readTemp(){
 		uint32_t tempValueInt = readADC(ADC_Temp);
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
-		if (debug_enabled || calibration){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
+		if (debug_enabled || calibration){printf("Temp %d dig %.0f ï¿½C | ", tempValueInt, tempValue);}
 		if (measure_noise) {
 			if (tempValueInt>MaxTemp) MaxTemp=tempValueInt;
 			if (tempValueInt<MinTemp) MinTemp=tempValueInt;
@@ -1779,7 +1779,7 @@ void ReadConfigurationFile(void){
 	PressOffset=PressValue1 - PressADC1*PressScaleFactor ;  //offset in pa
 	
 	TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
-	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in °C
+	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in ï¿½C
 	
 	setADCConfigReg(newADCConfig);
 	
@@ -1794,50 +1794,50 @@ void blink7Segment(){
 	//mitte
 	printf("center: %d\n", i2c_7seg_center);
 	writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
 	
 	//links
 	printf("top left: %d\n", i2c_7seg_top_left);
 	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
 	
 	//oben
 	printf("top: %d\n", i2c_7seg_top);
 	writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
 	
 	
 	//rechts
 	printf("top right: %d\n", i2c_7seg_top_right);
 	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
 	
 	//ulinks
 	printf("bottom left: %d\n", i2c_7seg_bottom_left);
 	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
 	
 	//unten
 	printf("bottom: %d\n", i2c_7seg_bottom);
 	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
 	
 	//urechts
 	printf("bottom right: %d\n", i2c_7seg_bottom_right);
 	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
 	
 	//punkt
 	printf("period: %d\n", i2c_7seg_period);
 	writeI2CPin(i2c_7seg_period,I2C_7SEG_ON);
-	delay(2000);
+	delay(5000);
 	writeI2CPin(i2c_7seg_period,I2C_7SEG_OFF);
-	delay(2000);
+	delay(5000);
 }

@@ -51,21 +51,21 @@ logSaveInterval=2
 Motor=1
 Servo=2
 #DisplaySegA
-i2c_7seg_top=7
+i2c_7seg_top=4
 #DisplaySegB
-i2c_7seg_top_left=8
+i2c_7seg_top_left=3
 #DisplaySegF
-i2c_7seg_top_right=6
+i2c_7seg_top_right=5
 #DisplaySegG
-i2c_7seg_center=9
+i2c_7seg_center=2
 #DisplaySegE
-i2c_7seg_bottom_left=2
+i2c_7seg_bottom_left=6
 #DisplaySegC
-i2c_7seg_bottom_right=4
+i2c_7seg_bottom_right=8
 #DisplaySegD
-i2c_7seg_bottom=3
+i2c_7seg_bottom=7
 #DisplaySegDP
-i2c_7seg_period=5
+i2c_7seg_period=9
 
 
 
