@@ -125,6 +125,8 @@ uint8_t i2c_7seg_bottom_left=I2C_7SEG_BOTTOM_LEFT;	//SegEPin
 uint8_t i2c_7seg_bottom_right=I2C_7SEG_BOTTOM_RIGHT;		//SegCPin
 uint8_t i2c_7seg_bottom=I2C_7SEG_BOTTOM;			//SegDPin
 uint8_t i2c_7seg_period=I2C_7SEG_PERIOD;			//SegDPPin
+uint8_t i2c_motor=I2C_MOTOR;
+uint8_t i2c_servo=I2C_SERVO;
 
 //Values for change 7seg display
 uint32_t LowTemp = 40;
@@ -723,7 +725,7 @@ void setMotorPWM(uint32_t pwm){
 	if (debug_enabled){printf("setMotorPWM, pwm: %d\n", pwm);}
 	if (motorPwm != pwm){
 		if (!simulationMode){
-			writeI2CPin(I2C_MOTOR, pwm);
+			writeI2CPin(i2c_motor, pwm);
 		} else {
 			printf("setMotorPWM, pwm: %d\n", pwm);
 		}
@@ -736,9 +738,9 @@ void setServoOpen(bool open){
 	if (servoOpen != open){
 		if (!simulationMode){
 			if (open){
-				writeI2CPin(I2C_SERVO, ValveOpenAngle);
+				writeI2CPin(i2c_servo, ValveOpenAngle);
 			} else {
-				writeI2CPin(I2C_SERVO, ValveClosedAngle);
+				writeI2CPin(i2c_servo, ValveClosedAngle);
 			}
 		} else {
 			printf("setServoOpen, open: %d\n", open);
@@ -1760,6 +1762,13 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "i2c_7seg_period") == 0){
 					i2c_7seg_period = StringConvertToNumber(valueString);
 					if (debug_enabled){printf("\ti2c_7seg_period: %d\n", i2c_7seg_period);}
+					
+				} else if(strcmp(keyString, "i2c_motor") == 0){
+					i2c_motor = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_motor: %d\n", i2c_motor);}
+				} else if(strcmp(keyString, "i2c_servo") == 0){
+					i2c_servo = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_servo %d\n", i2c_servo);}
 					
 				} else {
 					if (debug_enabled){printf("\tkey not Found\n");}

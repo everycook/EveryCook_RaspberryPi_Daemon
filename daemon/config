@@ -48,8 +48,8 @@ LogFile=/var/log/EveryCook_Daemon.log
 logSaveInterval=2
 
 #PWM Channels Configuration
-Motor=1
-Servo=2
+i2c_motor=0
+i2c_servo=1
 #DisplaySegA
 i2c_7seg_top=7
 #DisplaySegB
