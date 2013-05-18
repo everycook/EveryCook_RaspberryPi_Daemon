@@ -17,6 +17,8 @@ See GPLv3.htm in the main folder for details.
  *
  */
 
+#include "bool.h"
+
 #define IND_KEY1	0 //14
 #define IND_KEY2	1 //15
 #define IND_KEY3	2 //18
@@ -39,10 +41,8 @@ See GPLv3.htm in the main folder for details.
 #define I2C_7SEG_ON				0
 #define I2C_7SEG_OFF			4095
 
-#define bool uint8_t
-#define false 0
-#define true 1
-//#define arr_count(a) (sizeof(a) / sizeof(a[0]))
+#define I2C_VALVE_OPEN_VALUE	210
+#define I2C_VALVE_CLOSED_VALUE	350
 
 void setDebugEnabled(bool value);
 void initHardware();

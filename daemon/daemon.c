@@ -1,4 +1,4 @@
-/*
+﻿/*
 This is the EveryCook Raspberry Pi daemon. It reads inputs from the EveryCook Raspberry Pi shield and controls the outputs.
 EveryCook is an open source platform for collecting all data about food and make it available to all kinds of cooking devices.
 
@@ -43,6 +43,8 @@ uint8_t ADC_LoadCellBackRight=3;
 uint8_t ADC_Press=4;
 uint8_t ADC_Temp=5;
 
+uint8_t ADC_ref=0; //0=REFIN1, 1=REFIN2, 2=Internal 1.17V, 3=reserved
+
 //values for noise measurement
 uint32_t MaxWeight1=0;
 uint32_t MinWeight1=1000000000;
@@ -72,7 +74,7 @@ double readPress();
 void HeatOn();
 void HeatOff();
 void setMotorPWM(uint32_t pwm);
-void setServoOpen(uint8_t open);
+void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait);
 double readWeight();
 double readWeightSeparate(double* values);
 
@@ -128,9 +130,13 @@ uint8_t i2c_7seg_period=I2C_7SEG_PERIOD;			//SegDPPin
 uint8_t i2c_motor=I2C_MOTOR;
 uint8_t i2c_servo=I2C_SERVO;
 
+//Servo stuff
+uint16_t i2c_servo_open=I2C_VALVE_OPEN_VALUE;
+uint16_t i2c_servo_closed=I2C_VALVE_CLOSED_VALUE;
+
 //Values for change 7seg display
 uint32_t LowTemp = 40;
-uint32_t LowPress = 40;
+uint32_t LowPress = 10;
 
 //delay for normal operation and scale mode
 uint32_t LongDelay = 500;
@@ -185,10 +191,6 @@ uint32_t RemainTime=0;
 uint32_t BeepEndTime=0; //when to stop the beeper
 uint32_t lastBlinkTime=0; //when to stop the beeper
 
-//Servo stuff
-const uint32_t ValveOpenAngle=4000;
-const uint32_t ValveClosedAngle=0;
-uint32_t ValveSetValue=0;
 
 double motorRpmToPwm = 4095.0/200.0;
 
@@ -199,7 +201,7 @@ uint8_t isBuzzing = 1; //to be sure first send a off to buzzer
 const uint8_t ALLWAYS_STOP_BUZZING = 0;
 
 uint32_t motorPwm = 0;
-bool servoOpen = false;
+uint8_t servoOpen = 0;
 
 char oldSegmentDisplay = ' ';
 uint8_t blinkState = 0;
@@ -236,6 +238,9 @@ bool debug3_enabled = false;
 bool calibration = false;
 bool measure_noise = false;
 bool test_7seg = false;
+bool test_servo = false;
+uint16_t test_servo_min = 100;
+uint16_t test_servo_max = 800;
 
 bool running = true;
 
@@ -281,6 +286,7 @@ void printUsage(){
 	printf("  -ms, --middleware-server <ip> set middleware Server to <ip>\r\n");
 	printf("  -tn, --test-noise 			measure and output random noise\r\n");
 	printf("  -t7, --test-7seg 				blink 7segments to evaluate correct config\r\n");
+	printf("  -ts, --test-servo [from [to]]	test servo open value, if from/to is omitted, values are from: %d, to: %d\r\n", test_servo_min, test_servo_max);
 	printf("  -?,  --help                   show this help\r\n");
 }
 
@@ -304,15 +310,23 @@ int main(int argc, const char* argv[]){
 		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
 			calibration = true;
 			printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");
-		} else if(strcmp(argv[i], "--random-noise") == 0 || strcmp(argv[i], "-r") == 0){
-			measure_noise = true;
-			printf("we measure random noise\n");
 		} else if(strcmp(argv[i], "--test-noise") == 0 || strcmp(argv[i], "-tn") == 0){
 			measure_noise = true;
 			printf("we measure random noise\n");
 		} else if(strcmp(argv[i], "--test-7seg") == 0 || strcmp(argv[i], "-t7") == 0){
 			test_7seg = true;
 			printf("test 7seg config\n");
+		} else if(strcmp(argv[i], "--test-servo") == 0 || strcmp(argv[i], "-ts") == 0){
+			test_servo = true;
+			if (argc>i+1 && argv[i+1][0] != '-'){
+				++i;
+				test_servo_min = StringConvertToNumber(argv[i]);
+				if (argc>i+1 && argv[i+1][0] != '-'){
+					++i;
+					test_servo_max = StringConvertToNumber(argv[i]);
+				}
+			}
+			printf("test servo config from %d to %d\n", test_servo_min, test_servo_max);
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
 			useMiddleware = false;
 			useFile = true;
@@ -397,6 +411,31 @@ int main(int argc, const char* argv[]){
 				SegmentDisplay();
 			} else if (test_7seg){
 				blink7Segment();
+			} else if (test_servo){
+				int16_t diff = test_servo_max-test_servo_min;
+				int16_t step = diff / 20;
+				uint16_t value=test_servo_min;
+				if (step == 0){
+					printf("%d\n",value);
+					writeI2CPin(i2c_servo, value);
+				} else if (step>0){
+					printf(">0 step: %d\n",step);
+					while (value<=test_servo_max && running){
+						printf("%d\n",value);
+						writeI2CPin(i2c_servo, value);
+						delay(500);
+						value=value+step;
+					}
+				} else {
+					printf("<0 step: %d\n",step);
+					while (value>=test_servo_max && running){
+						printf("%d\n",value);
+						writeI2CPin(i2c_servo, value);
+						delay(500);
+						value=value+step;
+					}
+				}
+				return 0;
 			} else {
 				if (lastRunTime != runTime){
 					timeChanged = true;
@@ -547,6 +586,9 @@ void resetValues(){
 	oldWeight = 0;
 	
 	Delay = LongDelay;
+	
+	servoOpen=0;
+	writeI2CPin(i2c_servo, i2c_servo_closed);
 }
 
 
@@ -581,6 +623,9 @@ void ProcessCommand(void){
 	TempControl();
 	PressControl();
 	MotorControl();
+	if (debug3_enabled){
+		printf("\n");
+	}
 	ValveControl();
 	ScaleFunction();
 	
@@ -642,7 +687,7 @@ double readTemp(){
 		uint32_t tempValueInt = readADC(ADC_Temp);
 		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
 		tempValue = round(tempValue);
-		if (debug_enabled || calibration){printf("Temp %d dig %.0f �C | ", tempValueInt, tempValue);}
+		if (debug_enabled || calibration || debug3_enabled){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
 		if (measure_noise) {
 			if (tempValueInt>MaxTemp) MaxTemp=tempValueInt;
 			if (tempValueInt<MinTemp) MinTemp=tempValueInt;
@@ -683,7 +728,7 @@ double readPress(){
 	} else {
 		uint32_t pressValueInt = readADC(ADC_Press);
 		double pressValue = pressValueInt* PressScaleFactor+PressOffset;
-		if (debug_enabled || calibration){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
+		if (debug_enabled || calibration || debug3_enabled){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
 		if (measure_noise){
 			if (pressValueInt>MaxPress) MaxPress=pressValueInt;
 			if (pressValueInt<MinPress) MinPress=pressValueInt;
@@ -703,6 +748,7 @@ void HeatOn() {
 			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
 			delay(500);
 			writeControllButtonPin(IND_KEY4, 1);
+			if (debug3_enabled){printf("-->HeatOn\n");}
 		}
 		heatPowerStatus=1; //save that we turned it on
 	}
@@ -716,6 +762,7 @@ void HeatOff(){
 			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
 			delay(500);
 			writeControllButtonPin(IND_KEY4, 1);
+			if (debug3_enabled){printf("-->HeatOff\n");}
 		}
 		heatPowerStatus=0; //save that we turned it off
 	}
@@ -733,19 +780,32 @@ void setMotorPWM(uint32_t pwm){
 	}
 }
 
-void setServoOpen(bool open){
-	if (debug_enabled){printf("setServoOpen, open: %d\n", open);}
-	if (servoOpen != open){
-		if (!simulationMode){
-			if (open){
-				writeI2CPin(i2c_servo, ValveOpenAngle);
-			} else {
-				writeI2CPin(i2c_servo, ValveClosedAngle);
-			}
-		} else {
-			printf("setServoOpen, open: %d\n", open);
+void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait){
+	if (debug_enabled || debug3_enabled){printf("setServoOpen, open: %d\n", openPercent);}
+	if (servoOpen != openPercent){
+		if (steps<=0){
+			steps=1;
 		}
-		servoOpen = open;
+		int16_t minMaxDiff = i2c_servo_open-i2c_servo_closed;
+		int8_t changePercent = openPercent-servoOpen;
+		float onePercent = minMaxDiff/100.0;
+		float stepSize = (changePercent*onePercent)/steps;
+		
+		if (simulationMode || debug3_enabled){printf("setServoOpen: minMaxDiff:%d, changePercent:%d onePercent:%.2f, stepSize:%.2f\n", minMaxDiff, changePercent, onePercent, stepSize);}
+		
+		uint16_t i2c_servo_value=i2c_servo_closed;
+		float value=servoOpen*onePercent;
+		int step=1;
+		for(; step<=steps; ++step){
+			value=value+stepSize;
+			i2c_servo_value=i2c_servo_closed + (int)(value);
+			if (simulationMode || debug3_enabled){printf("setServoOpen: value:%.2f, servo_value:%d\n", value, i2c_servo_value);}
+			if (!simulationMode){
+				writeI2CPin(i2c_servo, i2c_servo_value);
+			}
+			delay(stepWait);
+		}
+		servoOpen = openPercent;
 	}
 }
 
@@ -951,7 +1011,7 @@ void PressControl(){
 	if (mode>=MIN_PRESS_MODE && mode<=MAX_PRESS_MODE) {
 		if (runTime>=nextTempCheckTime || heatPowerStatus==0){
 			HeatOff();
-			delay(100);
+			delay(500);
 			oldPress = press;
 			uint32_t pressValue = readPress();
 			press=pressValue;
@@ -1033,15 +1093,15 @@ void MotorControl(){
 void ValveControl(){
 	if (mode==MODE_PRESSVENT) {
 		HeatOff();
-		setServoOpen(1);
-		stepEndTime=runTime+1;
+		setServoOpen(100, 10, 500);
+		stepEndTime=runTime+5;
 		if (press < LowPress) {
 			delay(2000);
 			mode=MODE_PRESSURELESS;
 			dataChanged=true;
 		}
 	} else {
-		setServoOpen(0);
+		setServoOpen(0, 1, 0);
 	}
 }
 
@@ -1350,6 +1410,7 @@ void writeStatus(char* data){
 	fp = fopen(statusFile, "w");
 	fputs(data, fp);
 	fclose(fp);
+	if (debug3_enabled){printf("%s\n", data);}
 	
 	if (debug_enabled){printf("WriteStatus: after write\n");}
 }
@@ -1660,32 +1721,32 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "Gain_LoadCellFrontLeft") == 0){
 					ptr = ADC_LoadCellFrontLeft;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellFrontLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellFrontRight") == 0){
 					ptr = ADC_LoadCellFrontRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellFrontRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellBackLeft") == 0){
 					ptr = ADC_LoadCellBackLeft;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellBackLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellBackRight") == 0){
 					ptr = ADC_LoadCellBackRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellBackRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Press") == 0){
 					ptr = ADC_Press;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_Press: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Temp") == 0){
 					ptr = ADC_Temp;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | 1<<7 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_Temp: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				
 				} else if(strcmp(keyString, "BeepWeightReached") == 0){
@@ -1770,6 +1831,12 @@ void ReadConfigurationFile(void){
 					i2c_servo = StringConvertToNumber(valueString);
 					if (debug_enabled){printf("\ti2c_servo %d\n", i2c_servo);}
 					
+				} else if(strcmp(keyString, "i2c_servo_open") == 0){
+					i2c_servo_open = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_servo_open: %d\n", i2c_servo_open);}
+				} else if(strcmp(keyString, "i2c_servo_closed") == 0){
+					i2c_servo_closed = StringConvertToNumber(valueString);
+					if (debug_enabled){printf("\ti2c_servo_closed %d\n", i2c_servo_closed);}
 				} else {
 					if (debug_enabled){printf("\tkey not Found\n");}
 				}
@@ -1788,7 +1855,7 @@ void ReadConfigurationFile(void){
 	PressOffset=PressValue1 - PressADC1*PressScaleFactor ;  //offset in pa
 	
 	TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
-	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in �C
+	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in °C
 	
 	setADCConfigReg(newADCConfig);
 	

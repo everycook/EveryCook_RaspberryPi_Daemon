@@ -20,6 +20,10 @@ TempValue1=22
 TempADC2=6300000
 TempValue2=98.2
 
+#values for change display
+LowTemp=40
+LowPress=10
+
 #ADC channels
 ADC_LoadCellFrontLeft=0
 ADC_LoadCellFrontRight=2
@@ -67,8 +71,8 @@ i2c_7seg_bottom=7
 #DisplaySegDP
 i2c_7seg_period=9
 
-
-
+i2c_servo_open=210
+i2c_servo_close=350
 
 
 #Induction Heater GPIO pins

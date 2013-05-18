@@ -18,6 +18,8 @@ See GPLv3.htm in the main folder for details.
  *
  */
 
+#include "bool.h"
+
 #define MIN_COOK_MODE	10
 #define MAX_COOK_MODE	29
 
