@@ -155,7 +155,7 @@ uint32_t setStepId = -2;
 
 double temp = 0;
 double press = 0;
-uint8_t motorRpm = 0; //0-255 
+uint8_t motorRpm = 0; //0-255
 uint32_t motorOn = 0;
 uint32_t motorOff = 0;
 double weight = 0;
@@ -200,7 +200,7 @@ bool doRememberBeep = 0;
 uint8_t isBuzzing = 1; //to be sure first send a off to buzzer
 const uint8_t ALLWAYS_STOP_BUZZING = 0;
 
-uint32_t motorPwm = 0;
+uint16_t motorPwm = 0;
 uint8_t servoOpen = 0;
 
 char oldSegmentDisplay = ' ';
@@ -235,6 +235,7 @@ uint32_t simulationUpdateTime = 0;
 bool debug_enabled = false;
 bool debug3_enabled = false;
 
+bool normalMode = true;
 bool calibration = false;
 bool measure_noise = false;
 bool test_7seg = false;
@@ -261,6 +262,114 @@ The Modes:
 50 = watchdog test
 */
 
+int main(int argc, const char* argv[]){
+	printf("starting EveryCook daemon...\n");
+	if (debug_enabled){printf("main\n");}
+	
+	int result=parseParams(argc, argv);
+	if (result != -1){
+		return result;
+	}
+	defineSignalHandler();
+	
+	initHardware();
+	delay(30);
+	StringClean(TotalUpdate, 512);
+	ReadConfigurationFile();
+	
+	initOutputFile();
+	Delay = LongDelay;
+	
+	resetValues();
+	referenceForce = ForceOffset; //for default reference Force in calibration mode
+	SegmentDisplaySimple(' ');
+	
+	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
+	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
+	
+	//remove commandfile so no unexpectet action will be done
+	if (remove(commandFile) != 0){
+		printf("Error while remove old commandfile: %s\n", commandFile);
+	}
+		
+	runTime = time(NULL); //TODO WIA CHANGE THIS
+	printf("runtime is now: %d \n",runTime);
+	stepStartTime = runTime; //TODO WIA CHANGE THIS
+	
+	uint32_t lastRunTime = 0;
+	
+	const uint8_t dataType = TYPE_TEXT;
+	uint8_t recivedDataType = 0;
+	while (running){
+		//try {
+			if (debug_enabled){printf("main loop...\n");}
+			if (normalMode){
+				if (lastRunTime != runTime){
+					timeChanged = true;
+					lastRunTime = runTime;
+				}
+				bool valueChanged = checkForInput();
+				
+				runTime = time(NULL); //TODO WIA CHANGE THIS
+				
+				if (valueChanged){
+					if (debug_enabled){printf("valueChanged=true\n");}
+					//TODO: lastFileChangeTime = runTime;
+					evaluateInput();
+				}
+				ProcessCommand();
+				elapsedTime = runTime - stepStartTime; //TODO WIA CHANGE THIS
+				
+				doOutput();
+			} else {
+				if (calibration || measure_noise){
+					//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
+					if (calibration) HeatOn();
+					readTemp();
+					readPress();
+					readWeight();
+					SegmentDisplay();
+				} else if (test_7seg){
+					blink7Segment();
+				} else if (test_servo){
+					int16_t diff = test_servo_max-test_servo_min;
+					int16_t step = diff / 20;
+					uint16_t value=test_servo_min;
+					if (step == 0){
+						printf("%d\n",value);
+						writeI2CPin(i2c_servo, value);
+					} else if (step>0){
+						printf(">0 step: %d\n",step);
+						while (value<=test_servo_max && running){
+							printf("%d\n",value);
+							writeI2CPin(i2c_servo, value);
+							delay(500);
+							value=value+step;
+						}
+					} else {
+						printf("<0 step: %d\n",step);
+						while (value>=test_servo_max && running){
+							printf("%d\n",value);
+							writeI2CPin(i2c_servo, value);
+							delay(500);
+							value=value+step;
+						}
+					}
+					return 0;
+				}
+			}
+			if (debug_enabled){printf("main loop end.\n");}
+		/*} catch(exception e){
+			if (debug_enabled){printf("Exception: %s\n", e);}
+		}*/
+		delay(Delay);
+	}
+	
+	SegmentDisplaySimple('S');
+	fclose(logFilePointer);
+	
+	return 0;
+}
 
 time_t get_mtime(const char *path){
     struct stat statbuf;
@@ -290,13 +399,9 @@ void printUsage(){
 	printf("  -?,  --help                   show this help\r\n");
 }
 
-int main(int argc, const char* argv[]){
-	printf("starting EveryCook daemon...\n");
-	if (debug_enabled){printf("main\n");}
+int parseParams(int argc, const char* argv[]){
 	int i;
-	//char* param;
 	for (i=1; i<argc; ++i){ //param 0 is programmname
-		//param = argv[i];
 		if(strcmp(argv[i], "--sim") == 0 || strcmp(argv[i], "-s") == 0){
 			simulationMode = true;
 		} else if(strcmp(argv[i], "--sim7seg") == 0 || strcmp(argv[i], "-s7") == 0){
@@ -309,15 +414,19 @@ int main(int argc, const char* argv[]){
 			debug3_enabled = true;
 		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
 			calibration = true;
+			normalMode = false;
 			printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");
 		} else if(strcmp(argv[i], "--test-noise") == 0 || strcmp(argv[i], "-tn") == 0){
 			measure_noise = true;
+			normalMode = false;
 			printf("we measure random noise\n");
 		} else if(strcmp(argv[i], "--test-7seg") == 0 || strcmp(argv[i], "-t7") == 0){
 			test_7seg = true;
+			normalMode = false;
 			printf("test 7seg config\n");
 		} else if(strcmp(argv[i], "--test-servo") == 0 || strcmp(argv[i], "-ts") == 0){
 			test_servo = true;
+			normalMode = false;
 			if (argc>i+1 && argv[i+1][0] != '-'){
 				++i;
 				test_servo_min = StringConvertToNumber(argv[i]);
@@ -359,175 +468,16 @@ int main(int argc, const char* argv[]){
 			return 1;
 		}
 	}
-	
-	//define signal handler
+	return -1;
+}
+
+void defineSignalHandler(){
 	signal (SIGTERM, handleSignal); //kill -term <pid>
 	signal (SIGINT, handleSignal); //Ctr+c
 	signal (SIGQUIT, handleSignal); //Ctrl+???
 	signal (SIGKILL, handleSignal); //kill -kill <pid> //handling not possible...
 	signal (SIGHUP, handleSignal); //hang-up signal is used to report that the user's terminal is disconnected
 	signal (SIGTSTP, handleSignal); //is interactive Job Control stop signal
-	
-	
-	
-	initHardware();
-	delay(30);
-	StringClean(TotalUpdate, 512);
-	ReadConfigurationFile();
-	
-	initOutputFile();
-	Delay = LongDelay;
-	
-	resetValues();
-	referenceForce = ForceOffset; //for default reference Force in calibration mode
-	SegmentDisplaySimple(' ');
-	
-	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
-	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
-	
-	//remove commandfile so no unexpectet action will be done
-	if (remove(commandFile) != 0){
-		printf("Error while remove old commandfile: %s\n", commandFile);
-	}
-		
-	runTime = time(NULL); //TODO WIA CHANGE THIS
-	printf("runtime is now: %d \n",runTime);
-	stepStartTime = runTime; //TODO WIA CHANGE THIS
-	
-	uint32_t lastRunTime = 0;
-	
-	const uint8_t dataType = TYPE_TEXT;
-	uint8_t recivedDataType = 0;
-	while (running){
-		//try {
-			if (debug_enabled){printf("main loop...\n");}
-			//runTime = millis()/1000; //calculate runtime in seconds
-			if (calibration || measure_noise){
-				//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
-				if (calibration) HeatOn();
-				readTemp();
-				readPress();
-				readWeight();
-				SegmentDisplay();
-			} else if (test_7seg){
-				blink7Segment();
-			} else if (test_servo){
-				int16_t diff = test_servo_max-test_servo_min;
-				int16_t step = diff / 20;
-				uint16_t value=test_servo_min;
-				if (step == 0){
-					printf("%d\n",value);
-					writeI2CPin(i2c_servo, value);
-				} else if (step>0){
-					printf(">0 step: %d\n",step);
-					while (value<=test_servo_max && running){
-						printf("%d\n",value);
-						writeI2CPin(i2c_servo, value);
-						delay(500);
-						value=value+step;
-					}
-				} else {
-					printf("<0 step: %d\n",step);
-					while (value>=test_servo_max && running){
-						printf("%d\n",value);
-						writeI2CPin(i2c_servo, value);
-						delay(500);
-						value=value+step;
-					}
-				}
-				return 0;
-			} else {
-				if (lastRunTime != runTime){
-					timeChanged = true;
-					lastRunTime = runTime;
-				}
-				bool valueChanged = false;
-				if (useMiddleware){
-					if (sockfd < 0){
-						if (runTime - middlewareConnectTime > 5){
-							//only try to connect to middleware every 5 sec.
-							middlewareConnectTime = runTime;
-							sockfd = connectToMiddleware(middlewareHostname, middlewarePortno);
-						}
-					}
-					if (sockfd>=0 && isSocketReady(sockfd)){
-						//if (reciveFromSock(sockfd, middlewareBuffer) ){
-						if (recivePackageFromSock(sockfd, middlewareBuffer, &recivedDataType)){
-							valueChanged = true;
-							if (debug_enabled || debug3_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, middlewareBuffer);}
-							if (recivedDataType != dataType){
-								error("ERROR recived dataType unknown");
-							}
-							parseSockInput(middlewareBuffer);
-						} else {
-							error("ERROR reading from socket");
-							sockfd = -14;
-						}
-					}
-					if (sockfd<0){
-						if (useFile && ReadFile()){
-							valueChanged = true;
-						} else {
-							delay(10000);
-						}
-					} else if (useFile){
-						time_t changeTime = get_mtime(commandFile);
-						//TODO: changeTime = localtime(changeTime);
-						
-						if (changeTime > lastFileChangeTime){
-							if (ReadFile()){
-								valueChanged = true;
-							}
-						} else {
-							if (debug_enabled || debug3_enabled){printf("commandFile to old, is:%ld, last:%ld\n",changeTime,lastFileChangeTime);}
-						}
-					}
-				} else {
-					if (useFile && ReadFile()){
-						valueChanged = true;
-					} else {
-						delay(10000);
-					}
-				}
-				
-				runTime = time(NULL); //TODO WIA CHANGE THIS
-				
-				if (valueChanged){
-					if (debug_enabled){printf("valueChanged=true\n");}
-					//TODO: lastFileChangeTime = runTime;
-					evaluateInput();
-				}
-				ProcessCommand();
-				elapsedTime = runTime - stepStartTime; //TODO WIA CHANGE THIS
-				prepareState(TotalUpdate);
-			
-				if (dataChanged){// || timeChanged){
-					if (debug_enabled){printf("dataChanged=true\n");}
-					if (useMiddleware && sockfd>=0){
-						if (!sendToSock(sockfd, TotalUpdate, dataType)){
-							error("ERROR writing to socket");
-							sockfd = -13;
-						}
-					}
-					if (useFile) {
-						writeStatus(TotalUpdate);
-					}
-					dataChanged = false;
-					timeChanged = false;
-				}
-				writeLog();
-			}
-			if (debug_enabled){printf("main loop end.\n");}
-		/*} catch(exception e){
-			if (debug_enabled){printf("Exception: %s\n", e);}
-		}*/
-		delay(Delay);
-	}
-	
-	SegmentDisplaySimple('S');
-	fclose(logFilePointer);
-	
-	return 0;
 }
 
 void handleSignal(int signum) {
@@ -546,7 +496,6 @@ void handleSignal(int signum) {
 		printf("not handled signal %d recived\n", signum);
 	}
 }
-
 
 void initOutputFile(void){
 	if (debug_enabled){printf("iniOutputFile\n");}
@@ -592,6 +541,77 @@ void resetValues(){
 }
 
 
+bool checkForInput(){
+	bool valueChanged = false;
+	if (useMiddleware){
+		if (sockfd < 0){
+			if (runTime - middlewareConnectTime > 5){
+				//only try to connect to middleware every 5 sec.
+				middlewareConnectTime = runTime;
+				sockfd = connectToMiddleware(middlewareHostname, middlewarePortno);
+			}
+		}
+		if (sockfd>=0 && isSocketReady(sockfd)){
+			//if (reciveFromSock(sockfd, middlewareBuffer) ){
+			if (recivePackageFromSock(sockfd, middlewareBuffer, &recivedDataType)){
+				valueChanged = true;
+				if (debug_enabled || debug3_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, middlewareBuffer);}
+				if (recivedDataType != dataType){
+					error("ERROR recived dataType unknown");
+				}
+				parseSockInput(middlewareBuffer);
+			} else {
+				error("ERROR reading from socket");
+				sockfd = -14;
+			}
+		}
+		if (sockfd<0){
+			if (useFile && ReadFile()){
+				valueChanged = true;
+			} else {
+				delay(10000);
+			}
+		} else if (useFile){
+			time_t changeTime = get_mtime(commandFile);
+			//TODO: changeTime = localtime(changeTime);
+			
+			if (changeTime > lastFileChangeTime){
+				if (ReadFile()){
+					valueChanged = true;
+				}
+			} else {
+				if (debug_enabled || debug3_enabled){printf("commandFile to old, is:%ld, last:%ld\n",changeTime,lastFileChangeTime);}
+			}
+		}
+	} else {
+		if (useFile && ReadFile()){
+			valueChanged = true;
+		} else {
+			delay(10000);
+		}
+	}
+	
+	return valueChanged;
+}
+
+void doOutput){
+	prepareState(TotalUpdate);
+	if (dataChanged){// || timeChanged){
+		if (debug_enabled){printf("dataChanged=true\n");}
+		if (useMiddleware && sockfd>=0){
+			if (!sendToSock(sockfd, TotalUpdate, dataType)){
+				error("ERROR writing to socket");
+				sockfd = -13;
+			}
+		}
+		if (useFile) {
+			writeStatus(TotalUpdate);
+		}
+		dataChanged = false;
+		timeChanged = false;
+	}
+	writeLog();
+}
 
 void ProcessCommand(void){
 	if (setStepId != stepId){
@@ -768,7 +788,7 @@ void HeatOff(){
 	}
 }
 
-void setMotorPWM(uint32_t pwm){
+void setMotorPWM(uint16_t pwm){
 	if (debug_enabled){printf("setMotorPWM, pwm: %d\n", pwm);}
 	if (motorPwm != pwm){
 		if (!simulationMode){
