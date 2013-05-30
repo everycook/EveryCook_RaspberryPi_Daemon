@@ -16,6 +16,6 @@ See GPLv3.htm in the main folder for details.
 #include <stdint.h>
 
 void StringClean(char *str, uint32_t len);
-uint32_t StringConvertToNumber(char *str);
+uint32_t StringConvertToNumber(const char *str);
 double StringConvertToDouble(char *str);
 int POWNTimes(uint32_t num, uint8_t n);

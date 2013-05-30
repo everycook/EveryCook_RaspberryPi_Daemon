@@ -34,7 +34,7 @@ void StringClean(char *str, uint32_t len){
 /* convert a string to a number
  *
  */
-uint32_t StringConvertToNumber(char *str){
+uint32_t StringConvertToNumber(const char *str){
 	uint32_t value = 0 ,len = 0, mutiple = 1;
 
 	while (str[len]){

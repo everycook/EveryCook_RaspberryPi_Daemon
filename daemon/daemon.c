@@ -36,214 +36,243 @@ See GPLv3.htm in the main folder for details.
 #include "middlewareSocket.h"
 #include "daemon.h"
 
-uint8_t ADC_LoadCellFrontLeft=0;
-uint8_t ADC_LoadCellFrontRight=1;
-uint8_t ADC_LoadCellBackLeft=2;
-uint8_t ADC_LoadCellBackRight=3;
-uint8_t ADC_Press=4;
-uint8_t ADC_Temp=5;
+struct ADC_Config {	
+	uint8_t ADC_LoadCellFrontLeft;
+	uint8_t ADC_LoadCellFrontRight;
+	uint8_t ADC_LoadCellBackLeft;
+	uint8_t ADC_LoadCellBackRight;
+	uint8_t ADC_Press;
+	uint8_t ADC_Temp;
 
-uint8_t ADC_ref=0; //0=REFIN1, 1=REFIN2, 2=Internal 1.17V, 3=reserved
+	uint8_t ADC_ref; //0=REFIN1, 1=REFIN2, 2=Internal 1.17V, 3=reserved
+};
 
-//values for noise measurement
-uint32_t MaxWeight1=0;
-uint32_t MinWeight1=1000000000;
-uint32_t DeltaWeight1=0;
-uint32_t MaxWeight2=0;
-uint32_t MinWeight2=1000000000;
-uint32_t DeltaWeight2=0;
-uint32_t MaxWeight3=0;
-uint32_t MinWeight3=1000000000;
-uint32_t DeltaWeight3=0;
-uint32_t MaxWeight4=0;
-uint32_t MinWeight4=1000000000;
-uint32_t DeltaWeight4=0;
-uint32_t MaxTemp=0;
-uint32_t MinTemp=1000000000;
-uint32_t DeltaTemp=0;
-uint32_t MaxPress=0;
-uint32_t MinPress=1000000000;
-uint32_t DeltaPress=0;
+struct ADC_Config adc_config = {0,1,2,3,4,5,0};
 
 
+struct ADC_Noise_Values {	
+	uint32_t MaxWeight1;
+	uint32_t MinWeight1;
+	uint32_t DeltaWeight1;
+	uint32_t MaxWeight2;
+	uint32_t MinWeight2;
+	uint32_t DeltaWeight2;
+	uint32_t MaxWeight3;
+	uint32_t MinWeight3;
+	uint32_t DeltaWeight3;
+	uint32_t MaxWeight4;
+	uint32_t MinWeight4;
+	uint32_t DeltaWeight4;
+	uint32_t MaxTemp;
+	uint32_t MinTemp;
+	uint32_t DeltaTemp;
+	uint32_t MaxPress;
+	uint32_t MinPress;
+	uint32_t DeltaPress;
+};
+struct ADC_Noise_Values adc_noise = {0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0};
+
+
+struct ADC_Calibration {
+	double scaleFactor;
+	double offset;
+	
+	uint32_t ADC1;
+	double Value1;
+	uint32_t ADC2;
+	double Value2;
+};
+
+struct ADC_Calibration forceCalibration;
+struct ADC_Calibration pressCalibration;
+struct ADC_Calibration tempCalibration;
+
+
+
+struct I2C_Config {
+	uint8_t i2c_motor;
+	uint8_t i2c_servo;
+	uint8_t i2c_7seg_top;			//SegAPin
+	uint8_t i2c_7seg_top_left;		//SegBPin
+	uint8_t i2c_7seg_top_right;		//SegFPin
+	uint8_t i2c_7seg_center;		//SegGPin
+	uint8_t i2c_7seg_bottom_left;	//SegEPin
+	uint8_t i2c_7seg_bottom_right;	//SegCPin
+	uint8_t i2c_7seg_bottom;		//SegDPin
+	uint8_t i2c_7seg_period;		//SegDPPin
+};
+
+struct I2C_Config i2c_config = {I2C_MOTOR, I2C_SERVO, I2C_7SEG_TOP, I2C_7SEG_TOP_LEFT, I2C_7SEG_TOP_RIGHT, I2C_7SEG_CENTER, I2C_7SEG_BOTTOM_LEFT, I2C_7SEG_BOTTOM_RIGHT, I2C_7SEG_BOTTOM, I2C_7SEG_PERIOD};
+
+//Servo stuff
+struct I2C_Servo_Values {
+	uint16_t i2c_servo_open;
+	uint16_t i2c_servo_closed;
+	
+	uint8_t destOpenPercent;
+	uint8_t steps;
+	float stepSize;
+	uint8_t stepPercentSize;
+	
+	uint8_t currentStep;
+	float currentValue;
+	uint16_t i2c_servo_value;
+	uint8_t servoOpen;
+};
+
+struct I2C_Servo_Values i2c_servo_values = {I2C_VALVE_OPEN_VALUE, I2C_VALVE_CLOSED_VALUE, 0, 0, 0, 0, 0, I2C_VALVE_CLOSED_VALUE, 0};
+
+
+struct Command_Values {
+	double temp;
+	double press;
+	uint8_t motorRpm; //0-255 
+	uint32_t motorOn;
+	uint32_t motorOff;
+	double weight;
+	uint32_t time;
+	uint32_t mode;
+	uint32_t stepId;
+};
+
+struct Command_Values newCommandValues = {0,0,0,0,0,0,0,0,-2};
+struct Command_Values currentCommandValues = {0,0,0,0,0,0,0,0,-2};
+struct Command_Values oldCommandValues = {0,0,0,0,0,0,0,0,-2};
+
+
+
+struct Time_Values {
+	uint32_t runTime; //we need a runtime in seconds
+	uint32_t lastRunTime;
+	
+	time_t nowTime;
+	struct tm *localTime;
+	
+	uint32_t stepEndTime;
+	uint32_t stepStartTime;
+	uint32_t middlewareConnectTime;
+	uint32_t nextTempCheckTime; //when is next Temperature Check needed???
+	uint32_t motorStartTime; //When did we start the motor?
+	uint32_t remainTime;
+	uint32_t beepEndTime; //when to stop the beeper
+	uint32_t lastBlinkTime; //when to stop the beeper
+	
+	time_t lastFileChangeTime;
+	uint32_t simulationUpdateTime;
+	uint32_t lastLogSaveTime;
+};
+struct Time_Values timeValues;
+
+
+
+
+struct Running_Mode {
+	bool normalMode = true;
+	bool calibration = false;
+	bool measure_noise = false;
+	bool test_7seg = false;
+	bool test_servo = false;
+	
+	bool simulationMode = false;
+	bool simulationModeShow7Segment = false;
+};
+
+struct Running_Mode runningMode = {true, false, false, false, false,  false, false};
+
+struct Settings {
+	uint8_t logSaveInterval; //setting for logging interval in seconds
+	
+	uint8_t BeepWeightReached;
+	uint8_t BeepStepEnd;
+	uint8_t DeleteLogOnStart;  //delete log at start saves disk space set 0 to keep log
+
+	//Values for change 7seg display
+	uint32_t LowTemp;
+	uint32_t LowPress;
+
+	//delay for normal operation and scale mode
+	uint32_t LongDelay;
+	uint32_t ShortDelay;
+	
+	//Options
+	bool doRememberBeep;
+	
+	char* middlewareHostname;
+	int middlewarePortno;
+	bool useMiddleware;
+	bool useFile;
+	
+	bool debug_enabled;
+	bool debug3_enabled;
+
+	uint16_t test_servo_min;
+	uint16_t test_servo_max;
+	
+	char *configFile;
+	char *commandFile;
+	char *statusFile;
+	char *logFile;
+
+};
+struct Settings settings = {5, 1,1,1, 40,10, 500,1 0, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
+
+const MOTOR_RPM_TO_PWM = 4095.0/200.0;
+
+const uint8_t ALLWAYS_STOP_BUZZING = 0;
+
+
+struct State {
+	bool running = true;
+	bool dataChanged = true;
+	bool timeChanged = true;
+
+	uint32_t Delay = 1;
+
+	double referenceForce = 0; //the reference to get the zero of the scale
+	bool scaleReady = false;
+
+	bool heatPowerStatus = 0; //Induction heater power 0=off >0=on
+
+	bool isBuzzing = 1; //to be sure first send a off to buzzer
+
+	uint16_t motorPwm = 0;
+
+	char oldSegmentDisplay = ' ';
+	char state.curSegmentDisplay = ' ';
+	bool blinkState = 0;
+
+	int sockfd = -1;
+	char* oldSendedString = "";
+	char middlewareBuffer[256];
+
+	char TotalUpdate[512];
+	uint32_t value[15];
+	char names[15][10];
+	
+	FILE *logFilePointer;
+};
+
+struct State state = {true,true,true, setting.ShortDelay, 0, false, false, true, 0, ' ', ' ', false, -1,""};
+
+
+int parseParams(int argc, const char* argv[]);
+void defineSignalHandler();
 void handleSignal(int signum);
 void initOutputFile(void);
+bool checkForInput();
+void doOutput();
 
 double readTemp();
 double readPress();
-void HeatOn();
-void HeatOff();
-void setMotorPWM(uint32_t pwm);
+bool HeatOn();
+bool HeatOff();
+void setMotorPWM(uint16_t pwm);
 void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait);
 double readWeight();
 double readWeightSeparate(double* values);
 
 
 void blink7Segment();
-
-
-char *configFile = "config";
-
-char *commandFile = "/dev/shm/command";
-char *statusFile = "/dev/shm/status";
-char *logFile = "/var/log/EveryCook_Daemon.log";
-
-
-uint32_t lastLogSave=0;
-uint8_t logSaveInterval=5; //setting for logging interval in seconds
-
-
-double ForceScaleFactor=0.1; //Conversion between digital Units and grams
-double ForceOffset=0; //for default reference force in calibration mode only
-
-double PressScaleFactor=0.1;
-double PressOffset=1000;
-
-double TempScaleFactor=0.1;
-double TempOffset=1000;
-
-//all these values are read from the config file. changing them here is useless
-uint32_t PressADC1=0;
-double PressValue1=0;
-uint32_t PressADC2=0;
-double PressValue2=0;
-uint32_t TempADC1=0;
-double TempValue1=0;
-uint32_t TempADC2=0;
-double TempValue2=0;
-uint32_t ForceADC1=0;
-double ForceValue1=0;
-uint32_t ForceADC2=0;
-double ForceValue2=0;
-uint8_t BeepWeightReached=1;
-uint8_t BeepStepEnd=1;
-uint8_t DeleteLogOnStart=1;  //delete log at start saves disk space set 0 to keep log
-
-uint8_t i2c_7seg_top=I2C_7SEG_TOP;					//SegAPin
-uint8_t i2c_7seg_top_left=I2C_7SEG_TOP_LEFT;		//SegBPin
-uint8_t i2c_7seg_top_right=I2C_7SEG_TOP_RIGHT;		//SegFPin
-uint8_t i2c_7seg_center=I2C_7SEG_CENTER;			//SegGPin
-uint8_t i2c_7seg_bottom_left=I2C_7SEG_BOTTOM_LEFT;	//SegEPin
-uint8_t i2c_7seg_bottom_right=I2C_7SEG_BOTTOM_RIGHT;		//SegCPin
-uint8_t i2c_7seg_bottom=I2C_7SEG_BOTTOM;			//SegDPin
-uint8_t i2c_7seg_period=I2C_7SEG_PERIOD;			//SegDPPin
-uint8_t i2c_motor=I2C_MOTOR;
-uint8_t i2c_servo=I2C_SERVO;
-
-//Servo stuff
-uint16_t i2c_servo_open=I2C_VALVE_OPEN_VALUE;
-uint16_t i2c_servo_closed=I2C_VALVE_CLOSED_VALUE;
-
-//Values for change 7seg display
-uint32_t LowTemp = 40;
-uint32_t LowPress = 10;
-
-//delay for normal operation and scale mode
-uint32_t LongDelay = 500;
-uint32_t ShortDelay = 1;
-
-//Command values
-uint32_t setTemp = 0;
-uint32_t setPress = 0;
-uint32_t setMotorRpm = 0; //0-255 
-uint32_t setMotorOn = 0;
-uint32_t setMotorOff = 0;
-uint32_t setWeight = 0;
-uint32_t setTime = 0;
-uint32_t setMode = 0;
-uint32_t setStepId = -2;
-
-double temp = 0;
-double press = 0;
-uint8_t motorRpm = 0; //0-255
-uint32_t motorOn = 0;
-uint32_t motorOff = 0;
-double weight = 0;
-uint32_t elapsedTime = 0;
-uint32_t mode = 0;
-uint32_t stepId = -2;
-
-uint32_t oldMode = 0;
-double oldTemp = 0;
-double oldPress = 0;
-double oldWeight = 0;
-
-//Processing Values
-uint32_t Delay = 1;
-uint32_t runTime; //we need a runtime in seconds
-time_t nowTime;
-struct tm *localTime;
-
-
-//uint32_t stepRunTime = 0;
-uint32_t stepEndTime = 0;
-uint32_t stepStartTime = 0;
-
-uint32_t middlewareConnectTime = 0;
-
-double referenceForce = 0; //the reference to get the zero of the scale
-uint8_t scaleReady = 0;
-
-uint8_t heatPowerStatus = 0; //Induction heater power 0=off >0=on
-uint32_t nextTempCheckTime=0; //when did we do the last Temperature Check???
-uint32_t motorStartTime =0; //When did we start the motor?
-uint32_t RemainTime=0;
-uint32_t BeepEndTime=0; //when to stop the beeper
-uint32_t lastBlinkTime=0; //when to stop the beeper
-
-
-double motorRpmToPwm = 4095.0/200.0;
-
-//Options
-bool doRememberBeep = 0;
-
-uint8_t isBuzzing = 1; //to be sure first send a off to buzzer
-const uint8_t ALLWAYS_STOP_BUZZING = 0;
-
-uint16_t motorPwm = 0;
-uint8_t servoOpen = 0;
-
-char oldSegmentDisplay = ' ';
-uint8_t blinkState = 0;
-
-FILE *logFilePointer;
-
-char* middlewareHostname = "10.0.0.1";
-int middlewarePortno = 8000;
-char* oldSendedString = "";
-int sockfd = -1;
-bool useMiddleware = true;
-bool useFile = false;
-char middlewareBuffer[256];
-time_t lastFileChangeTime = 0;
-
-
-
-char TotalUpdate[512];
-uint32_t value[15];
-char names[15][10];
-
-bool dataChanged = true;
-bool timeChanged = true;
-
-char curSegmentDisplay = ' ';
-
-bool simulationMode = false;
-bool simulationModeShow7Segment = false;
-uint32_t simulationUpdateTime = 0;
-
-bool debug_enabled = false;
-bool debug3_enabled = false;
-
-bool normalMode = true;
-bool calibration = false;
-bool measure_noise = false;
-bool test_7seg = false;
-bool test_servo = false;
-uint16_t test_servo_min = 100;
-uint16_t test_servo_max = 800;
-
-bool running = true;
 
 /*
 The Modes:
@@ -264,7 +293,7 @@ The Modes:
 
 int main(int argc, const char* argv[]){
 	printf("starting EveryCook daemon...\n");
-	if (debug_enabled){printf("main\n");}
+	if (settings.debug_enabled){printf("main\n");}
 	
 	int result=parseParams(argc, argv);
 	if (result != -1){
@@ -274,99 +303,96 @@ int main(int argc, const char* argv[]){
 	
 	initHardware();
 	delay(30);
-	StringClean(TotalUpdate, 512);
+	StringClean(state.TotalUpdate, 512);
 	ReadConfigurationFile();
 	
 	initOutputFile();
-	Delay = LongDelay;
+	state.Delay = settings.LongDelay;
 	
 	resetValues();
-	referenceForce = ForceOffset; //for default reference Force in calibration mode
+	state.referenceForce = forceCalibration.offset; //for default reference Force in calibration mode
 	SegmentDisplaySimple(' ');
 	
-	if (debug_enabled){printf("commandFile is: %s\n", commandFile);}
-	if (debug_enabled){printf("statusFile is: %s\n", statusFile);}
+	if (settings.debug_enabled){printf("commandFile is: %s\n", settings.commandFile);}
+	if (settings.debug_enabled){printf("statusFile is: %s\n", settings.statusFile);}
 	
 	//remove commandfile so no unexpectet action will be done
-	if (remove(commandFile) != 0){
-		printf("Error while remove old commandfile: %s\n", commandFile);
+	if (remove(settings.commandFile) != 0){
+		printf("Error while remove old commandfile: %s\n", settings.commandFile);
 	}
 		
-	runTime = time(NULL); //TODO WIA CHANGE THIS
-	printf("runtime is now: %d \n",runTime);
-	stepStartTime = runTime; //TODO WIA CHANGE THIS
+	timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
+	printf("runtime is now: %d \n", timeValues.runTime);
+	timeValues.stepStartTime = timeValues.runTime; //TODO WIA CHANGE THIS
 	
-	uint32_t lastRunTime = 0;
-	
-	const uint8_t dataType = TYPE_TEXT;
-	uint8_t recivedDataType = 0;
-	while (running){
+	while (state.running){
 		//try {
-			if (debug_enabled){printf("main loop...\n");}
-			if (normalMode){
-				if (lastRunTime != runTime){
-					timeChanged = true;
-					lastRunTime = runTime;
+			if (settings.debug_enabled){printf("main loop...\n");}
+			if (runningMode.normalMode){
+				if (timeValues.lastRunTime != timeValues.runTime){
+					state.timeChanged = true;
+					timeValues.lastRunTime = timeValues.runTime;
 				}
 				bool valueChanged = checkForInput();
 				
-				runTime = time(NULL); //TODO WIA CHANGE THIS
+				timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
 				
 				if (valueChanged){
-					if (debug_enabled){printf("valueChanged=true\n");}
-					//TODO: lastFileChangeTime = runTime;
+					if (settings.debug_enabled){printf("valueChanged=true\n");}
+					//TODO: timeValues.lastFileChangeTime = timeValues.runTime;
 					evaluateInput();
 				}
 				ProcessCommand();
-				elapsedTime = runTime - stepStartTime; //TODO WIA CHANGE THIS
+				currentCommandValues.time = timeValues.runTime - timeValues.stepStartTime; //TODO WIA CHANGE THIS
 				
 				doOutput();
 			} else {
-				if (calibration || measure_noise){
+				if (runningMode.calibration || runningMode.measure_noise){
 					//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
-					if (calibration) HeatOn();
+					if (runningMode.calibration) HeatOn();
 					readTemp();
 					readPress();
 					readWeight();
 					SegmentDisplay();
-				} else if (test_7seg){
+				} else if (runningMode.test_7seg){
 					blink7Segment();
-				} else if (test_servo){
-					int16_t diff = test_servo_max-test_servo_min;
+				} else if (runningMode.test_servo){
+					int16_t diff = settings.test_servo_max-settings.test_servo_min;
 					int16_t step = diff / 20;
-					uint16_t value=test_servo_min;
+					uint16_t value=settings.test_servo_min;
 					if (step == 0){
 						printf("%d\n",value);
-						writeI2CPin(i2c_servo, value);
+						writeI2CPin(i2c_config.i2c_servo, value);
 					} else if (step>0){
 						printf(">0 step: %d\n",step);
-						while (value<=test_servo_max && running){
+						while (value<=settings.test_servo_max && state.running){
 							printf("%d\n",value);
-							writeI2CPin(i2c_servo, value);
+							writeI2CPin(i2c_config.i2c_servo, value);
 							delay(500);
 							value=value+step;
 						}
 					} else {
 						printf("<0 step: %d\n",step);
-						while (value>=test_servo_max && running){
+						while (value>=settings.test_servo_max && state.running){
 							printf("%d\n",value);
-							writeI2CPin(i2c_servo, value);
+							writeI2CPin(i2c_config.i2c_servo, value);
 							delay(500);
 							value=value+step;
 						}
 					}
+					delay(2000);
 					return 0;
 				}
 			}
-			if (debug_enabled){printf("main loop end.\n");}
+			if (settings.debug_enabled){printf("main loop end.\n");}
 		/*} catch(exception e){
-			if (debug_enabled){printf("Exception: %s\n", e);}
+			if (settings.debug_enabled){printf("Exception: %s\n", e);}
 		}*/
-		delay(Delay);
+		delay(state.Delay);
 	}
 	
 	SegmentDisplaySimple('S');
-	fclose(logFilePointer);
+	fclose(state.logFilePointer);
 	
 	return 0;
 }
@@ -395,7 +421,7 @@ void printUsage(){
 	printf("  -ms, --middleware-server <ip> set middleware Server to <ip>\r\n");
 	printf("  -tn, --test-noise 			measure and output random noise\r\n");
 	printf("  -t7, --test-7seg 				blink 7segments to evaluate correct config\r\n");
-	printf("  -ts, --test-servo [from [to]]	test servo open value, if from/to is omitted, values are from: %d, to: %d\r\n", test_servo_min, test_servo_max);
+	printf("  -ts, --test-servo [from [to]]	test servo open value, if from/to is omitted, values are from: %d, to: %d\r\n", settings.test_servo_min, settings.test_servo_max);
 	printf("  -?,  --help                   show this help\r\n");
 }
 
@@ -403,45 +429,45 @@ int parseParams(int argc, const char* argv[]){
 	int i;
 	for (i=1; i<argc; ++i){ //param 0 is programmname
 		if(strcmp(argv[i], "--sim") == 0 || strcmp(argv[i], "-s") == 0){
-			simulationMode = true;
+			runningMode.simulationMode = true;
 		} else if(strcmp(argv[i], "--sim7seg") == 0 || strcmp(argv[i], "-s7") == 0){
-			simulationModeShow7Segment = true;
+			runningMode.simulationModeShow7Segment = true;
 		} else if(strcmp(argv[i], "--debug") == 0 || strcmp(argv[i], "-d") == 0){
-			debug_enabled = true;
+			settings.debug_enabled = true;
 		} else if(strcmp(argv[i], "--debug2") == 0 || strcmp(argv[i], "-d2") == 0){
 			setDebugEnabled(true);
 		} else if(strcmp(argv[i], "--debug3") == 0 || strcmp(argv[i], "-d3") == 0){
-			debug3_enabled = true;
+			settings.debug3_enabled = true;
 		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
-			calibration = true;
-			normalMode = false;
+			runningMode.calibration = true;
+			runningMode.normalMode = false;
 			printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");
 		} else if(strcmp(argv[i], "--test-noise") == 0 || strcmp(argv[i], "-tn") == 0){
-			measure_noise = true;
-			normalMode = false;
+			runningMode.measure_noise = true;
+			runningMode.normalMode = false;
 			printf("we measure random noise\n");
 		} else if(strcmp(argv[i], "--test-7seg") == 0 || strcmp(argv[i], "-t7") == 0){
-			test_7seg = true;
-			normalMode = false;
+			runningMode.test_7seg = true;
+			runningMode.normalMode = false;
 			printf("test 7seg config\n");
 		} else if(strcmp(argv[i], "--test-servo") == 0 || strcmp(argv[i], "-ts") == 0){
-			test_servo = true;
-			normalMode = false;
+			runningMode.test_servo = true;
+			runningMode.normalMode = false;
 			if (argc>i+1 && argv[i+1][0] != '-'){
 				++i;
-				test_servo_min = StringConvertToNumber(argv[i]);
+				settings.test_servo_min = StringConvertToNumber(argv[i]);
 				if (argc>i+1 && argv[i+1][0] != '-'){
 					++i;
-					test_servo_max = StringConvertToNumber(argv[i]);
+					settings.test_servo_max = StringConvertToNumber(argv[i]);
 				}
 			}
-			printf("test servo config from %d to %d\n", test_servo_min, test_servo_max);
+			printf("test servo config from %d to %d\n", settings.test_servo_min, settings.test_servo_max);
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
-			useMiddleware = false;
-			useFile = true;
+			settings.useMiddleware = false;
+			settings.useFile = true;
 		} else if(strcmp(argv[i], "--middleware-and-file") == 0 || strcmp(argv[i], "-mf") == 0){
-			useMiddleware = true;
-			useFile = true;
+			settings.useMiddleware = true;
+			settings.useFile = true;
 		} else if(strcmp(argv[i], "--config") == 0 || strcmp(argv[i], "-cg") == 0){
 			if (argv[i+1][0] == '-'){
 				printf("Error: after --config/-cg the next param must be a pathname, and must not start with -\n");
@@ -449,7 +475,7 @@ int parseParams(int argc, const char* argv[]){
 				return 1;
 			} else {
 				++i;
-				configFile = argv[i];
+				settings.configFile = argv[i];
 			}
 		} else if(strcmp(argv[i], "--middleware-server") == 0 || strcmp(argv[i], "-ms") == 0){
 			if (argv[i+1][0] == '-'){
@@ -458,7 +484,7 @@ int parseParams(int argc, const char* argv[]){
 				return 1;
 			} else {
 				++i;
-				middlewareHostname = argv[i];
+				settings.middlewareHostname = argv[i];
 			}
 		} else if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-?") == 0){
 			printUsage();
@@ -491,100 +517,103 @@ void handleSignal(int signum) {
 	*/
 	if (signum == SIGTERM || signum == SIGINT || signum == SIGQUIT || signum == SIGKILL || signum == SIGHUP){
 		printf("signal %d recived\n", signum);
-		running = false;
+		state.running = false;
 	} else {
 		printf("not handled signal %d recived\n", signum);
 	}
 }
 
 void initOutputFile(void){
-	if (debug_enabled){printf("iniOutputFile\n");}
-	//StringClean(TotalUpdate, 512);
+	if (settings.debug_enabled){printf("iniOutputFile\n");}
+	//StringClean(state.TotalUpdate, 512);
 	FILE *fp;
-	fp = fopen(statusFile, "w");
+	fp = fopen(settings.statusFile, "w");
 	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":-2}", fp);
 	fclose(fp);
-	if (DeleteLogOnStart){
-		logFilePointer = fopen(logFile, "w");
-		fprintf(logFilePointer,"Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode\n");
+	if (settings.DeleteLogOnStart){
+		state.logFilePointer = fopen(settings.logFile, "w");
+		fprintf(state.logFilePointer,"Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode\n");
 	} else {
-		logFilePointer = fopen(logFile, "a");
+		state.logFilePointer = fopen(settings.logFile, "a");
 	}
 	
-	//fclose(logFilePointer);
+	//fclose(state.logFilePointer);
 }
 
 void resetValues(){
-	isBuzzing = 1; //to be sure first send a off to buzzer
-	oldSegmentDisplay = ' ';
-	setStepId=-2;
-	stepId=-2;
-	dataChanged = true;
-	timeChanged = true;
-	lastFileChangeTime = 0;
+	state.isBuzzing = true; //to be sure first send a off to buzzer
+	state.oldSegmentDisplay = ' ';
+	newCommandValues.stepId=-2;
+	currentCommandValues.stepId=-2;
+	state.dataChanged = true;
+	state.timeChanged = true;
+	timeValues.lastFileChangeTime = 0;
 	
-	temp = 0;
-	press = 0;
-	weight = 0;
-	elapsedTime = 0;
-	mode = 0;
+	currentCommandValues.temp = 0;
+	currentCommandValues.press = 0;
+	currentCommandValues.weight = 0;
+	currentCommandValues.time = 0;
+	currentCommandValues.mode = 0;
 	
-	oldMode = 0;
-	oldTemp = 0;
-	oldPress = 0;
-	oldWeight = 0;
+	newCommandValues.mode = 0;
+	newCommandValues.temp = 0;
+	newCommandValues.press = 0;
+	newCommandValues.weight = 0;
 	
-	Delay = LongDelay;
+	state.Delay = settings.LongDelay;
 	
-	servoOpen=0;
-	writeI2CPin(i2c_servo, i2c_servo_closed);
+	i2c_servo_values.servoOpen=0;
+	writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_closed);
 }
 
 
+const uint8_t dataType = TYPE_TEXT;
+
 bool checkForInput(){
 	bool valueChanged = false;
-	if (useMiddleware){
-		if (sockfd < 0){
-			if (runTime - middlewareConnectTime > 5){
+	if (settings.useMiddleware){
+		uint8_t recivedDataType = 0;
+		if (state.sockfd < 0){
+			if (timeValues.runTime - timeValues.middlewareConnectTime > 5){
 				//only try to connect to middleware every 5 sec.
-				middlewareConnectTime = runTime;
-				sockfd = connectToMiddleware(middlewareHostname, middlewarePortno);
+				timeValues.middlewareConnectTime = timeValues.runTime;
+				state.sockfd = connectToMiddleware(settings.middlewareHostname, settings.middlewarePortno);
 			}
 		}
-		if (sockfd>=0 && isSocketReady(sockfd)){
-			//if (reciveFromSock(sockfd, middlewareBuffer) ){
-			if (recivePackageFromSock(sockfd, middlewareBuffer, &recivedDataType)){
+		if (state.sockfd>=0 && isSocketReady(state.sockfd)){
+			//if (reciveFromSock(state.sockfd, state.middlewareBuffer) ){
+			if (recivePackageFromSock(state.sockfd, state.middlewareBuffer, &recivedDataType)){
 				valueChanged = true;
-				if (debug_enabled || debug3_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, middlewareBuffer);}
+				if (settings.debug_enabled || settings.debug3_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, state.middlewareBuffer);}
 				if (recivedDataType != dataType){
 					error("ERROR recived dataType unknown");
 				}
-				parseSockInput(middlewareBuffer);
+				parseSockInput(state.middlewareBuffer);
 			} else {
 				error("ERROR reading from socket");
-				sockfd = -14;
+				state.sockfd = -14;
 			}
 		}
-		if (sockfd<0){
-			if (useFile && ReadFile()){
+		if (state.sockfd<0){
+			if (settings.useFile && ReadFile()){
 				valueChanged = true;
 			} else {
 				delay(10000);
 			}
-		} else if (useFile){
-			time_t changeTime = get_mtime(commandFile);
+		} else if (settings.useFile){
+			time_t changeTime = get_mtime(settings.commandFile);
 			//TODO: changeTime = localtime(changeTime);
 			
-			if (changeTime > lastFileChangeTime){
+			if (changeTime > timeValues.lastFileChangeTime){
 				if (ReadFile()){
 					valueChanged = true;
 				}
 			} else {
-				if (debug_enabled || debug3_enabled){printf("commandFile to old, is:%ld, last:%ld\n",changeTime,lastFileChangeTime);}
+				if (settings.debug_enabled || settings.debug3_enabled){printf("commandFile to old, is:%ld, last:%ld\n", changeTime, timeValues.lastFileChangeTime);}
 			}
 		}
 	} else {
-		if (useFile && ReadFile()){
+		if (settings.useFile && ReadFile()){
 			valueChanged = true;
 		} else {
 			delay(10000);
@@ -594,76 +623,76 @@ bool checkForInput(){
 	return valueChanged;
 }
 
-void doOutput){
-	prepareState(TotalUpdate);
-	if (dataChanged){// || timeChanged){
-		if (debug_enabled){printf("dataChanged=true\n");}
-		if (useMiddleware && sockfd>=0){
-			if (!sendToSock(sockfd, TotalUpdate, dataType)){
+void doOutput(){
+	prepareState(state.TotalUpdate);
+	if (state.dataChanged){// || state.timeChanged){
+		if (settings.debug_enabled){printf("dataChanged=true\n");}
+		if (settings.useMiddleware && state.sockfd>=0){
+			if (!sendToSock(state.sockfd, state.TotalUpdate, dataType)){
 				error("ERROR writing to socket");
-				sockfd = -13;
+				state.sockfd = -13;
 			}
 		}
-		if (useFile) {
-			writeStatus(TotalUpdate);
+		if (settings.useFile) {
+			writeStatus(state.TotalUpdate);
 		}
-		dataChanged = false;
-		timeChanged = false;
+		state.dataChanged = false;
+		state.timeChanged = false;
 	}
 	writeLog();
 }
 
 void ProcessCommand(void){
-	if (setStepId != stepId){
-		if (setStepId < stepId){
+	if (newCommandValues.stepId != currentCommandValues.stepId){
+		if (newCommandValues.stepId < currentCommandValues.stepId){
 			//-1 stop/not aus
-			if(setStepId == -1){
+			if(newCommandValues.stepId == -1){
 				setMotorPWM(0);
 				HeatOff();
 			}
 			//TODO is reset/stop? or is someone try to begin new recipe before old is ended?
-			if(setStepId==0){
+			if(newCommandValues.stepId==0){
 				resetValues();
-				setStepId=0;
+				newCommandValues.stepId=0;
 			}
 		}
-		oldMode = mode;
-		mode=setMode;
-		stepId = setStepId;
-		stepStartTime = runTime;
-		dataChanged = true;
-		stepEndTime = stepStartTime + setTime;
-		nextTempCheckTime = 0;
+		oldCommandValues.mode = currentCommandValues.mode;
+		currentCommandValues.mode = newCommandValues.mode;
+		currentCommandValues.stepId = newCommandValues.stepId;
+		timeValues.stepStartTime = timeValues.runTime;
+		state.dataChanged = true;
+		timeValues.stepEndTime = timeValues.stepStartTime + newCommandValues.time;
+		timeValues.nextTempCheckTime = 0;
 		
-		if (debug_enabled){printf("stepId changed, new mode is: %d\n", mode);}
-		if (debug_enabled || simulationMode || debug3_enabled){printf("ProcessCommand: T0: %d, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %d, STIME: %d, SMODE: %d, SID: %d\n", setTemp, setPress, setMotorRpm, setMotorOn, setMotorOff, setWeight, setTime, setMode, setStepId);}
+		if (settings.debug_enabled){printf("stepId changed, new mode is: %d\n", currentCommandValues.mode);}
+		if (settings.debug_enabled || runningMode.simulationMode || settings.debug3_enabled){printf("ProcessCommand: T0: %.0f, P0: %.0f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 		
 		OptionControl();
 	}
 	TempControl();
 	PressControl();
 	MotorControl();
-	if (debug3_enabled){
+	if (settings.debug3_enabled){
 		printf("\n");
 	}
 	ValveControl();
 	ScaleFunction();
 	
-	if (stepEndTime > runTime) {
-		RemainTime=stepEndTime-runTime;
-	} else if (mode<MIN_STATUS_MODE) {
-		RemainTime=0;
-		if (mode==MODE_COOK || mode == MODE_PRESSHOLD){
-			mode=MODE_COOK_TIMEEND;
-			dataChanged=true;
-			if (BeepStepEnd>0){
-				BeepEndTime = runTime+BeepStepEnd;
+	if (timeValues.stepEndTime > timeValues.runTime) {
+		timeValues.remainTime=timeValues.stepEndTime-timeValues.runTime;
+	} else if (currentCommandValues.mode<MIN_STATUS_MODE) {
+		timeValues.remainTime=0;
+		if (currentCommandValues.mode==MODE_COOK || currentCommandValues.mode == MODE_PRESSHOLD){
+			currentCommandValues.mode=MODE_COOK_TIMEEND;
+			state.dataChanged=true;
+			if (settings.BeepStepEnd>0){
+				timeValues.beepEndTime = timeValues.runTime+settings.BeepStepEnd;
 			}
-		} else if (mode != MODE_STANDBY){
-			mode=MODE_STANDBY;
-			dataChanged=true;
-			if (BeepStepEnd>0){
-				BeepEndTime = runTime+BeepStepEnd;
+		} else if (currentCommandValues.mode != MODE_STANDBY){
+			currentCommandValues.mode=MODE_STANDBY;
+			state.dataChanged=true;
+			if (settings.BeepStepEnd>0){
+				timeValues.beepEndTime = timeValues.runTime+settings.BeepStepEnd;
 			}
 		}
 	}
@@ -676,43 +705,43 @@ void ProcessCommand(void){
 
 
 double readTemp(){
-	if (simulationMode){
-		double tempValue = oldTemp;
-		if (nextTempCheckTime != 0){
-			int DeltaT=setTemp-oldTemp;
-			if (mode==MODE_HEATUP || mode==MODE_COOK) {
-				if (DeltaT<0) {
-					tempValue = oldTemp-1;
-				} else if (DeltaT==0) {
-					tempValue = oldTemp;
-				} else if (DeltaT <= 10) {
-					tempValue = oldTemp+1;
-				} else if (DeltaT <= 20) {
-					tempValue = oldTemp+5;
-				} else if (DeltaT <= 50) {
-					tempValue = oldTemp+25;
+	if (runningMode.simulationMode){
+		double tempValue = oldCommandValues.temp;
+		if (timeValues.nextTempCheckTime != 0){
+			int deltaT=newCommandValues.temp-oldCommandValues.temp;
+			if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
+				if (deltaT<0) {
+					--tempValue;
+				} else if (deltaT==0) {
+					//Nothing
+				} else if (deltaT <= 10) {
+					tempValue = tempValue+1;
+				} else if (deltaT <= 20) {
+					tempValue = tempValue+5;
+				} else if (deltaT <= 50) {
+					tempValue = tempValue+25;
 				} else {
-					tempValue = oldTemp+40;
+					tempValue = tempValue+40;
 				}
-			} else if (mode==MODE_COOLDOWN){
-				tempValue = oldTemp-1;
+			} else if (currentCommandValues.mode==MODE_COOLDOWN){
+				tempValue = tempValue-1;
 			}
 		//} else {
 			//is first call, no change yet
 		}
-		//if (debug_enabled){printf("readTemp, new Value is %f\n", tempValue);}
+		//if (settings.debug_enabled){printf("readTemp, new Value is %f\n", tempValue);}
 		printf("readTemp, new Value is %f\n", tempValue);
 		return tempValue;
 	} else {
-		uint32_t tempValueInt = readADC(ADC_Temp);
-		double tempValue = (double)tempValueInt * TempScaleFactor+(double)TempOffset;
+		uint32_t tempValueInt = readADC(adc_config.ADC_Temp);
+		double tempValue = (double)tempValueInt * tempCalibration.scaleFactor+tempCalibration.offset;
 		tempValue = round(tempValue);
-		if (debug_enabled || calibration || debug3_enabled){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
-		if (measure_noise) {
-			if (tempValueInt>MaxTemp) MaxTemp=tempValueInt;
-			if (tempValueInt<MinTemp) MinTemp=tempValueInt;
-			DeltaTemp=MaxTemp-MinTemp;
-			printf("NoiseTemp %d | ", DeltaTemp);
+		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
+		if (runningMode.measure_noise) {
+			if (tempValueInt>adc_noise.MaxTemp) adc_noise.MaxTemp=tempValueInt;
+			if (tempValueInt<adc_noise.MinTemp) adc_noise.MinTemp=tempValueInt;
+			adc_noise.DeltaTemp=adc_noise.MaxTemp-adc_noise.MinTemp;
+			printf("NoiseTemp %d | ", adc_noise.DeltaTemp);
 		}
 		return tempValue;
 	}
@@ -720,205 +749,228 @@ double readTemp(){
 
 
 double readPress(){
-	if (simulationMode){
-		double pressValue = oldPress;
-		if (nextTempCheckTime != 0){
-			int DeltaP=setPress-oldPress;
-			if (mode==MODE_PRESSUP || mode==MODE_PRESSHOLD) {
-				if (DeltaP<0) {
+	if (runningMode.simulationMode){
+		double pressValue = oldCommandValues.press;
+		if (timeValues.nextTempCheckTime != 0){
+			int deltaP=newCommandValues.press-oldCommandValues.press;
+			if (currentCommandValues.mode==MODE_PRESSUP || currentCommandValues.mode==MODE_PRESSHOLD) {
+				if (deltaP<0) {
 					--pressValue;
-				} else if (DeltaP==0) {
-					//Nothing //pressValue = oldPress;
-				} else if (DeltaP <= 10) {
-					pressValue = oldPress+2;
-				} else if (DeltaP <= 50) {
-					pressValue = oldPress+5;
+				} else if (deltaP==0) {
+					//Nothing
+				} else if (deltaP <= 10) {
+					pressValue = pressValue+2;
+				} else if (deltaP <= 50) {
+					pressValue = pressValue+5;
 				} else {
-					pressValue = oldPress+10;
+					pressValue = pressValue+10;
 				}
-			} else if (mode==MODE_PRESSDOWN){
-				pressValue = oldPress-1;
+			} else if (currentCommandValues.mode==MODE_PRESSDOWN){
+				pressValue = pressValue-1;
 			}
 		//} else {
 			//is first call, no change yet
 		}
-		//if (debug_enabled){printf("readPress, new Value is %f\n", pressValue);}
+		//if (settings.debug_enabled){printf("readPress, new Value is %f\n", pressValue);}
 		printf("readPress, new Value is %f\n", pressValue);
 		return pressValue;
 	} else {
-		uint32_t pressValueInt = readADC(ADC_Press);
-		double pressValue = pressValueInt* PressScaleFactor+PressOffset;
-		if (debug_enabled || calibration || debug3_enabled){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
-		if (measure_noise){
-			if (pressValueInt>MaxPress) MaxPress=pressValueInt;
-			if (pressValueInt<MinPress) MinPress=pressValueInt;
-			DeltaPress=MaxPress-MinPress;
-			printf("NoisePress %d |", DeltaPress);
+		uint32_t pressValueInt = readADC(adc_config.ADC_Press);
+		double pressValue = pressValueInt* pressCalibration.scaleFactor+pressCalibration.offset;
+		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
+		if (runningMode.measure_noise){
+			if (pressValueInt>adc_noise.MaxPress) adc_noise.MaxPress=pressValueInt;
+			if (pressValueInt<adc_noise.MinPress) adc_noise.MinPress=pressValueInt;
+			adc_noise.DeltaPress=adc_noise.MaxPress-adc_noise.MinPress;
+			printf("NoisePress %d |", adc_noise.DeltaPress);
 		}
 		return pressValue;
 	}
 }
 
 //Power control functions
-void HeatOn() {
-	//if (debug_enabled || simulationMode){printf("HeatOn, was: %d\n", heatPowerStatus);}
-	if (heatPowerStatus==0) { //if its off
-		if (debug_enabled || simulationMode || calibration){printf("HeatOn status was: %d\n", heatPowerStatus);}
-		if (!simulationMode){
+bool HeatOn() {
+	//if (settings.debug_enabled || runningMode.simulationMode){printf("HeatOn, was: %d\n", state.heatPowerStatus);}
+	if (!state.heatPowerStatus) { //if its off
+		if (settings.debug_enabled || runningMode.simulationMode || runningMode.calibration){printf("HeatOn status was: %d\n", state.heatPowerStatus);}
+		if (!runningMode.simulationMode){
 			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
 			delay(500);
 			writeControllButtonPin(IND_KEY4, 1);
-			if (debug3_enabled){printf("-->HeatOn\n");}
+			if (settings.debug3_enabled){printf("-->HeatOn\n");}
 		}
-		heatPowerStatus=1; //save that we turned it on
+		state.heatPowerStatus=true; //save that we turned it on
+		return true;
+	} else {
+		return false;
 	}
 }
 
-void HeatOff(){
-	//if (debug_enabled || simulationMode){printf("HeatOff, was: %d\n", heatPowerStatus);}
-	if (heatPowerStatus>0) { //if its on
-		if (debug_enabled || simulationMode){printf("HeatOff\n");}
-		if (!simulationMode){
+bool HeatOff(){
+	//if (settings.debug_enabled || runningMode.simulationMode){printf("HeatOff, was: %d\n", state.heatPowerStatus);}
+	if (state.heatPowerStatus) { //if its on
+		if (settings.debug_enabled || runningMode.simulationMode){printf("HeatOff\n");}
+		if (!runningMode.simulationMode){
 			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
 			delay(500);
 			writeControllButtonPin(IND_KEY4, 1);
-			if (debug3_enabled){printf("-->HeatOff\n");}
+			if (settings.debug3_enabled){printf("-->HeatOff\n");}
 		}
-		heatPowerStatus=0; //save that we turned it off
+		state.heatPowerStatus=false; //save that we turned it off
+		return true;
+	} else {
+		return false;
 	}
 }
 
 void setMotorPWM(uint16_t pwm){
-	if (debug_enabled){printf("setMotorPWM, pwm: %d\n", pwm);}
-	if (motorPwm != pwm){
-		if (!simulationMode){
-			writeI2CPin(i2c_motor, pwm);
+	if (settings.debug_enabled){printf("setMotorPWM, pwm: %d\n", pwm);}
+	if (state.motorPwm != pwm){
+		if (!runningMode.simulationMode){
+			writeI2CPin(i2c_config.i2c_motor, pwm);
 		} else {
 			printf("setMotorPWM, pwm: %d\n", pwm);
 		}
-		motorPwm = pwm;
+		state.motorPwm = pwm;
 	}
 }
 
 void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait){
-	if (debug_enabled || debug3_enabled){printf("setServoOpen, open: %d\n", openPercent);}
-	if (servoOpen != openPercent){
+	if (settings.debug_enabled || settings.debug3_enabled){printf("setServoOpen, open: %d\n", openPercent);}
+	if (i2c_servo_values.servoOpen != openPercent){
 		if (steps<=0){
 			steps=1;
 		}
-		int16_t minMaxDiff = i2c_servo_open-i2c_servo_closed;
-		int8_t changePercent = openPercent-servoOpen;
-		float onePercent = minMaxDiff/100.0;
-		float stepSize = (changePercent*onePercent)/steps;
-		
-		if (simulationMode || debug3_enabled){printf("setServoOpen: minMaxDiff:%d, changePercent:%d onePercent:%.2f, stepSize:%.2f\n", minMaxDiff, changePercent, onePercent, stepSize);}
-		
-		uint16_t i2c_servo_value=i2c_servo_closed;
-		float value=servoOpen*onePercent;
-		int step=1;
-		for(; step<=steps; ++step){
-			value=value+stepSize;
-			i2c_servo_value=i2c_servo_closed + (int)(value);
-			if (simulationMode || debug3_enabled){printf("setServoOpen: value:%.2f, servo_value:%d\n", value, i2c_servo_value);}
-			if (!simulationMode){
-				writeI2CPin(i2c_servo, i2c_servo_value);
-			}
-			delay(stepWait);
+		if (i2c_servo_values.steps != steps || i2c_servo_values.destOpenPercent != openPercent){
+			i2c_servo_values.steps = steps;
+			i2c_servo_values.destOpenPercent = openPercent;
+			
+			int16_t minMaxDiff = i2c_servo_values.i2c_servo_open-i2c_servo_values.i2c_servo_closed;
+			int8_t changePercent = openPercent-i2c_servo_values.servoOpen;
+			float onePercent = minMaxDiff/100.0;
+			float stepSize = (changePercent*onePercent)/steps;
+			i2c_servo_values.stepSize = stepSize;
+			i2c_servo_values.stepPercentSize = changePercent/steps;
+			i2c_servo_values.currentStep = 0;
+			
+			i2c_servo_values.currentValue = i2c_servo_values.servoOpen*onePercent;
+			i2c_servo_values.i2c_servo_value = i2c_servo_values.i2c_servo_closed;
+			if (runningMode.simulationMode || settings.debug3_enabled){printf("setServoOpen: minMaxDiff:%d, changePercent:%d onePercent:%.2f, stepSize:%.2f\n", minMaxDiff, changePercent, onePercent, stepSize);}
 		}
-		servoOpen = openPercent;
+		
+		if (i2c_servo_values.currentStep < steps){
+		//while(i2c_servo_values.currentStep < steps){
+			++i2c_servo_values.currentStep;
+			i2c_servo_values.currentValue=i2c_servo_values.currentValue+i2c_servo_values.stepSize;
+			i2c_servo_values.i2c_servo_value=i2c_servo_values.i2c_servo_closed + (int)(i2c_servo_values.currentValue);
+			if (runningMode.simulationMode || settings.debug3_enabled){printf("setServoOpen: value:%.2f, servo_value:%d\n", i2c_servo_values.currentValue, i2c_servo_values.i2c_servo_value);}
+			if (!runningMode.simulationMode){
+				writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_value);
+			}
+			i2c_servo_values.servoOpen = i2c_servo_values.servoOpen+i2c_servo_values.stepPercentSize;
+			//delay(stepWait);
+			state.Delay = stepWait;
+		} else {
+			i2c_servo_values.servoOpen = openPercent;
+			state.Delay = settings.LongDelay;
+		}
+	} else {
+		if (Delay == stepWait){
+			state.Delay = settings.LongDelay;
+		}
 	}
 }
 
 double readWeight(){
-	if (simulationMode){
-		if (!scaleReady) {
+	if (runningMode.simulationMode){
+		if (!state.scaleReady) {
 			return 0.0;
 		} else {
-			if (runTime <= simulationUpdateTime){
-				return oldWeight;
+			if (timeValues.runTime <= timeValues.simulationUpdateTime){
+				return oldCommandValues.weight; 
 			} else {
-				int deltaW = setWeight-oldWeight;
-				double weightValue = oldWeight;
+				int deltaW = newCommandValues.weight-oldCommandValues.weight;
+				double weightValue = oldCommandValues.weight;
 				if (deltaW<0) {
 					--weightValue;
 				} else if (deltaW==0) {
 					//Nothing
 				} else if (deltaW<=10) {
-					weightValue = oldWeight + 2;
+					weightValue = weightValue + 2;
 				} else if (deltaW<=50) {
-					weightValue = oldWeight + 5;
+					weightValue = weightValue + 5;
 				} else {
-					weightValue = oldWeight + 10;
+					weightValue = weightValue + 10;
 				}
-				if (weightValue != oldWeight){
-					weightValue += referenceForce;
-					printf("readWeight, new Value is %f (old:%f)\n", weightValue, oldWeight);
-					//if (debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
+				if (weightValue != oldCommandValues.weight){
+					weightValue += state.referenceForce;
+					printf("readWeight, new Value is %f (old:%f)\n", weightValue, oldCommandValues.weight);
+					//if (settings.debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
 				} else {
-					weightValue += referenceForce;
+					weightValue += state.referenceForce;
 				}
-				simulationUpdateTime = runTime;
+				timeValues.simulationUpdateTime = timeValues.runTime;
 				return weightValue;
 			}
 		}
 	} else {
-		uint32_t weightValue1 = readADC(ADC_LoadCellFrontLeft);
-		uint32_t weightValue2 = readADC(ADC_LoadCellFrontRight);
-		uint32_t weightValue3 = readADC(ADC_LoadCellBackLeft);
-		uint32_t weightValue4 = readADC(ADC_LoadCellBackRight);
+		uint32_t weightValue1 = readADC(adc_config.ADC_LoadCellFrontLeft);
+		uint32_t weightValue2 = readADC(adc_config.ADC_LoadCellFrontRight);
+		uint32_t weightValue3 = readADC(adc_config.ADC_LoadCellBackLeft);
+		uint32_t weightValue4 = readADC(adc_config.ADC_LoadCellBackRight);
 		
 		uint32_t weightValueSum = (weightValue1+weightValue2+weightValue3+weightValue4) / 4;
 		
 		double weightValue = (double)weightValueSum;
-		weightValue *=ForceScaleFactor;
+		weightValue *=forceCalibration.scaleFactor;
 		weightValue = roundf(weightValue);
-		//if (debug_enabled || calibration){printf("readWeight %d digits, %.1f grams\n", weightValueSum, weightValue);}
-		if (debug_enabled || calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, (weightValue+referenceForce), weightValue1, weightValue2, weightValue3, weightValue4);}
-		if (measure_noise){
-			if (weightValue1>MaxWeight1) MaxWeight1=weightValue1;
-			if (weightValue1<MinWeight1) MinWeight1=weightValue1;
-			DeltaWeight1=MaxWeight1-MinWeight1;
-			printf("NoiseWeightFL %d | ", DeltaWeight1);
+		//if (settings.debug_enabled || runningMode.calibration){printf("readWeight %d digits, %.1f grams\n", weightValueSum, weightValue);}
+		if (settings.debug_enabled || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, (weightValue+state.referenceForce), weightValue1, weightValue2, weightValue3, weightValue4);}
+		if (runningMode.measure_noise){
+			if (weightValue1>adc_noise.MaxWeight1) adc_noise.MaxWeight1=weightValue1;
+			if (weightValue1<adc_noise.MinWeight1) adc_noise.MinWeight1=weightValue1;
+			adc_noise.DeltaWeight1=adc_noise.MaxWeight1-adc_noise.MinWeight1;
+			printf("NoiseWeightFL %d | ", adc_noise.DeltaWeight1);
 			
-			if (weightValue2>MaxWeight2) MaxWeight2=weightValue2;
-			if (weightValue2<MinWeight2) MinWeight2=weightValue2;
-			DeltaWeight2=MaxWeight2-MinWeight2;
-			printf("NoiseWeightFR %d | ", DeltaWeight2);
+			if (weightValue2>adc_noise.MaxWeight2) adc_noise.MaxWeight2=weightValue2;
+			if (weightValue2<adc_noise.MinWeight2) adc_noise.MinWeight2=weightValue2;
+			adc_noise.DeltaWeight2=adc_noise.MaxWeight2-adc_noise.MinWeight2;
+			printf("NoiseWeightFR %d | ", adc_noise.DeltaWeight2);
 			
-			if (weightValue3>MaxWeight3) MaxWeight3=weightValue3;
-			if (weightValue3<MinWeight3) MinWeight3=weightValue3;
-			DeltaWeight3=MaxWeight3-MinWeight3;
-			printf("NoiseWeightBL %d | ", DeltaWeight3);
+			if (weightValue3>adc_noise.MaxWeight3) adc_noise.MaxWeight3=weightValue3;
+			if (weightValue3<adc_noise.MinWeight3) adc_noise.MinWeight3=weightValue3;
+			adc_noise.DeltaWeight3=adc_noise.MaxWeight3-adc_noise.MinWeight3;
+			printf("NoiseWeightBL %d | ", adc_noise.DeltaWeight3);
 			
-			if (weightValue4>MaxWeight4) MaxWeight4=weightValue4;
-			if (weightValue4<MinWeight4) MinWeight4=weightValue4;
-			DeltaWeight4=MaxWeight4-MinWeight4;
-			printf("NoiseWeightBR %d\n", DeltaWeight4);
+			if (weightValue4>adc_noise.MaxWeight4) adc_noise.MaxWeight4=weightValue4;
+			if (weightValue4<adc_noise.MinWeight4) adc_noise.MinWeight4=weightValue4;
+			adc_noise.DeltaWeight4=adc_noise.MaxWeight4-adc_noise.MinWeight4;
+			printf("NoiseWeightBR %d\n", adc_noise.DeltaWeight4);
 		}
 		return weightValue;
 	}
 }
 
 double readWeightSeparate(double* values){
-	if (simulationMode){
-		if (!scaleReady) {
+	if (runningMode.simulationMode){
+		if (!state.scaleReady) {
 			return 0.0;
 		} else {
-			int deltaW = setWeight-oldWeight;
-			double weightValue = oldWeight;
+			int deltaW = newCommandValues.weight-oldCommandValues.weight;
+			double weightValue = oldCommandValues.weight;
 			if (deltaW<0) {
 				--weightValue;
 			} else if (deltaW==0) {
 				//Nothing
 			} else if (deltaW<=10) {
-				weightValue = oldWeight + 2;
+				weightValue = weightValue + 2;
 			} else if (deltaW<=50) {
-				weightValue = oldWeight + 5;
+				weightValue = weightValue + 5;
 			} else {
-				weightValue = oldWeight + 10;
+				weightValue = weightValue + 10;
 			}
-			weightValue += referenceForce;
-			if (debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
+			weightValue += state.referenceForce;
+			if (settings.debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
 			
 			if (values != NULL){
 				values[0] = weightValue;
@@ -929,24 +981,24 @@ double readWeightSeparate(double* values){
 			return weightValue;
 		}
 	} else {
-		uint32_t weightValue1 = readADC(ADC_LoadCellFrontLeft);
-		uint32_t weightValue2 = readADC(ADC_LoadCellFrontRight);
-		uint32_t weightValue3 = readADC(ADC_LoadCellBackLeft);
-		uint32_t weightValue4 = readADC(ADC_LoadCellBackRight);
+		uint32_t weightValue1 = readADC(adc_config.ADC_LoadCellFrontLeft);
+		uint32_t weightValue2 = readADC(adc_config.ADC_LoadCellFrontRight);
+		uint32_t weightValue3 = readADC(adc_config.ADC_LoadCellBackLeft);
+		uint32_t weightValue4 = readADC(adc_config.ADC_LoadCellBackRight);
 		
 		if (values != NULL){
-			values[0] = (double)weightValue1 * ForceScaleFactor;
-			values[1] = (double)weightValue2 * ForceScaleFactor;
-			values[2] = (double)weightValue3 * ForceScaleFactor;
-			values[3] = (double)weightValue4 * ForceScaleFactor;
+			values[0] = (double)weightValue1 * forceCalibration.scaleFactor;
+			values[1] = (double)weightValue2 * forceCalibration.scaleFactor;
+			values[2] = (double)weightValue3 * forceCalibration.scaleFactor;
+			values[3] = (double)weightValue4 * forceCalibration.scaleFactor;
 		}
 		
 		uint32_t weightValueSum = (weightValue1+weightValue2+weightValue3+weightValue4) / 4;
 		
 		double weightValue = (double)weightValueSum;
-		weightValue *=ForceScaleFactor;
+		weightValue *=forceCalibration.scaleFactor;
 		weightValue = roundf(weightValue);
-		if (debug_enabled){
+		if (settings.debug_enabled){
 			if (values != NULL){
 				printf("readWeight, new Value is %d / %f (%d, %d, %d, %d / %f, %f, %f, %f)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4, values[0], values[1], values[2], values[3]);
 			} else {
@@ -959,166 +1011,165 @@ double readWeightSeparate(double* values){
 
 /******************* processing functions **********************/
 void OptionControl(){
-  if (mode>=MODE_OPTIONS_BEGIN){
-    if (mode==MODE_OPTION_REMEMBER_BEEP_ON){
-      doRememberBeep=true;
-    } else if (mode==MODE_OPTION_REMEMBER_BEEP_OFF){
-      doRememberBeep=false;
-    } else if (mode==MODE_OPTION_7SEGMENT_BLINK){
+  if (currentCommandValues.mode>=MODE_OPTIONS_BEGIN){
+    if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_ON){
+      settings.doRememberBeep=true;
+    } else if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_OFF){
+      settings.doRememberBeep=false;
+    } else if (currentCommandValues.mode==MODE_OPTION_7SEGMENT_BLINK){
 		SegmentDisplaySimple(' ');
 		blink7Segment();
 		blink7Segment();
 		blink7Segment();
 		blink7Segment();
 	}
-    mode=MODE_STANDBY;
-	dataChanged=true;
+    currentCommandValues.mode=MODE_STANDBY;
+	state.dataChanged=true;
   }
 }
 
 void TempControl(){
-	if (mode<MIN_COOK_MODE || mode>MAX_COOK_MODE) HeatOff();
-	if (mode>=MIN_TEMP_MODE && mode<=MAX_TEMP_MODE) {
-		if (runTime>=nextTempCheckTime || heatPowerStatus==0){
-			HeatOff();
-			delay(500);
-			oldTemp = temp;
-			uint32_t TempValue = readTemp();
-			temp=TempValue;
-			
-			if (oldTemp != temp){
-				dataChanged = true;
+	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff();
+	if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
+		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
+			if (HeatOff()){
+				delay(500);
 			}
 			
-			int DeltaT=setTemp-temp;
-			if (mode==MODE_HEATUP || mode==MODE_COOK) {
-				if (DeltaT<=0) {
-					nextTempCheckTime=runTime+1;
-					if (mode==MODE_HEATUP) {//heatup function
-						stepEndTime=runTime-2;
-						mode=MODE_HOT; //we are hot
-						dataChanged=true;
+			oldCommandValues.temp = currentCommandValues.temp;
+			currentCommandValues.temp=readTemp();
+			
+			if (oldCommandValues.temp != currentCommandValues.temp){
+				state.dataChanged = true;
+			}
+			
+			int deltaT=newCommandValues.temp-currentCommandValues.temp;
+			if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
+				if (deltaT<=0) {
+					timeValues.nextTempCheckTime=timeValues.runTime+1;
+					if (currentCommandValues.mode==MODE_HEATUP) {//heatup function
+						timeValues.stepEndTime=timeValues.runTime-2;
+						currentCommandValues.mode=MODE_HOT; //we are hot
+						state.dataChanged=true;
 					}
 				}
-				else if (DeltaT <= 10) { nextTempCheckTime=runTime+15; HeatOn(); }
-				else if (DeltaT <= 50) { nextTempCheckTime=runTime+25; HeatOn();}
-				else {nextTempCheckTime=runTime+35; HeatOn();} 
+				else if (deltaT <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn();}
+				else if (deltaT <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn();}
+				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn();} 
 			}
-			if (mode==MODE_HEATUP && heatPowerStatus==1) { //heatup
-				stepEndTime=nextTempCheckTime+1;
-			} else if (mode==MODE_COOLDOWN && DeltaT>=0) { //cooldown function
-				stepEndTime=runTime-2;
-				mode=MODE_COLD;
-				dataChanged=true;
-			} else if (mode==MODE_COOLDOWN) {
-				nextTempCheckTime=runTime+1;
-				stepEndTime=nextTempCheckTime+1;
+			if (currentCommandValues.mode==MODE_HEATUP && state.heatPowerStatus) { //heatup
+				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
+			} else if (currentCommandValues.mode==MODE_COOLDOWN && deltaT>=0) { //cooldown function
+				timeValues.stepEndTime=timeValues.runTime-2;
+				currentCommandValues.mode=MODE_COLD;
+				state.dataChanged=true;
+			} else if (currentCommandValues.mode==MODE_COOLDOWN) {
+				timeValues.nextTempCheckTime=timeValues.runTime+1;
+				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
 			}
 		}
 	} else {
-		oldTemp = temp;
-		uint32_t TempValue = readTemp();
-		temp=TempValue;
+		oldCommandValues.temp = currentCommandValues.temp;
+		currentCommandValues.temp=readTemp();
 		
-		if (oldTemp != temp){
-			dataChanged = true;
+		if (oldCommandValues.temp != currentCommandValues.temp){
+			state.dataChanged = true;
 		}
 	}
 }
 
 void PressControl(){
-	if (mode<MIN_COOK_MODE || mode>MAX_COOK_MODE) HeatOff();
-	if (mode>=MIN_PRESS_MODE && mode<=MAX_PRESS_MODE) {
-		if (runTime>=nextTempCheckTime || heatPowerStatus==0){
-			HeatOff();
-			delay(500);
-			oldPress = press;
-			uint32_t pressValue = readPress();
-			press=pressValue;
+	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff();
+	if (currentCommandValues.mode>=MIN_PRESS_MODE && currentCommandValues.mode<=MAX_PRESS_MODE) {
+		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
+			if (HeatOff()){
+				delay(500);
+			}
+			oldCommandValues.press = currentCommandValues.press;
+			currentCommandValues.press = readPress();
 			
-			if (oldPress != press){
-				dataChanged = true;
+			if (oldCommandValues.press != currentCommandValues.press){
+				state.dataChanged = true;
 			}
 			
-			int DeltaP=setPress-press;
-			if (mode==MODE_PRESSUP || mode==MODE_PRESSHOLD) {
-				if (DeltaP<=0) {
-					nextTempCheckTime=runTime+1;
-					if (mode==MODE_PRESSUP) {//pressup function
-						stepEndTime=runTime-2;
-						mode=MODE_PRESSURIZED; //we are pressurized
-						dataChanged=true;
+			int deltaP=newCommandValues.press-currentCommandValues.press;
+			if (currentCommandValues.mode==MODE_PRESSUP || currentCommandValues.mode==MODE_PRESSHOLD) {
+				if (deltaP<=0) {
+					timeValues.nextTempCheckTime=timeValues.runTime+1;
+					if (currentCommandValues.mode==MODE_PRESSUP) {//pressup function
+						timeValues.stepEndTime=timeValues.runTime-2;
+						currentCommandValues.mode=MODE_PRESSURIZED; //we are pressurized
+						state.dataChanged=true;
 					}
 				}
-				else if (DeltaP <= 10) { nextTempCheckTime=runTime+5; HeatOn(); }
-				else if (DeltaP <= 50) { nextTempCheckTime=runTime+10; HeatOn();}
-				else {nextTempCheckTime=runTime+20; HeatOn();}
+				else if (deltaP <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn();}
+				else if (deltaP <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn();}
+				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn();}
 			}
-			if (mode==MODE_PRESSUP && heatPowerStatus==1) { //pressure up
-				stepEndTime=nextTempCheckTime+1;
-			} else if (mode==MODE_PRESSDOWN && DeltaP>=0) { //pressure down function
-				stepEndTime=runTime-2;
-				mode=MODE_PRESSURELESS;
-				dataChanged=true;
-			} else if (mode==MODE_PRESSDOWN) {
-				nextTempCheckTime=runTime+1;
-				stepEndTime=nextTempCheckTime+1;
+			if (currentCommandValues.mode==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
+				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
+			} else if (currentCommandValues.mode==MODE_PRESSDOWN && deltaP>=0) { //pressure down function
+				timeValues.stepEndTime=timeValues.runTime-2;
+				currentCommandValues.mode=MODE_PRESSURELESS;
+				state.dataChanged=true;
+			} else if (currentCommandValues.mode==MODE_PRESSDOWN) {
+				timeValues.nextTempCheckTime=timeValues.runTime+1;
+				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
 			}
 		}
-	} else if (mode>=MIN_TEMP_MODE && mode<=MAX_TEMP_MODE) {
-		if (runTime>=nextTempCheckTime || heatPowerStatus==0){
-			oldPress = press;
-			uint32_t pressValue = readPress();
-			press=pressValue;
-			if (oldPress != press){
-				dataChanged = true;
+	} else if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
+		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
+			oldCommandValues.press = currentCommandValues.press;
+			currentCommandValues.press = readPress();
+			
+			if (oldCommandValues.press != currentCommandValues.press){
+				state.dataChanged = true;
 			}
 		}
 	} else {
-		oldPress = press;
-		uint32_t pressValue = readPress();
-		press=pressValue;
+		oldCommandValues.press = currentCommandValues.press;
+		currentCommandValues.press = readPress();
 		
-		if (oldPress != press){
-			dataChanged = true;
+		if (oldCommandValues.press != currentCommandValues.press){
+			state.dataChanged = true;
 		}
 	}
 }
 
 void MotorControl(){
-	if (mode==MODE_CUT || mode>=MIN_TEMP_MODE){
-		if (mode==MODE_CUT) stepEndTime=runTime+1;
-		if (setMotorRpm > 0 && mode<=MAX_STATUS_MODE) {
-			if  (setMotorOn > 0 && setMotorOff > 0) {
-				if (runTime >= motorStartTime+setMotorOn && runTime < motorStartTime+setMotorOn+setMotorOff) { 
-					motorRpm = 0; 
-				} else if (motorRpm==0){
-					motorRpm = setMotorRpm;
-					motorStartTime=runTime;
+	if (currentCommandValues.mode==MODE_CUT || currentCommandValues.mode>=MIN_TEMP_MODE){
+		if (currentCommandValues.mode==MODE_CUT) timeValues.stepEndTime=timeValues.runTime+1;
+		if (newCommandValues.motorRpm > 0 && currentCommandValues.mode<=MAX_STATUS_MODE) {
+			if  (newCommandValues.motorOn > 0 && newCommandValues.motorOff > 0) {
+				if (timeValues.runTime >= timeValues.motorStartTime+newCommandValues.motorOn && timeValues.runTime < timeValues.motorStartTime+newCommandValues.motorOn+newCommandValues.motorOff) { 
+					currentCommandValues.motorRpm = 0; 
+				} else if (currentCommandValues.motorRpm==0){
+					currentCommandValues.motorRpm = newCommandValues.motorRpm;
+					timeValues.motorStartTime=timeValues.runTime;
 				}
 			} else {
-				motorRpm = setMotorRpm;
-				motorStartTime=runTime;
+				currentCommandValues.motorRpm = newCommandValues.motorRpm;
+				timeValues.motorStartTime=timeValues.runTime;
 			}
 		} else {
-			motorRpm = 0;
+			currentCommandValues.motorRpm = 0;
 		}
 	} else {
-		motorRpm=0;
+		currentCommandValues.motorRpm=0;
 	}
-	uint16_t motorPwm = motorRpm * motorRpmToPwm;
-	setMotorPWM(motorPwm);
+	uint16_t state.motorPwm = currentCommandValues.motorRpm * MOTOR_RPM_TO_PWM;
+	setMotorPWM(state.motorPwm);
 }
 
 void ValveControl(){
-	if (mode==MODE_PRESSVENT) {
+	if (currentCommandValues.mode==MODE_PRESSVENT) {
 		HeatOff();
-		setServoOpen(100, 10, 500);
-		stepEndTime=runTime+5;
-		if (press < LowPress) {
+		setServoOpen(100, 10, 1000);
+		timeValues.stepEndTime=timeValues.runTime+1;
+		if (currentCommandValues.press < settings.LowPress) {
 			delay(2000);
-			mode=MODE_PRESSURELESS;
-			dataChanged=true;
+			currentCommandValues.mode=MODE_PRESSURELESS;
+			state.dataChanged=true;
 		}
 	} else {
 		setServoOpen(0, 1, 0);
@@ -1127,286 +1178,286 @@ void ValveControl(){
 
 
 void ScaleFunction() {
-	if (mode==MODE_SCALE || mode==MODE_WEIGHT_REACHED){
-		stepEndTime=runTime+2;
-		oldWeight = weight;
-		double SumOfForces = readWeight();
-		if (debug_enabled){printf("ScaleFunction\n");}
+	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
+		timeValues.stepEndTime=timeValues.runTime+2;
+		oldCommandValues.weight = currentCommandValues.weight;
+		double sumOfForces = readWeight();
+		if (settings.debug_enabled){printf("ScaleFunction\n");}
 		
-		if (!scaleReady) { //we are not ready for weighting
-			referenceForce=SumOfForces;
-			oldWeight=SumOfForces;
-			scaleReady=true;
-			if (Delay == ShortDelay){
-				Delay=LongDelay;
+		if (!state.scaleReady) { //we are not ready for weighting
+			state.referenceForce=sumOfForces;
+			oldCommandValues.weight=sumOfForces;
+			state.scaleReady=true;
+			if (state.Delay == settings.ShortDelay){
+				state.Delay=settings.LongDelay;
 			}
-			if (debug_enabled){printf("\tscaleReady\n");}
+			if (settings.debug_enabled){printf("\tscaleReady\n");}
 		} else { //we have a reference and are ready
-			Delay=ShortDelay;
-			weight=(SumOfForces-referenceForce);
+			state.Delay=settings.ShortDelay;
+			currentCommandValues.weight=(sumOfForces-state.referenceForce);
 			
-			if (oldWeight != weight){
-				dataChanged = true;
+			if (oldCommandValues.weight != currentCommandValues.weight){
+				state.dataChanged = true;
 			}
-			if (weight>=setWeight) {//If we have reached the required mass
-				if (mode != MODE_WEIGHT_REACHED){
-					if(BeepWeightReached > 0){
-						BeepEndTime=runTime+BeepWeightReached;
+			if (currentCommandValues.weight>=newCommandValues.weight) {//If we have reached the required mass
+				if (currentCommandValues.mode != MODE_WEIGHT_REACHED){
+					if(settings.BeepWeightReached > 0){
+						timeValues.beepEndTime=timeValues.runTime+settings.BeepWeightReached;
 					}
-					if (debug_enabled){printf("\tweight reached!\n");}
+					if (settings.debug_enabled){printf("\tweight reached!\n");}
 				} else {
-					if (debug_enabled){printf("\tweight reached...\n");}
+					if (settings.debug_enabled){printf("\tweight reached...\n");}
 				}
-				if (mode != MODE_WEIGHT_REACHED){
-					mode=MODE_WEIGHT_REACHED;
-					dataChanged=true;
+				if (currentCommandValues.mode != MODE_WEIGHT_REACHED){
+					currentCommandValues.mode=MODE_WEIGHT_REACHED;
+					state.dataChanged=true;
 				}
-				RemainTime=0;
+				timeValues.remainTime=0;
 			}
-			if (debug_enabled){printf("\t\tweight: %f / old: %f\n", weight, oldWeight);}
+			if (settings.debug_enabled){printf("\t\tweight: %f / old: %f\n", currentCommandValues.weight, oldCommandValues.weight);}
 		}
-	} else if (Delay == ShortDelay || scaleReady){
-		scaleReady=false;
-		referenceForce=0;
-		Delay=LongDelay;
-		weight = 0.0;
+	} else if (state.Delay == settings.ShortDelay || state.scaleReady){
+		state.scaleReady=false;
+		state.referenceForce=0;
+		state.Delay=settings.LongDelay;
+		currentCommandValues.weight = 0.0;
 	}
 }
 
 void SegmentDisplay(){
-	char curSegmentDisplay = ' ';
-	if (press>=LowPress){
-		curSegmentDisplay = 'P';
-	} else if (temp>=LowTemp){
-		curSegmentDisplay = 'H';
+	char state.curSegmentDisplay = ' ';
+	if (currentCommandValues.press>=settings.LowPress){
+		state.curSegmentDisplay = 'P';
+	} else if (currentCommandValues.temp>=settings.LowTemp){
+		state.curSegmentDisplay = 'H';
 	} else {
-		curSegmentDisplay = '0';
+		state.curSegmentDisplay = '0';
 	}
-	if (curSegmentDisplay != oldSegmentDisplay){
-		if (debug_enabled || simulationMode){printf("SegmentDisplay: '%c'\n", curSegmentDisplay);}
-		if (!simulationMode || simulationModeShow7Segment){
-			SegmentDisplaySimple(curSegmentDisplay);
-			//SegmentDisplayOptimized(curSegmentDisplay);
+	if (state.curSegmentDisplay != state.oldSegmentDisplay){
+		if (settings.debug_enabled || runningMode.simulationMode){printf("SegmentDisplay: '%c'\n", state.curSegmentDisplay);}
+		if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
+			SegmentDisplaySimple(state.curSegmentDisplay);
+			//SegmentDisplayOptimized(state.curSegmentDisplay);
 		} else {
-			oldSegmentDisplay = curSegmentDisplay;
+			state.oldSegmentDisplay = state.curSegmentDisplay;
 		}
 	}
-	if (!simulationMode || simulationModeShow7Segment){
-		if (lastBlinkTime != runTime){
-			lastBlinkTime = runTime;
+	if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
+		if (timeValues.lastBlinkTime != timeValues.runTime){
+			timeValues.lastBlinkTime = timeValues.runTime;
 			//togglePin(i2c_7seg_period);
-			if (blinkState){
-				writeI2CPin(i2c_7seg_period,I2C_7SEG_OFF);
-				blinkState = false;
-				if (debug_enabled || (simulationMode && !simulationModeShow7Segment)){printf("SegmentDisplay: blink off\n");}
+			if (state.blinkState){
+				writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_OFF);
+				state.blinkState = false;
+				if (settings.debug_enabled || (runningMode.simulationMode && !runningMode.simulationModeShow7Segment)){printf("SegmentDisplay: blink off\n");}
 			} else {
-				blinkState = true;
-				writeI2CPin(i2c_7seg_period,I2C_7SEG_ON);
-				if (debug_enabled || (simulationMode && !simulationModeShow7Segment)){printf("SegmentDisplay: blink on\n");}
+				state.blinkState = true;
+				writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_ON);
+				if (settings.debug_enabled || (runningMode.simulationMode && !runningMode.simulationModeShow7Segment)){printf("SegmentDisplay: blink on\n");}
 			}
 		}
 	}
 }
 
-void SegmentDisplaySimple(char curSegmentDisplay){
-	if (curSegmentDisplay == 'P'){
-		oldSegmentDisplay = 'P';
-		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
-	} else if (curSegmentDisplay == 'H'){
-		oldSegmentDisplay = 'H';
-		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
-	} else if (curSegmentDisplay == '0'){
-		oldSegmentDisplay = '0';
-		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
-	} else if (curSegmentDisplay == 'S'){
-		oldSegmentDisplay = 'S';
-		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
-	} else if (curSegmentDisplay == 'E'){
-		oldSegmentDisplay = 'E';
-		writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
+void SegmentDisplaySimple(char state.curSegmentDisplay){
+	if (state.curSegmentDisplay == 'P'){
+		state.oldSegmentDisplay = 'P';
+		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
+	} else if (state.curSegmentDisplay == 'H'){
+		state.oldSegmentDisplay = 'H';
+		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
+	} else if (state.curSegmentDisplay == '0'){
+		state.oldSegmentDisplay = '0';
+		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
+	} else if (state.curSegmentDisplay == 'S'){
+		state.oldSegmentDisplay = 'S';
+		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
+	} else if (state.curSegmentDisplay == 'E'){
+		state.oldSegmentDisplay = 'E';
+		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
 	} else {
-		oldSegmentDisplay = ' ';
-		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
+		state.oldSegmentDisplay = ' ';
+		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
 	}
 }
 
-void SegmentDisplayOptimized(char curSegmentDisplay){
-	if (curSegmentDisplay == 'P'){
-		if (curSegmentDisplay != oldSegmentDisplay){
-			if (oldSegmentDisplay == 'H'){
-				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (oldSegmentDisplay == '0'){
-				//writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
-				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (oldSegmentDisplay == ' '){
+void SegmentDisplayOptimized(char state.curSegmentDisplay){
+	if (state.curSegmentDisplay == 'P'){
+		if (state.curSegmentDisplay != state.oldSegmentDisplay){
+			if (state.oldSegmentDisplay == 'H'){
+				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
+			} else if (state.oldSegmentDisplay == '0'){
+				//writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
+				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
+			} else if (state.oldSegmentDisplay == ' '){
 				//Is initial do all
-				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
-				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
+				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
+				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
 			} else {
-				SegmentDisplaySimple(curSegmentDisplay);
+				SegmentDisplaySimple(state.curSegmentDisplay);
 			}
-			oldSegmentDisplay = curSegmentDisplay;
+			state.oldSegmentDisplay = state.curSegmentDisplay;
 		}
-	} else if (curSegmentDisplay == 'H'){
-		if (curSegmentDisplay != oldSegmentDisplay){
-			if (oldSegmentDisplay == 'P'){
-				writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (oldSegmentDisplay == '0'){
-				writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (oldSegmentDisplay == ' '){
+	} else if (state.curSegmentDisplay == 'H'){
+		if (state.curSegmentDisplay != state.oldSegmentDisplay){
+			if (state.oldSegmentDisplay == 'P'){
+				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
+			} else if (state.oldSegmentDisplay == '0'){
+				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
+			} else if (state.oldSegmentDisplay == ' '){
 				//Is initial do all
-				writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
-				writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
+				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
+				writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
 			} else {
-				SegmentDisplaySimple(curSegmentDisplay);
+				SegmentDisplaySimple(state.curSegmentDisplay);
 			}
-			oldSegmentDisplay = curSegmentDisplay;
+			state.oldSegmentDisplay = state.curSegmentDisplay;
 		}
-	} else if (curSegmentDisplay == '0'){
-		if (curSegmentDisplay != oldSegmentDisplay){
-			if (oldSegmentDisplay == 'H'){
-				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
-			} else if (oldSegmentDisplay == 'P'){
-				//writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
-			} else if (oldSegmentDisplay == ' '){
+	} else if (state.curSegmentDisplay == '0'){
+		if (state.curSegmentDisplay != state.oldSegmentDisplay){
+			if (state.oldSegmentDisplay == 'H'){
+				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
+			} else if (state.oldSegmentDisplay == 'P'){
+				//writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
+				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
+			} else if (state.oldSegmentDisplay == ' '){
 				//Is initial do all
-				writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
-				writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
+				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
 			} else {
-				SegmentDisplaySimple(curSegmentDisplay);
+				SegmentDisplaySimple(state.curSegmentDisplay);
 			}
-			oldSegmentDisplay = curSegmentDisplay;
+			state.oldSegmentDisplay = state.curSegmentDisplay;
 		}
 	} else {
-		SegmentDisplaySimple(curSegmentDisplay);
+		SegmentDisplaySimple(state.curSegmentDisplay);
 		/*
 		//Empty all
-		writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
-		oldSegmentDisplay = ' ';
+		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
+		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
+		state.oldSegmentDisplay = ' ';
 		*/
 	}
 }
 
 void Beep(){
-	if(doRememberBeep==1){
-		if (runTime>stepEndTime){
-			if (mode>=MIN_STATUS_MODE && mode<=MAX_STATUS_MODE){
-				int toLateTime = runTime-stepEndTime;
+	if(settings.doRememberBeep==1){
+		if (timeValues.runTime>timeValues.stepEndTime){
+			if (currentCommandValues.mode>=MIN_STATUS_MODE && currentCommandValues.mode<=MAX_STATUS_MODE){
+				int toLateTime = timeValues.runTime-timeValues.stepEndTime;
 				if (toLateTime==1){
-					BeepEndTime=runTime+1;
+					timeValues.beepEndTime=timeValues.runTime+1;
 				} else if (toLateTime==5){
-					BeepEndTime=runTime+1;
+					timeValues.beepEndTime=timeValues.runTime+1;
 				} else if (toLateTime==30){
-					BeepEndTime=runTime+1;
+					timeValues.beepEndTime=timeValues.runTime+1;
 				} else if (toLateTime==60){
-					BeepEndTime=runTime+1;
+					timeValues.beepEndTime=timeValues.runTime+1;
 				} else if (toLateTime>0 && toLateTime%300==0){ //each 5 min
-					BeepEndTime=runTime+5;
+					timeValues.beepEndTime=timeValues.runTime+5;
 				}
 			}
 		}
 	}
-	if (runTime<BeepEndTime){
-		if (!isBuzzing){
-			isBuzzing = 1;
+	if (timeValues.runTime<timeValues.beepEndTime){
+		if (!state.isBuzzing){
+			state.isBuzzing = true;
 			buzzer(1, BUZZER_PWM);
 		}
 	} else {
-		if (isBuzzing || ALLWAYS_STOP_BUZZING){
+		if (state.isBuzzing || ALLWAYS_STOP_BUZZING){
 			buzzer(0, BUZZER_PWM);
-			isBuzzing = 0;
+			state.isBuzzing = false;
 		}
 	}
 }
@@ -1419,40 +1470,40 @@ void Beep(){
 void prepareState(char* TotalUpdate){
 	StringClean(TotalUpdate, 512);
 	
-	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%.2f,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d}", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);
-	if (debug_enabled){printf("prepareState: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", temp, press, motorRpm, motorOn, motorOff, weight, elapsedTime, mode, stepId);}
+	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%.2f,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d}", currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId);
+	if (settings.debug_enabled){printf("prepareState: T0: %f, P0: %f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d\n", currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId);}
 }
 
 void writeStatus(char* data){
-	if (debug_enabled){printf("WriteStatus\n");}
+	if (settings.debug_enabled){printf("WriteStatus\n");}
 	
 	FILE *fp;
-	fp = fopen(statusFile, "w");
+	fp = fopen(settings.statusFile, "w");
 	fputs(data, fp);
 	fclose(fp);
-	if (debug3_enabled){printf("%s\n", data);}
+	if (settings.debug3_enabled){printf("%s\n", data);}
 	
-	if (debug_enabled){printf("WriteStatus: after write\n");}
+	if (settings.debug_enabled){printf("WriteStatus: after write\n");}
 }
 
 
 void writeLog(){
-	if (debug_enabled){printf("writeLog\n");}
-	nowTime = time(NULL);
-	localTime=localtime(&nowTime);
+	if (settings.debug_enabled){printf("writeLog\n");}
+	timeValues.nowTime = time(NULL);
+	timeValues.localTime=localtime(&timeValues.nowTime);
 	
-	if (runTime>=lastLogSave+logSaveInterval){
+	if (timeValues.runTime>=timeValues.lastLogSaveTime+settings.logSaveInterval){
 		char tempString[20];
 		StringClean(tempString, 20);
-		strftime(tempString, 20,"%F %T",localTime);
-		//logFilePointer = fopen(logFile, "a");
-		fprintf(logFilePointer,"%s, %.1f, %.1f, %i, %.1f,%i, %i, %i, %i, %i, %i\n",tempString, temp, press, motorRpm, weight, setTemp, setPress, setMotorRpm, setWeight, setMode, mode );
+		strftime(tempString, 20,"%F %T",timeValues.localTime);
+		//state.logFilePointer = fopen(settings.logFile, "a");
+		fprintf(state.logFilePointer,"%s, %.1f, %.1f, %i, %.1f, %.1f, %.1f, %i, %.1f, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode);
 		//open once and flush, instat open and close it always
-		fflush(logFilePointer);
-		//fclose(logFilePointer);
-		lastLogSave=runTime;
+		fflush(state.logFilePointer);
+		//fclose(state.logFilePointer);
+		timeValues.lastLogSaveTime=timeValues.runTime;
 	}
-	if (debug_enabled){printf("writeLog: after write\n");}
+	if (settings.debug_enabled){printf("writeLog: after write\n");}
 }
 
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
@@ -1495,15 +1546,15 @@ void parseSockInput(char* input){
 				i++;
 			}
 			i = 0;
-			value[ptr] = StringConvertToNumber(tempValue);
+			state.value[ptr] = StringConvertToNumber(tempValue);
 			
-			//names[ptr] = tempName;
+			//state.names[ptr] = tempName;
 			int32_t j = 0;
 			for (; j < 10; ++j){
-				names[ptr][j] = tempName[j];
+				state.names[ptr][j] = tempName[j];
 			}
 			
-			if (debug_enabled){printf("found %s with value %d\r\n", names[ptr], value[ptr]);}
+			if (settings.debug_enabled){printf("found %s with value %d\r\n", state.names[ptr], state.value[ptr]);}
 			StringClean(tempName, 10);
 			StringClean(tempValue, 10);
 			++ptr;
@@ -1514,7 +1565,7 @@ void parseSockInput(char* input){
 }
 
 bool ReadFile(){
-	if (debug_enabled){printf("ReadFile\n");}
+	if (settings.debug_enabled){printf("ReadFile\n");}
 	FILE *fp;
 	char tempName[10];
 	char tempValue[10];
@@ -1524,9 +1575,9 @@ bool ReadFile(){
 	
 	StringClean(tempName, 10);
 	StringClean(tempValue, 10);
-	fp = fopen(commandFile, "r");
+	fp = fopen(settings.commandFile, "r");
 	if (fp == NULL){
-		printf("could not open file %s\n", commandFile);
+		printf("could not open file %s\n", settings.commandFile);
 		return false;
 	}
 	
@@ -1551,15 +1602,15 @@ bool ReadFile(){
 				i++;
 			}
 			i = 0;
-			value[ptr] = StringConvertToNumber(tempValue);
+			state.value[ptr] = StringConvertToNumber(tempValue);
 			
-			//names[ptr] = tempName;
+			//state.names[ptr] = tempName;
 			int32_t j = 0;
 			for (; j < 10; ++j){
-				names[ptr][j] = tempName[j];
+				state.names[ptr][j] = tempName[j];
 			}
 			
-			if (debug_enabled){printf("found %s with value %d\r\n", names[ptr], value[ptr]);}
+			if (settings.debug_enabled){printf("found %s with value %d\r\n", state.names[ptr], state.value[ptr]);}
 			
 			StringClean(tempName, 10);
 			StringClean(tempValue, 10);
@@ -1576,33 +1627,33 @@ void evaluateInput(){
 	//TODO only set "setXXX" values if stepId changed, other wise ignore "new/changed values".
 	int i;
 	for(i = 0; i < 15; ++i){
-		//if (debug_enabled){printf("check %s with value %d\r\n", names[i], value[i]);}
-		if(strcmp(names[i], "T0") == 0){
-			setTemp = value[i];
-		} else if(strcmp(names[i], "P0") == 0){
-			setPress = value[i];
-		} else if(strcmp(names[i], "M0RPM") == 0){
-			setMotorRpm = value[i];
-		} else if(strcmp(names[i], "M0ON") == 0){
-			setMotorOn = value[i];
-		} else if(strcmp(names[i], "M0OFF") == 0){
-			setMotorOff = value[i];
-		} else if(strcmp(names[i], "W0") == 0){
-			setWeight = value[i];
-		} else if(strcmp(names[i], "STIME") == 0){
-			setTime = value[i];
-		} else if(strcmp(names[i], "SMODE") == 0){
-			setMode = value[i];
-		} else if(strcmp(names[i], "SID") == 0){
-			setStepId = value[i];
+		//if (settings.debug_enabled){printf("check %s with value %d\r\n", state.names[i], state.value[i]);}
+		if(strcmp(state.names[i], "T0") == 0){
+			newCommandValues.temp = state.value[i];
+		} else if(strcmp(state.names[i], "P0") == 0){
+			newCommandValues.press = state.value[i];
+		} else if(strcmp(state.names[i], "M0RPM") == 0){
+			newCommandValues.motorRpm = state.value[i];
+		} else if(strcmp(state.names[i], "M0ON") == 0){
+			newCommandValues.motorOn = state.value[i];
+		} else if(strcmp(state.names[i], "M0OFF") == 0){
+			newCommandValues.motorOff = state.value[i];
+		} else if(strcmp(state.names[i], "W0") == 0){
+			newCommandValues.weight = state.value[i];
+		} else if(strcmp(state.names[i], "STIME") == 0){
+			newCommandValues.time = state.value[i];
+		} else if(strcmp(state.names[i], "SMODE") == 0){
+			newCommandValues.mode = state.value[i];
+		} else if(strcmp(state.names[i], "SID") == 0){
+			newCommandValues.stepId = state.value[i];
 		}
 	}
-	if (debug_enabled){printf("evaluateInput: T0: %d, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %d, STIME: %d, SMODE: %d, SID: %d\n", setTemp, setPress, setMotorRpm, setMotorOn, setMotorOff, setWeight, setTime, setMode, setStepId);}
+	if (settings.debug_enabled){printf("evaluateInput: T0: %.0f, P0: %.0f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 	
-	if(setTemp>200) {setTemp=200;}
-	if(setPress>200) {setPress=200;}
-	if (setMotorOn>0 && setMotorOn<2) setMotorOn=2;
-	if (setMotorOff>0 && setMotorOff<2) setMotorOff=2;
+	if(newCommandValues.temp>200) {newCommandValues.temp=200;}
+	if(newCommandValues.press>200) {newCommandValues.press=200;}
+	if (newCommandValues.motorOn>0 && newCommandValues.motorOn<2) newCommandValues.motorOn=2;
+	if (newCommandValues.motorOff>0 && newCommandValues.motorOff<2) newCommandValues.motorOff=2;
 }
 
 
@@ -1611,9 +1662,9 @@ void evaluateInput(){
  *
  */
 void ReadConfigurationFile(void){
-	if (debug_enabled){printf("ReadConfigurationFile...\n");}
+	if (settings.debug_enabled){printf("ReadConfigurationFile...\n");}
 	
-	bool showReadedConfigs = debug_enabled || calibration;
+	bool showReadedConfigs = settings.debug_enabled || runningMode.calibration;
 	uint32_t newADCConfig[] = {0x710, 0x711, 0x712, 0x713, 0x714, 0x115};
 	
 	FILE *fp;
@@ -1625,7 +1676,7 @@ void ReadConfigurationFile(void){
 	char c2;
 	StringClean(keyString, 30);
 	StringClean(valueString, 100);
-	fp = fopen(configFile, "r");
+	fp = fopen(settings.configFile, "r");
 	if (fp != NULL){
 		c = fgetc(fp);
 		while (c != 255){
@@ -1675,190 +1726,190 @@ void ReadConfigurationFile(void){
 				//ParseConfigValue
 				//scale
 				if(strcmp(keyString, "ForceADC1") == 0){
-					ForceADC1 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tForceADC1: %d\n", ForceADC1);} // (old: %d)
+					forceCalibration.ADC1 = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tForceADC1: %d\n", forceCalibration.ADC1);} // (old: %d)
 				} else if(strcmp(keyString, "ForceValue1") == 0){
-					ForceValue1 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tForceValue1: %f\n", ForceValue1);} // (old: %d)
+					forceCalibration.Value1 = StringConvertToDouble(valueString);
+					if (showReadedConfigs){printf("\tForceValue1: %f\n", forceCalibration.Value1);} // (old: %d)
 				} else if(strcmp(keyString, "ForceADC2") == 0){
-					ForceADC2 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tForceADC2: %d\n", ForceADC2);} // (old: %d)
+					forceCalibration.ADC2 = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tForceADC2: %d\n", forceCalibration.ADC2);} // (old: %d)
 				} else if(strcmp(keyString, "ForceValue2") == 0){
-					ForceValue2 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tForceValue2: %f\n", ForceValue2);} // (old: %d)
+					forceCalibration.Value2 = StringConvertToDouble(valueString);
+					if (showReadedConfigs){printf("\tForceValue2: %f\n", forceCalibration.Value2);} // (old: %d)
 				//pressure
 				} else if(strcmp(keyString, "PressADC1") == 0){
-					PressADC1 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tPressADC1: %d\n", PressADC1);} // (old: %d)
+					pressCalibration.ADC1 = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tPressADC1: %d\n", pressCalibration.ADC1);} // (old: %d)
 				} else if(strcmp(keyString, "PressValue1") == 0){
-					PressValue1 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tPressValue1: %f\n", PressValue1);} // (old: %d)
+					pressCalibration.Value1 = StringConvertToDouble(valueString);
+					if (showReadedConfigs){printf("\tPressValue1: %f\n", pressCalibration.Value1);} // (old: %d)
 				} else if(strcmp(keyString, "PressADC2") == 0){
-					PressADC2 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tPressADC2: %d\n", PressADC2);} // (old: %d)
+					pressCalibration.ADC2 = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tPressADC2: %d\n", pressCalibration.ADC2);} // (old: %d)
 				} else if(strcmp(keyString, "PressValue2") == 0){
-					PressValue2 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tPressValue2: %f\n", PressValue2);} // (old: %d)
+					pressCalibration.Value2 = StringConvertToDouble(valueString);
+					if (showReadedConfigs){printf("\tPressValue2: %f\n", pressCalibration.Value2);} // (old: %d)
 				//temperature
 				} else if(strcmp(keyString, "TempADC1") == 0){
-					TempADC1 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tTempADC1: %d\n", TempADC1);} // (old: %d)
+					tempCalibration.ADC1 = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tTempADC1: %d\n", tempCalibration.ADC1);} // (old: %d)
 				} else if(strcmp(keyString, "TempValue1") == 0){
-					TempValue1 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tTempValue1: %f\n", TempValue1);} // (old: %d)
+					tempCalibration.Value1 = StringConvertToDouble(valueString);
+					if (showReadedConfigs){printf("\tTempValue1: %f\n", tempCalibration.Value1);} // (old: %d)
 				} else if(strcmp(keyString, "TempADC2") == 0){
-					TempADC2 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tTempADC2: %d\n", TempADC2);} // (old: %d)
+					tempCalibration.ADC2 = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tTempADC2: %d\n", tempCalibration.ADC2);} // (old: %d)
 				} else if(strcmp(keyString, "TempValue2") == 0){
-					TempValue2 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tTempValue2: %f\n", TempValue2);} // (old: %d)
+					tempCalibration.Value2 = StringConvertToDouble(valueString);
+					if (showReadedConfigs){printf("\tTempValue2: %f\n", tempCalibration.Value2);} // (old: %d)
 				
 				//adc channels
 				} else if(strcmp(keyString, "ADC_LoadCellFrontLeft") == 0){
-					ADC_LoadCellFrontLeft = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_LoadCellFrontLeft: %d\n", ADC_LoadCellFrontLeft);}
+					adc_config.ADC_LoadCellFrontLeft = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tADC_LoadCellFrontLeft: %d\n", adc_config.ADC_LoadCellFrontLeft);}
 
 				} else if(strcmp(keyString, "ADC_LoadCellFrontRight") == 0){
-					ADC_LoadCellFrontRight = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tLADC_oadCellFrontRight: %d\n", ADC_LoadCellFrontRight);}
+					adc_config.ADC_LoadCellFrontRight = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tLADC_oadCellFrontRight: %d\n", adc_config.ADC_LoadCellFrontRight);}
 
 				} else if(strcmp(keyString, "ADC_LoadCellBackLeft") == 0){
-					ADC_LoadCellBackLeft = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_LoadCellBackLeft: %d\n", ADC_LoadCellBackLeft);}
+					adc_config.ADC_LoadCellBackLeft = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tADC_LoadCellBackLeft: %d\n", adc_config.ADC_LoadCellBackLeft);}
 
 				} else if(strcmp(keyString, "ADC_LoadCellBackRight") == 0){
-					ADC_LoadCellBackRight = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_LoadCellBackRight: %d\n", ADC_LoadCellBackRight);}
+					adc_config.ADC_LoadCellBackRight = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tADC_LoadCellBackRight: %d\n", adc_config.ADC_LoadCellBackRight);}
 
 				} else if(strcmp(keyString, "ADC_Press") == 0){
-					ADC_Press = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_Press: %d\n", ADC_Press);}
+					adc_config.ADC_Press = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tADC_Press: %d\n", adc_config.ADC_Press);}
 
 				} else if(strcmp(keyString, "ADC_Temp") == 0){
-					ADC_Temp = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_Temp: %d\n", ADC_Temp);}
+					adc_config.ADC_Temp = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tADC_Temp: %d\n", adc_config.ADC_Temp);}
 					
 				} else if(strcmp(keyString, "Gain_LoadCellFrontLeft") == 0){
-					ptr = ADC_LoadCellFrontLeft;
+					ptr = adc_config.ADC_LoadCellFrontLeft;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellFrontLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellFrontRight") == 0){
-					ptr = ADC_LoadCellFrontRight;
+					ptr = adc_config.ADC_LoadCellFrontRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellFrontRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellBackLeft") == 0){
-					ptr = ADC_LoadCellBackLeft;
+					ptr = adc_config.ADC_LoadCellBackLeft;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellBackLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_LoadCellBackRight") == 0){
-					ptr = ADC_LoadCellBackRight;
+					ptr = adc_config.ADC_LoadCellBackRight;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_LoadCellBackRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Press") == 0){
-					ptr = ADC_Press;
+					ptr = adc_config.ADC_Press;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_Press: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				} else if(strcmp(keyString, "Gain_Temp") == 0){
-					ptr = ADC_Temp;
+					ptr = adc_config.ADC_Temp;
 					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | ADC_ref<<6 | 1<<4 | ptr;
+					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 					if (showReadedConfigs){printf("\tGain_Temp: %04X\n", newADCConfig[ptr]);} // (old: %d)
 				
 				} else if(strcmp(keyString, "BeepWeightReached") == 0){
-					BeepWeightReached = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tBeepWeightReached: %d\n", BeepWeightReached);} // (old: %d)
+					settings.BeepWeightReached = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tBeepWeightReached: %d\n", settings.BeepWeightReached);} // (old: %d)
 				} else if(strcmp(keyString, "BeepStepEnd") == 0){
-					BeepStepEnd = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", BeepStepEnd);} // (old: %d)
+					settings.BeepStepEnd = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", settings.BeepStepEnd);} // (old: %d)
 				} else if(strcmp(keyString, "doRememberBeep") == 0){
-					doRememberBeep = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tdoRememberBeep: %d\n", doRememberBeep);} // (old: %d)
+					settings.doRememberBeep = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tdoRememberBeep: %d\n", settings.doRememberBeep);} // (old: %d)
 				} else if(strcmp(keyString, "DeleteLogOnStart") == 0){
-					DeleteLogOnStart = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tDeleteLogOnStart: %d\n", DeleteLogOnStart);} // (old: %d)
+					settings.DeleteLogOnStart = StringConvertToNumber(valueString);
+					if (showReadedConfigs){printf("\tDeleteLogOnStart: %d\n", settings.DeleteLogOnStart);} // (old: %d)
 				} else if(strcmp(keyString, "LogFile") == 0){
 					//TODO: alloc new mem
-					//logFile = valueString;
-					if (showReadedConfigs){printf("\tLogFile: %s\n", logFile);} // (old: %s)
+					//settings.logFile = valueString;
+					if (showReadedConfigs){printf("\tLogFile: %s\n", settings.logFile);} // (old: %s)
 				} else if(strcmp(keyString, "CommandFile") == 0){
 					//TODO: alloc new mem
-					//commandFile = valueString;
-					if (showReadedConfigs){printf("\tCommandFile: %s\n", commandFile);} // (old: %s)
+					//settings.commandFile = valueString;
+					if (showReadedConfigs){printf("\tCommandFile: %s\n", settings.commandFile);} // (old: %s)
 				} else if(strcmp(keyString, "StatusFile") == 0){
 					//TODO: alloc new mem
-					//statusFile = valueString;
-					if (debug_enabled){printf("\tStatusFile: %s\n", statusFile);} // (old: %s)
+					//settings.statusFile = valueString;
+					if (settings.debug_enabled){printf("\tStatusFile: %s\n", settings.statusFile);} // (old: %s)
 				} else if(strcmp(keyString, "LowTemp") == 0){
-					LowTemp = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tLowTemp: %d\n", LowTemp);} // (old: %d)
+					settings.LowTemp = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\tLowTemp: %d\n", settings.LowTemp);} // (old: %d)
 				} else if(strcmp(keyString, "LowPress") == 0){
-					LowPress = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tLowPress: %d\n", LowPress);} // (old: %d)
+					settings.LowPress = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\tLowPress: %d\n", settings.LowPress);} // (old: %d)
 				} else if(strcmp(keyString, "LongDelay") == 0){
-					LongDelay = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tLongDelay: %d\n", LongDelay);} // (old: %d)
+					settings.LongDelay = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\tLongDelay: %d\n", settings.LongDelay);} // (old: %d)
 				} else if(strcmp(keyString, "ShortDelay") == 0){
-					ShortDelay = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tShortDelay: %d\n", ShortDelay);} // (old: %d)
+					settings.ShortDelay = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\tShortDelay: %d\n", settings.ShortDelay);} // (old: %d)
 					
 				} else if(strcmp(keyString, "logSaveInterval") == 0){
-					logSaveInterval = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tlogSaveInterval: %d\n", logSaveInterval);} // (old: %d)
+					settings.logSaveInterval = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\tlogSaveInterval: %d\n", settings.logSaveInterval);} // (old: %d)
 					
 				} else if(strcmp(keyString, "middlewareHostname") == 0){
 					//TODO: alloc new mem
-					//middlewareHostname = valueString;
-					if (debug_enabled){printf("\tmiddlewareHostname: %s\n", middlewareHostname);}
+					//settings.middlewareHostname = valueString;
+					if (settings.debug_enabled){printf("\tmiddlewareHostname: %s\n", settings.middlewareHostname);}
 				} else if(strcmp(keyString, "middlewarePortno") == 0){
-					middlewarePortno = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\tmiddlewarePortno: %d\n", middlewarePortno);}
+					settings.middlewarePortno = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\tmiddlewarePortno: %d\n", settings.middlewarePortno);}
 					
 					
 				} else if(strcmp(keyString, "i2c_7seg_top") == 0){
-					i2c_7seg_top = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_top: %d\n", i2c_7seg_top);}
+					i2c_config.i2c_7seg_top = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_top: %d\n", i2c_config.i2c_7seg_top);}
 				} else if(strcmp(keyString, "i2c_7seg_top_left") == 0){
-					i2c_7seg_top_left = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_top_left: %d\n", i2c_7seg_top_left);}
+					i2c_config.i2c_7seg_top_left = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_top_left: %d\n", i2c_config.i2c_7seg_top_left);}
 				} else if(strcmp(keyString, "i2c_7seg_top_right") == 0){
-					i2c_7seg_top_right = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_top_right: %d\n", i2c_7seg_top_right);}
+					i2c_config.i2c_7seg_top_right = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_top_right: %d\n", i2c_config.i2c_7seg_top_right);}
 				} else if(strcmp(keyString, "i2c_7seg_center") == 0){
-					i2c_7seg_center = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_center: %d\n", i2c_7seg_center);}
+					i2c_config.i2c_7seg_center = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_center: %d\n", i2c_config.i2c_7seg_center);}
 				} else if(strcmp(keyString, "i2c_7seg_bottom_left") == 0){
-					i2c_7seg_bottom_left = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_bottom_left: %d\n", i2c_7seg_bottom_left);}
+					i2c_config.i2c_7seg_bottom_left = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_bottom_left: %d\n", i2c_config.i2c_7seg_bottom_left);}
 				} else if(strcmp(keyString, "i2c_7seg_bottom_right") == 0){
-					i2c_7seg_bottom_right = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_bottom_right: %d\n", i2c_7seg_bottom_right);}
+					i2c_config.i2c_7seg_bottom_right = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_bottom_right: %d\n", i2c_config.i2c_7seg_bottom_right);}
 				} else if(strcmp(keyString, "i2c_7seg_bottom") == 0){
-					i2c_7seg_bottom = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_bottom: %d\n", i2c_7seg_bottom);}
+					i2c_config.i2c_7seg_bottom = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_bottom: %d\n", i2c_config.i2c_7seg_bottom);}
 				} else if(strcmp(keyString, "i2c_7seg_period") == 0){
-					i2c_7seg_period = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_7seg_period: %d\n", i2c_7seg_period);}
+					i2c_config.i2c_7seg_period = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_7seg_period: %d\n", i2c_config.i2c_7seg_period);}
 					
 				} else if(strcmp(keyString, "i2c_motor") == 0){
-					i2c_motor = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_motor: %d\n", i2c_motor);}
+					i2c_config.i2c_motor = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_motor: %d\n", i2c_config.i2c_motor);}
 				} else if(strcmp(keyString, "i2c_servo") == 0){
-					i2c_servo = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_servo %d\n", i2c_servo);}
+					i2c_config.i2c_servo = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_servo %d\n", i2c_config.i2c_servo);}
 					
 				} else if(strcmp(keyString, "i2c_servo_open") == 0){
-					i2c_servo_open = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_servo_open: %d\n", i2c_servo_open);}
+					i2c_servo_values.i2c_servo_open = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_servo_open: %d\n", i2c_servo_values.i2c_servo_open);}
 				} else if(strcmp(keyString, "i2c_servo_closed") == 0){
-					i2c_servo_closed = StringConvertToNumber(valueString);
-					if (debug_enabled){printf("\ti2c_servo_closed %d\n", i2c_servo_closed);}
+					i2c_servo_values.i2c_servo_closed = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\ti2c_servo_closed %d\n", i2c_servo_values.i2c_servo_closed);}
 				} else {
-					if (debug_enabled){printf("\tkey not Found\n");}
+					if (settings.debug_enabled){printf("\tkey not Found\n");}
 				}
 				StringClean(keyString, 30);
 				StringClean(valueString, 100);
@@ -1868,72 +1919,73 @@ void ReadConfigurationFile(void){
 			}
 		}
 	}
-	ForceScaleFactor=(ForceValue2-ForceValue1)/((double)ForceADC2-(double)ForceADC1);
-	ForceOffset=ForceValue1 - ForceADC1*ForceScaleFactor ;  //offset in g //for default reference force in calibration mode only
 	
-	PressScaleFactor=(PressValue2-PressValue1)/((double)PressADC2-(double)PressADC1);
-	PressOffset=PressValue1 - PressADC1*PressScaleFactor ;  //offset in pa
+	forceCalibration.scaleFactor=(forceCalibration.Value2-forceCalibration.Value1)/((double)forceCalibration.ADC2-(double)forceCalibration.ADC1);
+	forceCalibration.offset=forceCalibration.Value1 - forceCalibration.ADC1*forceCalibration.scaleFactor ;  //offset in g //for default reference force in calibration mode only
 	
-	TempScaleFactor=(TempValue2-TempValue1)/((double)TempADC2-(double)TempADC1);
-	TempOffset=TempValue1 - TempADC1*TempScaleFactor ;  //offset in °C
+	pressCalibration.scaleFactor=(pressCalibration.Value2-pressCalibration.Value1)/((double)pressCalibration.ADC2-(double)pressCalibration.ADC1);
+	pressCalibration.offset=pressCalibration.Value1 - pressCalibration.ADC1*pressCalibration.scaleFactor ;  //offset in pa
+	
+	tempCalibration.scaleFactor=(tempCalibration.Value2-tempCalibration.Value1)/((double)tempCalibration.ADC2-(double)tempCalibration.ADC1);
+	tempCalibration.offset=tempCalibration.Value1 - tempCalibration.ADC1*tempCalibration.scaleFactor ;  //offset in °C
 	
 	setADCConfigReg(newADCConfig);
 	
-	if (showReadedConfigs){printf("ForceScaleFactor: %.2e, PressScaleFactor: %.2e, PressOffset: %f, TempScaleFactor: %.2e, TempOffset: %f\n", ForceScaleFactor, PressScaleFactor, PressOffset, TempScaleFactor, TempOffset);}
+	if (showReadedConfigs){printf("ForceScaleFactor: %.2e, PressScaleFactor: %.2e, PressOffset: %f, TempScaleFactor: %.2e, TempOffset: %f\n", forceCalibration.scaleFactor, pressCalibration.scaleFactor, pressCalibration.offset, tempCalibration.scaleFactor, tempCalibration.offset);}
 	
 	fclose(fp);
-	if (debug_enabled){printf("done.\n");}
+	if (settings.debug_enabled){printf("done.\n");}
 }
 
 
 void blink7Segment(){
 	//mitte
-	printf("center: %d\n", i2c_7seg_center);
-	writeI2CPin(i2c_7seg_center,I2C_7SEG_ON);
+	printf("center: %d\n", i2c_config.i2c_7seg_center);
+	writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_center,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
 	
 	//links
-	printf("top left: %d\n", i2c_7seg_top_left);
-	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_ON);
+	printf("top left: %d\n", i2c_config.i2c_7seg_top_left);
+	writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_top_left,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_OFF);
 	
 	//oben
-	printf("top: %d\n", i2c_7seg_top);
-	writeI2CPin(i2c_7seg_top,I2C_7SEG_ON);
+	printf("top: %d\n", i2c_config.i2c_7seg_top);
+	writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_top,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
 	
 	
 	//rechts
-	printf("top right: %d\n", i2c_7seg_top_right);
-	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_ON);
+	printf("top right: %d\n", i2c_config.i2c_7seg_top_right);
+	writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_top_right,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
 	
 	//ulinks
-	printf("bottom left: %d\n", i2c_7seg_bottom_left);
-	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_ON);
+	printf("bottom left: %d\n", i2c_config.i2c_7seg_bottom_left);
+	writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_bottom_left,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
 	
 	//unten
-	printf("bottom: %d\n", i2c_7seg_bottom);
-	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_ON);
+	printf("bottom: %d\n", i2c_config.i2c_7seg_bottom);
+	writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_bottom,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
 	
 	//urechts
-	printf("bottom right: %d\n", i2c_7seg_bottom_right);
-	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_ON);
+	printf("bottom right: %d\n", i2c_config.i2c_7seg_bottom_right);
+	writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_bottom_right,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
 	
 	//punkt
-	printf("period: %d\n", i2c_7seg_period);
-	writeI2CPin(i2c_7seg_period,I2C_7SEG_ON);
+	printf("period: %d\n", i2c_config.i2c_7seg_period);
+	writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_ON);
 	delay(5000);
-	writeI2CPin(i2c_7seg_period,I2C_7SEG_OFF);
+	writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_OFF);
 	delay(5000);
 }
