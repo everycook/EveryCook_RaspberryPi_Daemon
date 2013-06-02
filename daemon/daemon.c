@@ -569,6 +569,8 @@ void TempControl(){
 				}
 			}
 			else if (deltaT>=5) {HeatOn(&daemon_values);} 
+		} else {
+			HeatOff(&daemon_values);
 		}
 		if (currentCommandValues.mode==MODE_HEATUP && state.heatPowerStatus) { //heatup
 			timeValues.stepEndTime=timeValues.runTime+1;
@@ -610,6 +612,8 @@ void PressControl(){
 				}
 			}
 			else if (deltaP>=5) {HeatOn(&daemon_values);}
+		} else {
+			HeatOff(&daemon_values);
 		}
 		if (currentCommandValues.mode==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
 			timeValues.stepEndTime=timeValues.runTime+1;;
