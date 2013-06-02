@@ -20,27 +20,23 @@
 double readTemp(struct Daemon_Values *dv){
 	if (dv->runningMode->simulationMode){
 		double tempValue = dv->oldCommandValues->temp;
-		if (dv->timeValues->nextTempCheckTime != 0){
-			int deltaT=dv->newCommandValues->temp-dv->oldCommandValues->temp;
-			if (dv->currentCommandValues->mode==MODE_HEATUP || dv->currentCommandValues->mode==MODE_COOK) {
-				if (deltaT<0) {
-					--tempValue;
-				} else if (deltaT==0) {
-					//Nothing
-				} else if (deltaT <= 10) {
-					tempValue = tempValue+1;
-				} else if (deltaT <= 20) {
-					tempValue = tempValue+5;
-				} else if (deltaT <= 50) {
-					tempValue = tempValue+25;
-				} else {
-					tempValue = tempValue+40;
-				}
-			} else if (dv->currentCommandValues->mode==MODE_COOLDOWN){
-				tempValue = tempValue-1;
+		int deltaT=dv->newCommandValues->temp-dv->oldCommandValues->temp;
+		if (dv->currentCommandValues->mode==MODE_HEATUP || dv->currentCommandValues->mode==MODE_COOK) {
+			if (deltaT<0) {
+				--tempValue;
+			} else if (deltaT==0) {
+				//Nothing
+			} else if (deltaT <= 10) {
+				tempValue = tempValue+1;
+			} else if (deltaT <= 20) {
+				tempValue = tempValue+5;
+			} else if (deltaT <= 50) {
+				tempValue = tempValue+25;
+			} else {
+				tempValue = tempValue+40;
 			}
-		//} else {
-			//is first call, no change yet
+		} else if (dv->currentCommandValues->mode==MODE_COOLDOWN){
+			tempValue = tempValue-1;
 		}
 		//if (settings->debug_enabled){printf("readTemp, new Value is %f\n", tempValue);}
 		printf("readTemp, new Value is %f\n", tempValue);
@@ -64,25 +60,21 @@ double readTemp(struct Daemon_Values *dv){
 double readPress(struct Daemon_Values *dv){
 	if (dv->runningMode->simulationMode){
 		double pressValue = dv->oldCommandValues->press;
-		if (dv->timeValues->nextTempCheckTime != 0){
-			int deltaP=dv->newCommandValues->press-dv->oldCommandValues->press;
-			if (dv->currentCommandValues->mode==MODE_PRESSUP || dv->currentCommandValues->mode==MODE_PRESSHOLD) {
-				if (deltaP<0) {
-					--pressValue;
-				} else if (deltaP==0) {
-					//Nothing
-				} else if (deltaP <= 10) {
-					pressValue = pressValue+2;
-				} else if (deltaP <= 50) {
-					pressValue = pressValue+5;
-				} else {
-					pressValue = pressValue+10;
-				}
-			} else if (dv->currentCommandValues->mode==MODE_PRESSDOWN){
-				pressValue = pressValue-1;
+		int deltaP=dv->newCommandValues->press-dv->oldCommandValues->press;
+		if (dv->currentCommandValues->mode==MODE_PRESSUP || dv->currentCommandValues->mode==MODE_PRESSHOLD) {
+			if (deltaP<0) {
+				--pressValue;
+			} else if (deltaP==0) {
+				//Nothing
+			} else if (deltaP <= 10) {
+				pressValue = pressValue+2;
+			} else if (deltaP <= 50) {
+				pressValue = pressValue+5;
+			} else {
+				pressValue = pressValue+10;
 			}
-		//} else {
-			//is first call, no change yet
+		} else if (dv->currentCommandValues->mode==MODE_PRESSDOWN){
+			pressValue = pressValue-1;
 		}
 		//if (settings->debug_enabled){printf("readPress, new Value is %f\n", pressValue);}
 		printf("readPress, new Value is %f\n", pressValue);

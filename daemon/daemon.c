@@ -492,7 +492,6 @@ void ProcessCommand(void){
 		timeValues.stepStartTime = timeValues.runTime;
 		state.dataChanged = true;
 		timeValues.stepEndTime = timeValues.stepStartTime + newCommandValues.time;
-		timeValues.nextTempCheckTime = 0;
 		
 		if (settings.debug_enabled){printf("stepId changed, new mode is: %d\n", currentCommandValues.mode);}
 		if (settings.debug_enabled || runningMode.simulationMode || settings.debug3_enabled){printf("ProcessCommand: T0: %.0f, P0: %.0f, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
@@ -552,42 +551,33 @@ void OptionControl(){
 void TempControl(){
 	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
-		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
-			if (HeatOff(&daemon_values)){
-				delay(500);
-			}
-			
-			oldCommandValues.temp = currentCommandValues.temp;
-			currentCommandValues.temp=readTemp(&daemon_values);
-			
-			if (oldCommandValues.temp != currentCommandValues.temp){
-				state.dataChanged = true;
-			}
-			
-			int deltaT=newCommandValues.temp-currentCommandValues.temp;
-			if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
-				if (deltaT<=0) {
-					timeValues.nextTempCheckTime=timeValues.runTime+1;
-					if (currentCommandValues.mode==MODE_HEATUP) {//heatup function
-						timeValues.stepEndTime=timeValues.runTime-2;
-						currentCommandValues.mode=MODE_HOT; //we are hot
-						state.dataChanged=true;
-					}
+		oldCommandValues.temp = currentCommandValues.temp;
+		currentCommandValues.temp=readTemp(&daemon_values);
+		
+		if (oldCommandValues.temp != currentCommandValues.temp){
+			state.dataChanged = true;
+		}
+		
+		int deltaT=newCommandValues.temp-currentCommandValues.temp;
+		if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
+			if (deltaT<=0) {
+				HeatOff(&daemon_values);
+				if (currentCommandValues.mode==MODE_HEATUP) {//heatup function
+					timeValues.stepEndTime=timeValues.runTime-2;
+					currentCommandValues.mode=MODE_HOT; //we are hot
+					state.dataChanged=true;
 				}
-				else if (deltaT <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn(&daemon_values);}
-				else if (deltaT <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn(&daemon_values);}
-				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn(&daemon_values);} 
 			}
-			if (currentCommandValues.mode==MODE_HEATUP && state.heatPowerStatus) { //heatup
-				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
-			} else if (currentCommandValues.mode==MODE_COOLDOWN && deltaT>=0) { //cooldown function
-				timeValues.stepEndTime=timeValues.runTime-2;
-				currentCommandValues.mode=MODE_COLD;
-				state.dataChanged=true;
-			} else if (currentCommandValues.mode==MODE_COOLDOWN) {
-				timeValues.nextTempCheckTime=timeValues.runTime+1;
-				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
-			}
+			else if (deltaT>=5) {HeatOn(&daemon_values);} 
+		}
+		if (currentCommandValues.mode==MODE_HEATUP && state.heatPowerStatus) { //heatup
+			timeValues.stepEndTime=timeValues.runTime+1;
+		} else if (currentCommandValues.mode==MODE_COOLDOWN && deltaT>=0) { //cooldown function
+			timeValues.stepEndTime=timeValues.runTime-2;
+			currentCommandValues.mode=MODE_COLD;
+			state.dataChanged=true;
+		} else if (currentCommandValues.mode==MODE_COOLDOWN) {
+			timeValues.stepEndTime=timeValues.runTime+1;
 		}
 	} else {
 		oldCommandValues.temp = currentCommandValues.temp;
@@ -602,50 +592,33 @@ void TempControl(){
 void PressControl(){
 	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_PRESS_MODE && currentCommandValues.mode<=MAX_PRESS_MODE) {
-		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
-			if (HeatOff(&daemon_values)){
-				delay(500);
-			}
-			oldCommandValues.press = currentCommandValues.press;
-			currentCommandValues.press = readPress(&daemon_values);
-			
-			if (oldCommandValues.press != currentCommandValues.press){
-				state.dataChanged = true;
-			}
-			
-			int deltaP=newCommandValues.press-currentCommandValues.press;
-			if (currentCommandValues.mode==MODE_PRESSUP || currentCommandValues.mode==MODE_PRESSHOLD) {
-				if (deltaP<=0) {
-					timeValues.nextTempCheckTime=timeValues.runTime+1;
-					if (currentCommandValues.mode==MODE_PRESSUP) {//pressup function
-						timeValues.stepEndTime=timeValues.runTime-2;
-						currentCommandValues.mode=MODE_PRESSURIZED; //we are pressurized
-						state.dataChanged=true;
-					}
-				}
-				else if (deltaP <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn(&daemon_values);}
-				else if (deltaP <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn(&daemon_values);}
-				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn(&daemon_values);}
-			}
-			if (currentCommandValues.mode==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
-				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
-			} else if (currentCommandValues.mode==MODE_PRESSDOWN && deltaP>=0) { //pressure down function
-				timeValues.stepEndTime=timeValues.runTime-2;
-				currentCommandValues.mode=MODE_PRESSURELESS;
-				state.dataChanged=true;
-			} else if (currentCommandValues.mode==MODE_PRESSDOWN) {
-				timeValues.nextTempCheckTime=timeValues.runTime+1;
-				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
-			}
+		oldCommandValues.press = currentCommandValues.press;
+		currentCommandValues.press = readPress(&daemon_values);
+		
+		if (oldCommandValues.press != currentCommandValues.press){
+			state.dataChanged = true;
 		}
-	} else if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
-		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
-			oldCommandValues.press = currentCommandValues.press;
-			currentCommandValues.press = readPress(&daemon_values);
-			
-			if (oldCommandValues.press != currentCommandValues.press){
-				state.dataChanged = true;
+		
+		int deltaP=newCommandValues.press-currentCommandValues.press;
+		if (currentCommandValues.mode==MODE_PRESSUP || currentCommandValues.mode==MODE_PRESSHOLD) {
+			if (deltaP<=0) {
+				HeatOff(&daemon_values);
+				if (currentCommandValues.mode==MODE_PRESSUP) {//pressup function
+					timeValues.stepEndTime=timeValues.runTime-2;
+					currentCommandValues.mode=MODE_PRESSURIZED; //we are pressurized
+					state.dataChanged=true;
+				}
 			}
+			else if (deltaP>=5) {HeatOn(&daemon_values);}
+		}
+		if (currentCommandValues.mode==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
+			timeValues.stepEndTime=timeValues.runTime+1;;
+		} else if (currentCommandValues.mode==MODE_PRESSDOWN && deltaP>=0) { //pressure down function
+			timeValues.stepEndTime=timeValues.runTime-2;
+			currentCommandValues.mode=MODE_PRESSURELESS;
+			state.dataChanged=true;
+		} else if (currentCommandValues.mode==MODE_PRESSDOWN) {
+			timeValues.stepEndTime=timeValues.runTime+1;
 		}
 	} else {
 		oldCommandValues.press = currentCommandValues.press;

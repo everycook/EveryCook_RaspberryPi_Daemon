@@ -109,7 +109,6 @@ struct Time_Values {
 	uint32_t stepEndTime;
 	uint32_t stepStartTime;
 	uint32_t middlewareConnectTime;
-	uint32_t nextTempCheckTime; //when is next Temperature Check needed???
 	uint32_t motorStartTime; //When did we start the motor?
 	uint32_t remainTime;
 	uint32_t beepEndTime; //when to stop the beeper
