@@ -27,7 +27,7 @@ LIBS    = -lwiringPi -lpthread -lm #lm needed for math.h
 # Should not alter anything below this line
 ###############################################################################
 
-SRC	=	virtualspi.c virtuali2c.c basic_functions.c daemon.c middlewareSocket.c convertFunctions.c
+SRC	=	virtualspi.c virtuali2c.c basic_functions.c middlewareSocket.c convertFunctions.c hardwareFunctions.c daemon.c
 
 OBJ	=	$(SRC:.c=.o)
 
@@ -107,7 +107,8 @@ depend:
 
 virtualspi.o: virtualspi.h
 virtuali2c.o: virtuali2c.h
-daemon.o: daemon.h
 basic_functions.o: basic_functions.h
 middlewareSocket.o: middlewareSocket.h
 convertFunctions.o: convertFunctions.h
+hardwareFunctions.o: hardwareFunctions.h
+daemon.o: daemon.h

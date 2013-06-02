@@ -31,229 +31,44 @@ See GPLv3.htm in the main folder for details.
 #include <sys/stat.h>
 
 #include "bool.h"
+#include "modes.h"
 #include "basic_functions.h"
 #include "convertFunctions.h"
 #include "middlewareSocket.h"
 #include "daemon.h"
 
-struct ADC_Config {	
-	uint8_t ADC_LoadCellFrontLeft;
-	uint8_t ADC_LoadCellFrontRight;
-	uint8_t ADC_LoadCellBackLeft;
-	uint8_t ADC_LoadCellBackRight;
-	uint8_t ADC_Press;
-	uint8_t ADC_Temp;
+#include "daemon_structs.h"
+#include "hardwareFunctions.h"
 
-	uint8_t ADC_ref; //0=REFIN1, 1=REFIN2, 2=Internal 1.17V, 3=reserved
-};
+const float MOTOR_RPM_TO_PWM = 4095.0/200.0;
+
+const uint8_t ALLWAYS_STOP_BUZZING = 0;
+
+const uint8_t dataType = TYPE_TEXT;
 
 struct ADC_Config adc_config = {0,1,2,3,4,5,0};
-
-
-struct ADC_Noise_Values {	
-	uint32_t MaxWeight1;
-	uint32_t MinWeight1;
-	uint32_t DeltaWeight1;
-	uint32_t MaxWeight2;
-	uint32_t MinWeight2;
-	uint32_t DeltaWeight2;
-	uint32_t MaxWeight3;
-	uint32_t MinWeight3;
-	uint32_t DeltaWeight3;
-	uint32_t MaxWeight4;
-	uint32_t MinWeight4;
-	uint32_t DeltaWeight4;
-	uint32_t MaxTemp;
-	uint32_t MinTemp;
-	uint32_t DeltaTemp;
-	uint32_t MaxPress;
-	uint32_t MinPress;
-	uint32_t DeltaPress;
-};
 struct ADC_Noise_Values adc_noise = {0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0};
 
-
-struct ADC_Calibration {
-	double scaleFactor;
-	double offset;
-	
-	uint32_t ADC1;
-	double Value1;
-	uint32_t ADC2;
-	double Value2;
-};
-
-struct ADC_Calibration forceCalibration;
-struct ADC_Calibration pressCalibration;
-struct ADC_Calibration tempCalibration;
-
-
-
-struct I2C_Config {
-	uint8_t i2c_motor;
-	uint8_t i2c_servo;
-	uint8_t i2c_7seg_top;			//SegAPin
-	uint8_t i2c_7seg_top_left;		//SegBPin
-	uint8_t i2c_7seg_top_right;		//SegFPin
-	uint8_t i2c_7seg_center;		//SegGPin
-	uint8_t i2c_7seg_bottom_left;	//SegEPin
-	uint8_t i2c_7seg_bottom_right;	//SegCPin
-	uint8_t i2c_7seg_bottom;		//SegDPin
-	uint8_t i2c_7seg_period;		//SegDPPin
-};
-
+struct ADC_Calibration forceCalibration = {};
+struct ADC_Calibration pressCalibration = {};
+struct ADC_Calibration tempCalibration = {};
 struct I2C_Config i2c_config = {I2C_MOTOR, I2C_SERVO, I2C_7SEG_TOP, I2C_7SEG_TOP_LEFT, I2C_7SEG_TOP_RIGHT, I2C_7SEG_CENTER, I2C_7SEG_BOTTOM_LEFT, I2C_7SEG_BOTTOM_RIGHT, I2C_7SEG_BOTTOM, I2C_7SEG_PERIOD};
 
-//Servo stuff
-struct I2C_Servo_Values {
-	uint16_t i2c_servo_open;
-	uint16_t i2c_servo_closed;
-	
-	uint8_t destOpenPercent;
-	uint8_t steps;
-	float stepSize;
-	uint8_t stepPercentSize;
-	
-	uint8_t currentStep;
-	float currentValue;
-	uint16_t i2c_servo_value;
-	uint8_t servoOpen;
-};
-
 struct I2C_Servo_Values i2c_servo_values = {I2C_VALVE_OPEN_VALUE, I2C_VALVE_CLOSED_VALUE, 0, 0, 0, 0, 0, I2C_VALVE_CLOSED_VALUE, 0};
-
-
-struct Command_Values {
-	double temp;
-	double press;
-	uint8_t motorRpm; //0-255 
-	uint32_t motorOn;
-	uint32_t motorOff;
-	double weight;
-	uint32_t time;
-	uint32_t mode;
-	uint32_t stepId;
-};
 
 struct Command_Values newCommandValues = {0,0,0,0,0,0,0,0,-2};
 struct Command_Values currentCommandValues = {0,0,0,0,0,0,0,0,-2};
 struct Command_Values oldCommandValues = {0,0,0,0,0,0,0,0,-2};
 
-
-
-struct Time_Values {
-	uint32_t runTime; //we need a runtime in seconds
-	uint32_t lastRunTime;
-	
-	time_t nowTime;
-	struct tm *localTime;
-	
-	uint32_t stepEndTime;
-	uint32_t stepStartTime;
-	uint32_t middlewareConnectTime;
-	uint32_t nextTempCheckTime; //when is next Temperature Check needed???
-	uint32_t motorStartTime; //When did we start the motor?
-	uint32_t remainTime;
-	uint32_t beepEndTime; //when to stop the beeper
-	uint32_t lastBlinkTime; //when to stop the beeper
-	
-	time_t lastFileChangeTime;
-	uint32_t simulationUpdateTime;
-	uint32_t lastLogSaveTime;
-};
-struct Time_Values timeValues;
-
-
-
-
-struct Running_Mode {
-	bool normalMode = true;
-	bool calibration = false;
-	bool measure_noise = false;
-	bool test_7seg = false;
-	bool test_servo = false;
-	
-	bool simulationMode = false;
-	bool simulationModeShow7Segment = false;
-};
+struct Time_Values timeValues = {};
 
 struct Running_Mode runningMode = {true, false, false, false, false,  false, false};
 
-struct Settings {
-	uint8_t logSaveInterval; //setting for logging interval in seconds
-	
-	uint8_t BeepWeightReached;
-	uint8_t BeepStepEnd;
-	uint8_t DeleteLogOnStart;  //delete log at start saves disk space set 0 to keep log
+struct Settings settings = {5, 1,1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
 
-	//Values for change 7seg display
-	uint32_t LowTemp;
-	uint32_t LowPress;
+struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, 0, ' ',false, -1,""};
 
-	//delay for normal operation and scale mode
-	uint32_t LongDelay;
-	uint32_t ShortDelay;
-	
-	//Options
-	bool doRememberBeep;
-	
-	char* middlewareHostname;
-	int middlewarePortno;
-	bool useMiddleware;
-	bool useFile;
-	
-	bool debug_enabled;
-	bool debug3_enabled;
-
-	uint16_t test_servo_min;
-	uint16_t test_servo_max;
-	
-	char *configFile;
-	char *commandFile;
-	char *statusFile;
-	char *logFile;
-
-};
-struct Settings settings = {5, 1,1,1, 40,10, 500,1 0, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
-
-const MOTOR_RPM_TO_PWM = 4095.0/200.0;
-
-const uint8_t ALLWAYS_STOP_BUZZING = 0;
-
-
-struct State {
-	bool running = true;
-	bool dataChanged = true;
-	bool timeChanged = true;
-
-	uint32_t Delay = 1;
-
-	double referenceForce = 0; //the reference to get the zero of the scale
-	bool scaleReady = false;
-
-	bool heatPowerStatus = 0; //Induction heater power 0=off >0=on
-
-	bool isBuzzing = 1; //to be sure first send a off to buzzer
-
-	uint16_t motorPwm = 0;
-
-	char oldSegmentDisplay = ' ';
-	char state.curSegmentDisplay = ' ';
-	bool blinkState = 0;
-
-	int sockfd = -1;
-	char* oldSendedString = "";
-	char middlewareBuffer[256];
-
-	char TotalUpdate[512];
-	uint32_t value[15];
-	char names[15][10];
-	
-	FILE *logFilePointer;
-};
-
-struct State state = {true,true,true, setting.ShortDelay, 0, false, false, true, 0, ' ', ' ', false, -1,""};
-
+struct Daemon_Values daemon_values;
 
 int parseParams(int argc, const char* argv[]);
 void defineSignalHandler();
@@ -262,17 +77,19 @@ void initOutputFile(void);
 bool checkForInput();
 void doOutput();
 
-double readTemp();
-double readPress();
-bool HeatOn();
-bool HeatOff();
-void setMotorPWM(uint16_t pwm);
-void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait);
-double readWeight();
-double readWeightSeparate(double* values);
+double readTemp(struct Daemon_Values *dv);
+double readPress(struct Daemon_Values *dv);
+bool HeatOn(struct Daemon_Values *dv);
+bool HeatOff(struct Daemon_Values *dv);
+void setMotorPWM(uint16_t pwm, struct Daemon_Values *dv);
+void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct Daemon_Values *dv);
+double readWeight(struct Daemon_Values *dv);
+double readWeightSeparate(double* values, struct Daemon_Values *dv);
 
+void SegmentDisplaySimple(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
+void SegmentDisplayOptimized(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
+void blink7Segment(struct I2C_Config *i2c_config);
 
-void blink7Segment();
 
 /*
 The Modes:
@@ -292,6 +109,21 @@ The Modes:
 */
 
 int main(int argc, const char* argv[]){
+	daemon_values.adc_config = &adc_config;
+	daemon_values.adc_noise = &adc_noise;
+	daemon_values.forceCalibration = &forceCalibration;
+	daemon_values.pressCalibration = &pressCalibration;
+	daemon_values.tempCalibration = &tempCalibration;
+	daemon_values.i2c_config = &i2c_config;
+	daemon_values.i2c_servo_values = &i2c_servo_values;
+	daemon_values.newCommandValues = &newCommandValues;
+	daemon_values.currentCommandValues = &currentCommandValues;
+	daemon_values.oldCommandValues = &oldCommandValues;
+	daemon_values.timeValues = &timeValues;
+	daemon_values.runningMode = &runningMode;
+	daemon_values.settings = &settings;
+	daemon_values.state = &state;
+	
 	printf("starting EveryCook daemon...\n");
 	if (settings.debug_enabled){printf("main\n");}
 	
@@ -311,7 +143,7 @@ int main(int argc, const char* argv[]){
 	
 	resetValues();
 	state.referenceForce = forceCalibration.offset; //for default reference Force in calibration mode
-	SegmentDisplaySimple(' ');
+	SegmentDisplaySimple(' ', &state, &i2c_config);
 	
 	if (settings.debug_enabled){printf("commandFile is: %s\n", settings.commandFile);}
 	if (settings.debug_enabled){printf("statusFile is: %s\n", settings.statusFile);}
@@ -349,13 +181,13 @@ int main(int argc, const char* argv[]){
 			} else {
 				if (runningMode.calibration || runningMode.measure_noise){
 					//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
-					if (runningMode.calibration) HeatOn();
-					readTemp();
-					readPress();
-					readWeight();
+					if (runningMode.calibration) HeatOn(&daemon_values);
+					readTemp(&daemon_values);
+					readPress(&daemon_values);
+					readWeight(&daemon_values);
 					SegmentDisplay();
 				} else if (runningMode.test_7seg){
-					blink7Segment();
+					blink7Segment(&i2c_config);
 				} else if (runningMode.test_servo){
 					int16_t diff = settings.test_servo_max-settings.test_servo_min;
 					int16_t step = diff / 20;
@@ -391,7 +223,7 @@ int main(int argc, const char* argv[]){
 		delay(state.Delay);
 	}
 	
-	SegmentDisplaySimple('S');
+	SegmentDisplaySimple('S', &state, &i2c_config);
 	fclose(state.logFilePointer);
 	
 	return 0;
@@ -567,8 +399,6 @@ void resetValues(){
 }
 
 
-const uint8_t dataType = TYPE_TEXT;
-
 bool checkForInput(){
 	bool valueChanged = false;
 	if (settings.useMiddleware){
@@ -647,8 +477,8 @@ void ProcessCommand(void){
 		if (newCommandValues.stepId < currentCommandValues.stepId){
 			//-1 stop/not aus
 			if(newCommandValues.stepId == -1){
-				setMotorPWM(0);
-				HeatOff();
+				setMotorPWM(0, &daemon_values);
+				HeatOff(&daemon_values);
 			}
 			//TODO is reset/stop? or is someone try to begin new recipe before old is ended?
 			if(newCommandValues.stepId==0){
@@ -700,315 +530,6 @@ void ProcessCommand(void){
 	Beep();
 }
 
-
-/******************* functions to evaluate **********************/
-
-
-double readTemp(){
-	if (runningMode.simulationMode){
-		double tempValue = oldCommandValues.temp;
-		if (timeValues.nextTempCheckTime != 0){
-			int deltaT=newCommandValues.temp-oldCommandValues.temp;
-			if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
-				if (deltaT<0) {
-					--tempValue;
-				} else if (deltaT==0) {
-					//Nothing
-				} else if (deltaT <= 10) {
-					tempValue = tempValue+1;
-				} else if (deltaT <= 20) {
-					tempValue = tempValue+5;
-				} else if (deltaT <= 50) {
-					tempValue = tempValue+25;
-				} else {
-					tempValue = tempValue+40;
-				}
-			} else if (currentCommandValues.mode==MODE_COOLDOWN){
-				tempValue = tempValue-1;
-			}
-		//} else {
-			//is first call, no change yet
-		}
-		//if (settings.debug_enabled){printf("readTemp, new Value is %f\n", tempValue);}
-		printf("readTemp, new Value is %f\n", tempValue);
-		return tempValue;
-	} else {
-		uint32_t tempValueInt = readADC(adc_config.ADC_Temp);
-		double tempValue = (double)tempValueInt * tempCalibration.scaleFactor+tempCalibration.offset;
-		tempValue = round(tempValue);
-		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
-		if (runningMode.measure_noise) {
-			if (tempValueInt>adc_noise.MaxTemp) adc_noise.MaxTemp=tempValueInt;
-			if (tempValueInt<adc_noise.MinTemp) adc_noise.MinTemp=tempValueInt;
-			adc_noise.DeltaTemp=adc_noise.MaxTemp-adc_noise.MinTemp;
-			printf("NoiseTemp %d | ", adc_noise.DeltaTemp);
-		}
-		return tempValue;
-	}
-}
-
-
-double readPress(){
-	if (runningMode.simulationMode){
-		double pressValue = oldCommandValues.press;
-		if (timeValues.nextTempCheckTime != 0){
-			int deltaP=newCommandValues.press-oldCommandValues.press;
-			if (currentCommandValues.mode==MODE_PRESSUP || currentCommandValues.mode==MODE_PRESSHOLD) {
-				if (deltaP<0) {
-					--pressValue;
-				} else if (deltaP==0) {
-					//Nothing
-				} else if (deltaP <= 10) {
-					pressValue = pressValue+2;
-				} else if (deltaP <= 50) {
-					pressValue = pressValue+5;
-				} else {
-					pressValue = pressValue+10;
-				}
-			} else if (currentCommandValues.mode==MODE_PRESSDOWN){
-				pressValue = pressValue-1;
-			}
-		//} else {
-			//is first call, no change yet
-		}
-		//if (settings.debug_enabled){printf("readPress, new Value is %f\n", pressValue);}
-		printf("readPress, new Value is %f\n", pressValue);
-		return pressValue;
-	} else {
-		uint32_t pressValueInt = readADC(adc_config.ADC_Press);
-		double pressValue = pressValueInt* pressCalibration.scaleFactor+pressCalibration.offset;
-		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
-		if (runningMode.measure_noise){
-			if (pressValueInt>adc_noise.MaxPress) adc_noise.MaxPress=pressValueInt;
-			if (pressValueInt<adc_noise.MinPress) adc_noise.MinPress=pressValueInt;
-			adc_noise.DeltaPress=adc_noise.MaxPress-adc_noise.MinPress;
-			printf("NoisePress %d |", adc_noise.DeltaPress);
-		}
-		return pressValue;
-	}
-}
-
-//Power control functions
-bool HeatOn() {
-	//if (settings.debug_enabled || runningMode.simulationMode){printf("HeatOn, was: %d\n", state.heatPowerStatus);}
-	if (!state.heatPowerStatus) { //if its off
-		if (settings.debug_enabled || runningMode.simulationMode || runningMode.calibration){printf("HeatOn status was: %d\n", state.heatPowerStatus);}
-		if (!runningMode.simulationMode){
-			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
-			delay(500);
-			writeControllButtonPin(IND_KEY4, 1);
-			if (settings.debug3_enabled){printf("-->HeatOn\n");}
-		}
-		state.heatPowerStatus=true; //save that we turned it on
-		return true;
-	} else {
-		return false;
-	}
-}
-
-bool HeatOff(){
-	//if (settings.debug_enabled || runningMode.simulationMode){printf("HeatOff, was: %d\n", state.heatPowerStatus);}
-	if (state.heatPowerStatus) { //if its on
-		if (settings.debug_enabled || runningMode.simulationMode){printf("HeatOff\n");}
-		if (!runningMode.simulationMode){
-			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
-			delay(500);
-			writeControllButtonPin(IND_KEY4, 1);
-			if (settings.debug3_enabled){printf("-->HeatOff\n");}
-		}
-		state.heatPowerStatus=false; //save that we turned it off
-		return true;
-	} else {
-		return false;
-	}
-}
-
-void setMotorPWM(uint16_t pwm){
-	if (settings.debug_enabled){printf("setMotorPWM, pwm: %d\n", pwm);}
-	if (state.motorPwm != pwm){
-		if (!runningMode.simulationMode){
-			writeI2CPin(i2c_config.i2c_motor, pwm);
-		} else {
-			printf("setMotorPWM, pwm: %d\n", pwm);
-		}
-		state.motorPwm = pwm;
-	}
-}
-
-void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait){
-	if (settings.debug_enabled || settings.debug3_enabled){printf("setServoOpen, open: %d\n", openPercent);}
-	if (i2c_servo_values.servoOpen != openPercent){
-		if (steps<=0){
-			steps=1;
-		}
-		if (i2c_servo_values.steps != steps || i2c_servo_values.destOpenPercent != openPercent){
-			i2c_servo_values.steps = steps;
-			i2c_servo_values.destOpenPercent = openPercent;
-			
-			int16_t minMaxDiff = i2c_servo_values.i2c_servo_open-i2c_servo_values.i2c_servo_closed;
-			int8_t changePercent = openPercent-i2c_servo_values.servoOpen;
-			float onePercent = minMaxDiff/100.0;
-			float stepSize = (changePercent*onePercent)/steps;
-			i2c_servo_values.stepSize = stepSize;
-			i2c_servo_values.stepPercentSize = changePercent/steps;
-			i2c_servo_values.currentStep = 0;
-			
-			i2c_servo_values.currentValue = i2c_servo_values.servoOpen*onePercent;
-			i2c_servo_values.i2c_servo_value = i2c_servo_values.i2c_servo_closed;
-			if (runningMode.simulationMode || settings.debug3_enabled){printf("setServoOpen: minMaxDiff:%d, changePercent:%d onePercent:%.2f, stepSize:%.2f\n", minMaxDiff, changePercent, onePercent, stepSize);}
-		}
-		
-		if (i2c_servo_values.currentStep < steps){
-		//while(i2c_servo_values.currentStep < steps){
-			++i2c_servo_values.currentStep;
-			i2c_servo_values.currentValue=i2c_servo_values.currentValue+i2c_servo_values.stepSize;
-			i2c_servo_values.i2c_servo_value=i2c_servo_values.i2c_servo_closed + (int)(i2c_servo_values.currentValue);
-			if (runningMode.simulationMode || settings.debug3_enabled){printf("setServoOpen: value:%.2f, servo_value:%d\n", i2c_servo_values.currentValue, i2c_servo_values.i2c_servo_value);}
-			if (!runningMode.simulationMode){
-				writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_value);
-			}
-			i2c_servo_values.servoOpen = i2c_servo_values.servoOpen+i2c_servo_values.stepPercentSize;
-			//delay(stepWait);
-			state.Delay = stepWait;
-		} else {
-			i2c_servo_values.servoOpen = openPercent;
-			state.Delay = settings.LongDelay;
-		}
-	} else {
-		if (Delay == stepWait){
-			state.Delay = settings.LongDelay;
-		}
-	}
-}
-
-double readWeight(){
-	if (runningMode.simulationMode){
-		if (!state.scaleReady) {
-			return 0.0;
-		} else {
-			if (timeValues.runTime <= timeValues.simulationUpdateTime){
-				return oldCommandValues.weight; 
-			} else {
-				int deltaW = newCommandValues.weight-oldCommandValues.weight;
-				double weightValue = oldCommandValues.weight;
-				if (deltaW<0) {
-					--weightValue;
-				} else if (deltaW==0) {
-					//Nothing
-				} else if (deltaW<=10) {
-					weightValue = weightValue + 2;
-				} else if (deltaW<=50) {
-					weightValue = weightValue + 5;
-				} else {
-					weightValue = weightValue + 10;
-				}
-				if (weightValue != oldCommandValues.weight){
-					weightValue += state.referenceForce;
-					printf("readWeight, new Value is %f (old:%f)\n", weightValue, oldCommandValues.weight);
-					//if (settings.debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
-				} else {
-					weightValue += state.referenceForce;
-				}
-				timeValues.simulationUpdateTime = timeValues.runTime;
-				return weightValue;
-			}
-		}
-	} else {
-		uint32_t weightValue1 = readADC(adc_config.ADC_LoadCellFrontLeft);
-		uint32_t weightValue2 = readADC(adc_config.ADC_LoadCellFrontRight);
-		uint32_t weightValue3 = readADC(adc_config.ADC_LoadCellBackLeft);
-		uint32_t weightValue4 = readADC(adc_config.ADC_LoadCellBackRight);
-		
-		uint32_t weightValueSum = (weightValue1+weightValue2+weightValue3+weightValue4) / 4;
-		
-		double weightValue = (double)weightValueSum;
-		weightValue *=forceCalibration.scaleFactor;
-		weightValue = roundf(weightValue);
-		//if (settings.debug_enabled || runningMode.calibration){printf("readWeight %d digits, %.1f grams\n", weightValueSum, weightValue);}
-		if (settings.debug_enabled || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, (weightValue+state.referenceForce), weightValue1, weightValue2, weightValue3, weightValue4);}
-		if (runningMode.measure_noise){
-			if (weightValue1>adc_noise.MaxWeight1) adc_noise.MaxWeight1=weightValue1;
-			if (weightValue1<adc_noise.MinWeight1) adc_noise.MinWeight1=weightValue1;
-			adc_noise.DeltaWeight1=adc_noise.MaxWeight1-adc_noise.MinWeight1;
-			printf("NoiseWeightFL %d | ", adc_noise.DeltaWeight1);
-			
-			if (weightValue2>adc_noise.MaxWeight2) adc_noise.MaxWeight2=weightValue2;
-			if (weightValue2<adc_noise.MinWeight2) adc_noise.MinWeight2=weightValue2;
-			adc_noise.DeltaWeight2=adc_noise.MaxWeight2-adc_noise.MinWeight2;
-			printf("NoiseWeightFR %d | ", adc_noise.DeltaWeight2);
-			
-			if (weightValue3>adc_noise.MaxWeight3) adc_noise.MaxWeight3=weightValue3;
-			if (weightValue3<adc_noise.MinWeight3) adc_noise.MinWeight3=weightValue3;
-			adc_noise.DeltaWeight3=adc_noise.MaxWeight3-adc_noise.MinWeight3;
-			printf("NoiseWeightBL %d | ", adc_noise.DeltaWeight3);
-			
-			if (weightValue4>adc_noise.MaxWeight4) adc_noise.MaxWeight4=weightValue4;
-			if (weightValue4<adc_noise.MinWeight4) adc_noise.MinWeight4=weightValue4;
-			adc_noise.DeltaWeight4=adc_noise.MaxWeight4-adc_noise.MinWeight4;
-			printf("NoiseWeightBR %d\n", adc_noise.DeltaWeight4);
-		}
-		return weightValue;
-	}
-}
-
-double readWeightSeparate(double* values){
-	if (runningMode.simulationMode){
-		if (!state.scaleReady) {
-			return 0.0;
-		} else {
-			int deltaW = newCommandValues.weight-oldCommandValues.weight;
-			double weightValue = oldCommandValues.weight;
-			if (deltaW<0) {
-				--weightValue;
-			} else if (deltaW==0) {
-				//Nothing
-			} else if (deltaW<=10) {
-				weightValue = weightValue + 2;
-			} else if (deltaW<=50) {
-				weightValue = weightValue + 5;
-			} else {
-				weightValue = weightValue + 10;
-			}
-			weightValue += state.referenceForce;
-			if (settings.debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
-			
-			if (values != NULL){
-				values[0] = weightValue;
-				values[1] = weightValue;
-				values[2] = weightValue;
-				values[3] = weightValue;
-			}
-			return weightValue;
-		}
-	} else {
-		uint32_t weightValue1 = readADC(adc_config.ADC_LoadCellFrontLeft);
-		uint32_t weightValue2 = readADC(adc_config.ADC_LoadCellFrontRight);
-		uint32_t weightValue3 = readADC(adc_config.ADC_LoadCellBackLeft);
-		uint32_t weightValue4 = readADC(adc_config.ADC_LoadCellBackRight);
-		
-		if (values != NULL){
-			values[0] = (double)weightValue1 * forceCalibration.scaleFactor;
-			values[1] = (double)weightValue2 * forceCalibration.scaleFactor;
-			values[2] = (double)weightValue3 * forceCalibration.scaleFactor;
-			values[3] = (double)weightValue4 * forceCalibration.scaleFactor;
-		}
-		
-		uint32_t weightValueSum = (weightValue1+weightValue2+weightValue3+weightValue4) / 4;
-		
-		double weightValue = (double)weightValueSum;
-		weightValue *=forceCalibration.scaleFactor;
-		weightValue = roundf(weightValue);
-		if (settings.debug_enabled){
-			if (values != NULL){
-				printf("readWeight, new Value is %d / %f (%d, %d, %d, %d / %f, %f, %f, %f)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4, values[0], values[1], values[2], values[3]);
-			} else {
-				printf("readWeight, new Value is %d / %f (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);
-			}
-		}
-		return weightValue;
-	}
-}
-
 /******************* processing functions **********************/
 void OptionControl(){
   if (currentCommandValues.mode>=MODE_OPTIONS_BEGIN){
@@ -1017,11 +538,11 @@ void OptionControl(){
     } else if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_OFF){
       settings.doRememberBeep=false;
     } else if (currentCommandValues.mode==MODE_OPTION_7SEGMENT_BLINK){
-		SegmentDisplaySimple(' ');
-		blink7Segment();
-		blink7Segment();
-		blink7Segment();
-		blink7Segment();
+		SegmentDisplaySimple(' ', &state, &i2c_config);
+		blink7Segment(&i2c_config);
+		blink7Segment(&i2c_config);
+		blink7Segment(&i2c_config);
+		blink7Segment(&i2c_config);
 	}
     currentCommandValues.mode=MODE_STANDBY;
 	state.dataChanged=true;
@@ -1029,15 +550,15 @@ void OptionControl(){
 }
 
 void TempControl(){
-	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff();
+	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
 		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
-			if (HeatOff()){
+			if (HeatOff(&daemon_values)){
 				delay(500);
 			}
 			
 			oldCommandValues.temp = currentCommandValues.temp;
-			currentCommandValues.temp=readTemp();
+			currentCommandValues.temp=readTemp(&daemon_values);
 			
 			if (oldCommandValues.temp != currentCommandValues.temp){
 				state.dataChanged = true;
@@ -1053,9 +574,9 @@ void TempControl(){
 						state.dataChanged=true;
 					}
 				}
-				else if (deltaT <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn();}
-				else if (deltaT <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn();}
-				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn();} 
+				else if (deltaT <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn(&daemon_values);}
+				else if (deltaT <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn(&daemon_values);}
+				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn(&daemon_values);} 
 			}
 			if (currentCommandValues.mode==MODE_HEATUP && state.heatPowerStatus) { //heatup
 				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
@@ -1070,7 +591,7 @@ void TempControl(){
 		}
 	} else {
 		oldCommandValues.temp = currentCommandValues.temp;
-		currentCommandValues.temp=readTemp();
+		currentCommandValues.temp=readTemp(&daemon_values);
 		
 		if (oldCommandValues.temp != currentCommandValues.temp){
 			state.dataChanged = true;
@@ -1079,14 +600,14 @@ void TempControl(){
 }
 
 void PressControl(){
-	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff();
+	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_PRESS_MODE && currentCommandValues.mode<=MAX_PRESS_MODE) {
 		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
-			if (HeatOff()){
+			if (HeatOff(&daemon_values)){
 				delay(500);
 			}
 			oldCommandValues.press = currentCommandValues.press;
-			currentCommandValues.press = readPress();
+			currentCommandValues.press = readPress(&daemon_values);
 			
 			if (oldCommandValues.press != currentCommandValues.press){
 				state.dataChanged = true;
@@ -1102,9 +623,9 @@ void PressControl(){
 						state.dataChanged=true;
 					}
 				}
-				else if (deltaP <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn();}
-				else if (deltaP <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn();}
-				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn();}
+				else if (deltaP <= 10) { timeValues.nextTempCheckTime=timeValues.runTime+15; HeatOn(&daemon_values);}
+				else if (deltaP <= 50) { timeValues.nextTempCheckTime=timeValues.runTime+25; HeatOn(&daemon_values);}
+				else {timeValues.nextTempCheckTime=timeValues.runTime+35; HeatOn(&daemon_values);}
 			}
 			if (currentCommandValues.mode==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
 				timeValues.stepEndTime=timeValues.nextTempCheckTime+1;
@@ -1120,7 +641,7 @@ void PressControl(){
 	} else if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
 		if (timeValues.runTime>=timeValues.nextTempCheckTime || !state.heatPowerStatus){
 			oldCommandValues.press = currentCommandValues.press;
-			currentCommandValues.press = readPress();
+			currentCommandValues.press = readPress(&daemon_values);
 			
 			if (oldCommandValues.press != currentCommandValues.press){
 				state.dataChanged = true;
@@ -1128,7 +649,7 @@ void PressControl(){
 		}
 	} else {
 		oldCommandValues.press = currentCommandValues.press;
-		currentCommandValues.press = readPress();
+		currentCommandValues.press = readPress(&daemon_values);
 		
 		if (oldCommandValues.press != currentCommandValues.press){
 			state.dataChanged = true;
@@ -1136,6 +657,7 @@ void PressControl(){
 	}
 }
 
+//void MotorControl(struct State state, struct Command_Values currentCommandValues, struct Command_Values newCommandValues, struct Time_Values timeValues){
 void MotorControl(){
 	if (currentCommandValues.mode==MODE_CUT || currentCommandValues.mode>=MIN_TEMP_MODE){
 		if (currentCommandValues.mode==MODE_CUT) timeValues.stepEndTime=timeValues.runTime+1;
@@ -1157,14 +679,15 @@ void MotorControl(){
 	} else {
 		currentCommandValues.motorRpm=0;
 	}
-	uint16_t state.motorPwm = currentCommandValues.motorRpm * MOTOR_RPM_TO_PWM;
-	setMotorPWM(state.motorPwm);
+	state.motorPwm = currentCommandValues.motorRpm * MOTOR_RPM_TO_PWM;
+	setMotorPWM(state.motorPwm, &daemon_values);
 }
 
+//void ValveControl(struct State state, struct Settings settings, struct Command_Values currentCommandValues, struct Time_Values timeValues){
 void ValveControl(){
 	if (currentCommandValues.mode==MODE_PRESSVENT) {
-		HeatOff();
-		setServoOpen(100, 10, 1000);
+		HeatOff(&daemon_values);
+		setServoOpen(100, 10, 1000, &daemon_values);
 		timeValues.stepEndTime=timeValues.runTime+1;
 		if (currentCommandValues.press < settings.LowPress) {
 			delay(2000);
@@ -1172,16 +695,16 @@ void ValveControl(){
 			state.dataChanged=true;
 		}
 	} else {
-		setServoOpen(0, 1, 0);
+		setServoOpen(0, 1, 0, &daemon_values);
 	}
 }
 
-
-void ScaleFunction() {
+//void ScaleFunction(struct State state, struct Settings settings, struct Command_Values oldCommandValues, struct Command_Values currentCommandValues, struct Command_Values newCommandValues, struct Time_Values timeValues){
+void ScaleFunction(){
 	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
 		timeValues.stepEndTime=timeValues.runTime+2;
 		oldCommandValues.weight = currentCommandValues.weight;
-		double sumOfForces = readWeight();
+		double sumOfForces = readWeight(&daemon_values);
 		if (settings.debug_enabled){printf("ScaleFunction\n");}
 		
 		if (!state.scaleReady) { //we are not ready for weighting
@@ -1224,22 +747,23 @@ void ScaleFunction() {
 	}
 }
 
+//void SegmentDisplay(struct State state, struct Settings settings, struct Running_Mode runningMode, struct I2C_Config i2c_config){
 void SegmentDisplay(){
-	char state.curSegmentDisplay = ' ';
+	char curSegmentDisplay = ' ';
 	if (currentCommandValues.press>=settings.LowPress){
-		state.curSegmentDisplay = 'P';
+		curSegmentDisplay = 'P';
 	} else if (currentCommandValues.temp>=settings.LowTemp){
-		state.curSegmentDisplay = 'H';
+		curSegmentDisplay = 'H';
 	} else {
-		state.curSegmentDisplay = '0';
+		curSegmentDisplay = '0';
 	}
-	if (state.curSegmentDisplay != state.oldSegmentDisplay){
-		if (settings.debug_enabled || runningMode.simulationMode){printf("SegmentDisplay: '%c'\n", state.curSegmentDisplay);}
+	if (curSegmentDisplay != state.oldSegmentDisplay){
+		if (settings.debug_enabled || runningMode.simulationMode){printf("SegmentDisplay: '%c'\n", curSegmentDisplay);}
 		if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
-			SegmentDisplaySimple(state.curSegmentDisplay);
-			//SegmentDisplayOptimized(state.curSegmentDisplay);
+			SegmentDisplaySimple(curSegmentDisplay, &state, &i2c_config);
+			//SegmentDisplayOptimized(curSegmentDisplay, &state, &i2c_config);
 		} else {
-			state.oldSegmentDisplay = state.curSegmentDisplay;
+			state.oldSegmentDisplay = curSegmentDisplay;
 		}
 	}
 	if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
@@ -1259,176 +783,6 @@ void SegmentDisplay(){
 	}
 }
 
-void SegmentDisplaySimple(char state.curSegmentDisplay){
-	if (state.curSegmentDisplay == 'P'){
-		state.oldSegmentDisplay = 'P';
-		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-	} else if (state.curSegmentDisplay == 'H'){
-		state.oldSegmentDisplay = 'H';
-		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-	} else if (state.curSegmentDisplay == '0'){
-		state.oldSegmentDisplay = '0';
-		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
-	} else if (state.curSegmentDisplay == 'S'){
-		state.oldSegmentDisplay = 'S';
-		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
-	} else if (state.curSegmentDisplay == 'E'){
-		state.oldSegmentDisplay = 'E';
-		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
-	} else {
-		state.oldSegmentDisplay = ' ';
-		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-	}
-}
-
-void SegmentDisplayOptimized(char state.curSegmentDisplay){
-	if (state.curSegmentDisplay == 'P'){
-		if (state.curSegmentDisplay != state.oldSegmentDisplay){
-			if (state.oldSegmentDisplay == 'H'){
-				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (state.oldSegmentDisplay == '0'){
-				//writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (state.oldSegmentDisplay == ' '){
-				//Is initial do all
-				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else {
-				SegmentDisplaySimple(state.curSegmentDisplay);
-			}
-			state.oldSegmentDisplay = state.curSegmentDisplay;
-		}
-	} else if (state.curSegmentDisplay == 'H'){
-		if (state.curSegmentDisplay != state.oldSegmentDisplay){
-			if (state.oldSegmentDisplay == 'P'){
-				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (state.oldSegmentDisplay == '0'){
-				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else if (state.oldSegmentDisplay == ' '){
-				//Is initial do all
-				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
-				writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-			} else {
-				SegmentDisplaySimple(state.curSegmentDisplay);
-			}
-			state.oldSegmentDisplay = state.curSegmentDisplay;
-		}
-	} else if (state.curSegmentDisplay == '0'){
-		if (state.curSegmentDisplay != state.oldSegmentDisplay){
-			if (state.oldSegmentDisplay == 'H'){
-				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
-			} else if (state.oldSegmentDisplay == 'P'){
-				//writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
-				//writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				//writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
-			} else if (state.oldSegmentDisplay == ' '){
-				//Is initial do all
-				writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-				writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
-			} else {
-				SegmentDisplaySimple(state.curSegmentDisplay);
-			}
-			state.oldSegmentDisplay = state.curSegmentDisplay;
-		}
-	} else {
-		SegmentDisplaySimple(state.curSegmentDisplay);
-		/*
-		//Empty all
-		writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-		writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-		state.oldSegmentDisplay = ' ';
-		*/
-	}
-}
 
 void Beep(){
 	if(settings.doRememberBeep==1){
@@ -1935,57 +1289,4 @@ void ReadConfigurationFile(void){
 	
 	fclose(fp);
 	if (settings.debug_enabled){printf("done.\n");}
-}
-
-
-void blink7Segment(){
-	//mitte
-	printf("center: %d\n", i2c_config.i2c_7seg_center);
-	writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_center,I2C_7SEG_OFF);
-	
-	//links
-	printf("top left: %d\n", i2c_config.i2c_7seg_top_left);
-	writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_top_left,I2C_7SEG_OFF);
-	
-	//oben
-	printf("top: %d\n", i2c_config.i2c_7seg_top);
-	writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_top,I2C_7SEG_OFF);
-	
-	
-	//rechts
-	printf("top right: %d\n", i2c_config.i2c_7seg_top_right);
-	writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_top_right,I2C_7SEG_OFF);
-	
-	//ulinks
-	printf("bottom left: %d\n", i2c_config.i2c_7seg_bottom_left);
-	writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_bottom_left,I2C_7SEG_OFF);
-	
-	//unten
-	printf("bottom: %d\n", i2c_config.i2c_7seg_bottom);
-	writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_bottom,I2C_7SEG_OFF);
-	
-	//urechts
-	printf("bottom right: %d\n", i2c_config.i2c_7seg_bottom_right);
-	writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_bottom_right,I2C_7SEG_OFF);
-	
-	//punkt
-	printf("period: %d\n", i2c_config.i2c_7seg_period);
-	writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_ON);
-	delay(5000);
-	writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_OFF);
-	delay(5000);
 }
