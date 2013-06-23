@@ -50,6 +50,7 @@ DeleteLogOnStart=1
 LogFile=/var/log/EveryCook_Daemon.log
 #interval between two log file writes in seconds
 logSaveInterval=2
+logLines=100
 
 #PWM Channels Configuration
 i2c_motor=0

@@ -124,6 +124,7 @@ struct Running_Mode {
 	bool measure_noise;
 	bool test_7seg;
 	bool test_servo;
+	bool test_heat_led;
 	
 	bool simulationMode;
 	bool simulationModeShow7Segment;
@@ -131,6 +132,7 @@ struct Running_Mode {
 
 struct Settings {
 	uint8_t logSaveInterval; //setting for logging interval in seconds
+	uint32_t logLines; //setting for amount of rows logging
 	
 	uint8_t BeepWeightReached;
 	uint8_t BeepStepEnd;
@@ -186,6 +188,8 @@ struct State {
 
 	int sockfd;
 	char* oldSendedString;
+	uint32_t logLineNr;
+	
 	char middlewareBuffer[256];
 
 	char TotalUpdate[512];
@@ -193,6 +197,7 @@ struct State {
 	char names[15][10];
 	
 	FILE *logFilePointer;
+	char** logLines;
 };
 
 

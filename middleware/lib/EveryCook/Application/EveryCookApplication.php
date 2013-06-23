@@ -280,6 +280,28 @@ class EveryCookApplication extends Application
 			if ($state->SMODE >= 30 && $state->SMODE <= 39){
 				//Auto Next:
 				if ($state->SMODE == self::WEIGHT_REACHED){
+					//weight value are to "jummpy", so goto next if reached weight immedialy for now
+					if ($percent>=0.95 && $percent<=1.05){
+						$additional.=', gotoNext: true';
+					} else {
+						$mealStep->weightReachedTime = 0;
+					}
+					/* alernative logic
+					//Wait 5 Sec with only small changes (between 90% and 110%)
+					if ($percent>=0.90 && $percent<=1.10 && $mealStep->weightReachedTime != 0){
+						if ($currentTime - $mealStep->weightReachedTime >=5){
+							$additional.=', gotoNext: true';
+						} else {
+							$additional.=', gotoNextTime: ' . ($currentTime - $mealStep->weightReachedTime);
+						}
+					} else if ($percent>=0.95 && $percent<=1.05){
+						$mealStep->weightReachedTime = $currentTime;
+						$additional.=', gotoNextTime: 5';
+					} else {
+						$mealStep->weightReachedTime = 0;
+					}
+					*/
+					/* old "exact" logic
 					if ($percent>=0.95 && $percent<=1.05){
 						//Wait 5 Sec with no change
 						if ($mealStep->percent == $percent && $mealStep->weightReachedTime != 0){
@@ -295,6 +317,7 @@ class EveryCookApplication extends Application
 					} else {
 						$mealStep->weightReachedTime = 0;
 					}
+					*/
 				} else {
 					$additional.=', gotoNext: true';
 				}

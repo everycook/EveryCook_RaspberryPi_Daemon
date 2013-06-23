@@ -62,11 +62,11 @@ struct Command_Values oldCommandValues = {0,0,0,0,0,0,0,0,-2};
 
 struct Time_Values timeValues = {};
 
-struct Running_Mode runningMode = {true, false, false, false, false,  false, false};
+struct Running_Mode runningMode = {true, false, false, false, false, false,  false, false};
 
-struct Settings settings = {5, 1,1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
+struct Settings settings = {5, 0, 1,1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
 
-struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, 0, ' ',false, -1,""};
+struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, 0, ' ',false, -1,"", 0};
 
 struct Daemon_Values daemon_values;
 
@@ -214,6 +214,16 @@ int main(int argc, const char* argv[]){
 					}
 					delay(2000);
 					return 0;
+				} else if (runningMode.test_heat_led){
+					state.Delay = 100;
+					uint32_t led1 = readSignPin(0);
+					uint32_t led2 = readSignPin(1);
+					uint32_t led3 = readSignPin(2);
+					uint32_t led4 = readSignPin(3);
+					uint32_t led5 = readSignPin(4);
+					uint32_t led6 = readSignPin(5);
+					
+					printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\n",led1,led2,led3,led4,led5,led6);
 				}
 			}
 			if (settings.debug_enabled){printf("main loop end.\n");}
@@ -224,7 +234,9 @@ int main(int argc, const char* argv[]){
 	}
 	
 	SegmentDisplaySimple('S', &state, &i2c_config);
-	fclose(state.logFilePointer);
+	if (settings.logLines == 0 || state.logLineNr<settings.logLines){
+		fclose(state.logFilePointer);
+	}
 	
 	return 0;
 }
@@ -254,6 +266,7 @@ void printUsage(){
 	printf("  -tn, --test-noise 			measure and output random noise\r\n");
 	printf("  -t7, --test-7seg 				blink 7segments to evaluate correct config\r\n");
 	printf("  -ts, --test-servo [from [to]]	test servo open value, if from/to is omitted, values are from: %d, to: %d\r\n", settings.test_servo_min, settings.test_servo_max);
+	printf("  -th, --test-heat-led 			read the heater LED informations\r\n");
 	printf("  -?,  --help                   show this help\r\n");
 }
 
@@ -294,6 +307,11 @@ int parseParams(int argc, const char* argv[]){
 				}
 			}
 			printf("test servo config from %d to %d\n", settings.test_servo_min, settings.test_servo_max);
+			
+		} else if(strcmp(argv[i], "--test-heat-led") == 0 || strcmp(argv[i], "-th") == 0){
+			runningMode.test_heat_led = true;
+			runningMode.normalMode = false;
+			printf("test 7seg config\n");
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
 			settings.useMiddleware = false;
 			settings.useFile = true;
@@ -357,19 +375,26 @@ void handleSignal(int signum) {
 
 void initOutputFile(void){
 	if (settings.debug_enabled){printf("iniOutputFile\n");}
-	//StringClean(state.TotalUpdate, 512);
 	FILE *fp;
 	fp = fopen(settings.statusFile, "w");
 	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":-2}", fp);
 	fclose(fp);
+	
+	char* headerLine = "Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode\n";
+	if (settings.logLines != 0){
+		state.logLines = (char **)malloc(sizeof(char *) * (settings.logLines+1)); //+1 for headerline/line 0
+		state.logLines[0] = (char *) malloc(strlen(headerLine) * sizeof(char) + 1);
+		strcpy(state.logLines[0], headerLine);
+	}
 	if (settings.DeleteLogOnStart){
 		state.logFilePointer = fopen(settings.logFile, "w");
-		fprintf(state.logFilePointer,"Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode\n");
+		fprintf(state.logFilePointer, headerLine);
 	} else {
+		if (settings.logLines != 0){
+			//TODO read current log content and set state.logLineNr
+		}
 		state.logFilePointer = fopen(settings.logFile, "a");
 	}
-	
-	//fclose(state.logFilePointer);
 }
 
 void resetValues(){
@@ -531,21 +556,21 @@ void ProcessCommand(void){
 
 /******************* processing functions **********************/
 void OptionControl(){
-  if (currentCommandValues.mode>=MODE_OPTIONS_BEGIN){
-    if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_ON){
-      settings.doRememberBeep=true;
-    } else if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_OFF){
-      settings.doRememberBeep=false;
-    } else if (currentCommandValues.mode==MODE_OPTION_7SEGMENT_BLINK){
-		SegmentDisplaySimple(' ', &state, &i2c_config);
-		blink7Segment(&i2c_config);
-		blink7Segment(&i2c_config);
-		blink7Segment(&i2c_config);
-		blink7Segment(&i2c_config);
-	}
-    currentCommandValues.mode=MODE_STANDBY;
-	state.dataChanged=true;
-  }
+    if (currentCommandValues.mode>=MODE_OPTIONS_BEGIN){
+		if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_ON){
+			settings.doRememberBeep=true;
+		} else if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_OFF){
+			settings.doRememberBeep=false;
+		} else if (currentCommandValues.mode==MODE_OPTION_7SEGMENT_BLINK){
+			SegmentDisplaySimple(' ', &state, &i2c_config);
+			blink7Segment(&i2c_config);
+			blink7Segment(&i2c_config);
+			blink7Segment(&i2c_config);
+			blink7Segment(&i2c_config);
+		}
+		currentCommandValues.mode=MODE_STANDBY;
+		state.dataChanged=true;
+    }
 }
 
 void TempControl(){
@@ -827,11 +852,40 @@ void writeLog(){
 		char tempString[20];
 		StringClean(tempString, 20);
 		strftime(tempString, 20,"%F %T",timeValues.localTime);
-		//state.logFilePointer = fopen(settings.logFile, "a");
-		fprintf(state.logFilePointer,"%s, %.1f, %.1f, %i, %.1f, %.1f, %.1f, %i, %.1f, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode);
-		//open once and flush, instat open and close it always
-		fflush(state.logFilePointer);
-		//fclose(state.logFilePointer);
+		char logline[200];
+		sprintf(logline, "%s, %.1f, %.1f, %i, %.1f, %.1f, %.1f, %i, %.1f, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode);
+		
+		if (settings.logLines == 0){
+			fputs(logline, state.logFilePointer);
+			//open once and flush, instat open and close it always
+			fflush(state.logFilePointer);
+		} else {
+			if (state.logLineNr<settings.logLines){
+				++state.logLineNr;
+				state.logLines[state.logLineNr] = (char *) malloc(strlen(logline) * sizeof(char) + 1);
+				strcpy(state.logLines[state.logLineNr], logline);
+				
+				//if not yet reached max line amount only add last line to file.
+				fputs(state.logLines[state.logLineNr], state.logFilePointer);
+				fflush(state.logFilePointer);
+				if (state.logLineNr==settings.logLines){
+					//if max amount of lines reached, close file, because it will be open as overwrite in "ringbuffer" logic.
+					fclose(state.logFilePointer);
+				}
+			} else {
+				state.logFilePointer = fopen(settings.logFile, "w");
+				fputs(state.logLines[0], state.logFilePointer);
+				uint32_t i=1;
+				for (; i<settings.logLines; ++i){
+					state.logLines[i] = state.logLines[i+1];
+					fputs(state.logLines[i], state.logFilePointer);
+				}
+				state.logLines[state.logLineNr] = (char *) malloc(strlen(logline) * sizeof(char) + 1);
+				strcpy(state.logLines[state.logLineNr], logline);
+				fputs(state.logLines[state.logLineNr], state.logFilePointer);
+				fclose(state.logFilePointer);
+			}
+		}
 		timeValues.lastLogSaveTime=timeValues.runTime;
 	}
 	if (settings.debug_enabled){printf("writeLog: after write\n");}
@@ -1191,7 +1245,10 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "logSaveInterval") == 0){
 					settings.logSaveInterval = StringConvertToNumber(valueString);
 					if (settings.debug_enabled){printf("\tlogSaveInterval: %d\n", settings.logSaveInterval);} // (old: %d)
-					
+				} else if(strcmp(keyString, "logLines") == 0){
+					settings.logLines = StringConvertToNumber(valueString);
+					if (settings.debug_enabled){printf("\tlogLines %d\n", settings.logLines);} // (old: %d)
+				
 				} else if(strcmp(keyString, "middlewareHostname") == 0){
 					//TODO: alloc new mem
 					//settings.middlewareHostname = valueString;

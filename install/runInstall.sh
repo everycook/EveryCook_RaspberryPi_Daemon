@@ -98,6 +98,8 @@ rm $webmain/manualmode
 ln -s $gitDaemonDir/manualmode $webmain/manualmode
 rm $gitDaemonDir/manualmode/status
 ln -s  /dev/shm/status  $gitDaemonDir/manualmode/status
+rm $gitDaemonDir/manualmode/data.txt
+ln -s  /var/log/EveryCook_Daemon.log  $gitDaemonDir/manualmode/data.txt
 
 ln -s /dev/shm/ecdaemon.log $installDir/daemon/ecdaemon.log
 ln -s /dev/shm/ecmiddleware.log $installDir/middleware/ecmiddleware.log
