@@ -6,6 +6,9 @@ ForceADC1=9545120
 ForceADC2=9595180
 ForceValue1=0
 ForceValue2=1000
+
+weightReachedMultiplier=0.95
+
 #two calibrations points between adc values and pressure in kpa
 PressADC1=4815000
 PressValue1=0
@@ -50,6 +53,7 @@ DeleteLogOnStart=1
 LogFile=/var/log/EveryCook_Daemon.log
 #interval between two log file writes in seconds
 logSaveInterval=2
+#set logLines to 0 to save all Lines
 logLines=100
 
 #PWM Channels Configuration

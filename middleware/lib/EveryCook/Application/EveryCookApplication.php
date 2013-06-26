@@ -57,6 +57,8 @@ class EveryCookApplication extends Application
 	const COOKING_INFOS = 'cookingInfo';
 	const COOKING_INFOS_CHANGEAMOUNT = 'cookingInfoChangeAmount';
 	
+	const MIN_STATUS_INTERVAL = 30; //30sec
+	
 	
     protected $_clients = array();
     protected $_lastTimestamp = null;
@@ -77,6 +79,7 @@ class EveryCookApplication extends Application
 	
 	protected $_lastState;
 	protected $_lastStateTime;
+	protected $_lastUpdateTime;
 	
 	protected function getMemcached(){
 		if ($this->_memcached == null){
@@ -135,7 +138,7 @@ class EveryCookApplication extends Application
 			'memcachedHost'=>'localhost',
 			'memcachedPort'=>11211,
 			'cacheMethode'=>'memcached',
-			'stateValidTimeout'=>30000, //=30 sec
+			'stateValidTimeout'=>10000, //=10 sec
         ), $options);
 	}
 	
@@ -342,6 +345,8 @@ class EveryCookApplication extends Application
 			return '{percent:' . $percent . ', restTime:' . $restTime .$additional . ', SID:' . $state->SID . '}'; //', startTime:'.$_GET['startTime']
 			
 			//{"T0":100,"P0":0,"M0RPM":0,"M0ON":0,"M0OFF":0,"W0":0,"STIME":30,"SMODE":10,"SID":0}
+		} else {
+			return "ERROR: cook with not yet set";
 		}
 	}
 	
@@ -350,6 +355,7 @@ class EveryCookApplication extends Application
 		$info = $this->getFromCache(self::COOKING_INFOS);
 		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 		if (!$info){
+			$this->_lastUpdateTime = time();
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
 			return;
 		}
@@ -358,6 +364,7 @@ class EveryCookApplication extends Application
 		$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
 		$this->_lastState = $state;
 		$this->_lastStateTime = time();
+		$this->_lastUpdateTime = $this->_lastStateTime;
 		$this->_sendAll($state);
 	}
 	
@@ -366,21 +373,24 @@ class EveryCookApplication extends Application
 		$info = $this->getFromCache(self::COOKING_INFOS);
 		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 		if (!$info){
+			$this->_lastUpdateTime = time();
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
 			return;
 		}
 		
 		$firmwareState = $this->readFromFirmware($info, $recipeNr);
 		
-		if ($firmwareState != $this->_lastFirmwareState){
+		if ($firmwareState != $this->_lastFirmwareState || $this->_lastUpdateTime+self::MIN_STATUS_INTERVAL < time()){
 			$this->_lastFirmwareState = $firmwareState;
 			if (is_string($firmwareState) && strpos($firmwareState,"ERROR: ") !== false){
+				$this->_lastUpdateTime = time();
 				$this->_sendAll('{"error":"' . substr($firmwareState, 7) . '"}');
 				return;
 			}
 			$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
 			$this->_lastState = $state;
 			$this->_lastStateTime = time();
+			$this->_lastUpdateTime = $this->_lastStateTime;
 			$this->_sendAll($state);
 		}
 	}
@@ -389,6 +399,7 @@ class EveryCookApplication extends Application
 		$recipeNr = 0;
 		$info = $this->getFromCache(self::COOKING_INFOS);
 		if (!$info){
+			$this->_lastUpdateTime = time();
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
 			return;
 		}
@@ -456,9 +467,9 @@ class EveryCookApplication extends Application
 			// limit updates to once per second
 			if(time() > $this->_lastTimestamp) {
 				$this->_lastTimestamp = time();
-				if ($this->_firmware_client == null){
-					//TODO: if no server connected, read status from filesystem...
+				if ($this->_firmware_client == null || $this->_lastUpdateTime+self::MIN_STATUS_INTERVAL < time()){
 					//$this->_sendAll(date('d-m-Y H:i:s'));
+					//if no server connected(or get no information since MIN_STATUS_INTERVAL), read status from filesystem...
 					$this->getAndSendState();
 				}
 			}
@@ -506,6 +517,7 @@ class EveryCookApplication extends Application
 			$info = $this->getFromCache(self::COOKING_INFOS);
 			$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 			if (!$info){
+				$this->_lastUpdateTime = time();
 				$client->send('{"error":"Current cooking information not found!"}');
 				return;
 			}
@@ -516,7 +528,8 @@ class EveryCookApplication extends Application
 			}
 			$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
 			$this->_lastState = $state;
-			$this->_lastStateTime = tine();
+			$this->_lastStateTime = time();
+			$this->_lastUpdateTime = $this->_lastStateTime;
 			$client->send($state);
 		}
 	}

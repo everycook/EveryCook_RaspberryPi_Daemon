@@ -42,6 +42,8 @@ See GPLv3.htm in the main folder for details.
 
 const float MOTOR_RPM_TO_PWM = 4095.0/200.0;
 
+const uint32_t MIN_STATUS_INTERVAL = 20;
+
 const uint8_t ALLWAYS_STOP_BUZZING = 0;
 
 const uint8_t dataType = TYPE_TEXT;
@@ -64,11 +66,16 @@ struct Time_Values timeValues = {};
 
 struct Running_Mode runningMode = {true, false, false, false, false, false,  false, false};
 
-struct Settings settings = {5, 0, 1,1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
+struct Settings settings = {5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
 
 struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, 0, ' ',false, -1,"", 0};
 
 struct Daemon_Values daemon_values;
+
+
+
+uint8_t HeaterErrorPattern[6][6] = {{1, 1, 0, 1, 1, 1},{0, 0, 1, 1, 1, 1},{1, 0, 1, 1, 1, 1},{0, 1, 1, 1, 1, 1},{1, 0, 0, 1, 1, 1},{0, 0, 0, 1, 1, 1}};
+char* HeaterErrorCodes[] = {"Temperature Sensor out of work", "IGBT Sensor out of work","Voltage To High(>260V)", "Voltage to Low(<85V)","The bow out of water","IGBT Temperature To High"};
 
 int parseParams(int argc, const char* argv[]);
 void defineSignalHandler();
@@ -215,15 +222,96 @@ int main(int argc, const char* argv[]){
 					delay(2000);
 					return 0;
 				} else if (runningMode.test_heat_led){
-					state.Delay = 100;
-					uint32_t led1 = readSignPin(0);
-					uint32_t led2 = readSignPin(1);
-					uint32_t led3 = readSignPin(2);
-					uint32_t led4 = readSignPin(3);
-					uint32_t led5 = readSignPin(4);
-					uint32_t led6 = readSignPin(5);
+					timeValues.runTime = time(NULL);
+					state.Delay = 10;
+					uint32_t led[6];
+					led[0] = readSignPin(0);
+					led[1] = readSignPin(1);
+					led[2] = readSignPin(2);
+					led[3] = readSignPin(3);
+					led[4] = readSignPin(4);
+					led[5] = readSignPin(5);
 					
-					printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\n",led1,led2,led3,led4,led5,led6);
+					bool different = false;
+					
+					if (led[3] == 0){
+						state.heatHeatingLedLastTime = timeValues.runTime;
+						if (!state.heatHeating){
+							state.heatHeating = true;
+							different = true;
+						}
+					} else if (state.heatHeating && state.heatHeatingLedLastTime + 3 < timeValues.runTime){
+						state.heatHeating = false;
+							different = true;
+					}
+					
+					if (led[0] == 1 && led[1] == 1 && led[2] == 1 && led[3] == 1 && led[4] == 1 && led[5] == 1){
+						if (state.heatHasPower && state.heatHasPowerLedLastTime + 3 < timeValues.runTime){
+							state.heatHasPower = false;
+							different = true;
+						}
+					} else {
+						state.heatHasPowerLedLastTime = timeValues.runTime;
+						if (!state.heatHasPower){
+							state.heatHasPower = true;
+							different = true;
+						}
+					}
+					
+					if (led[0] == 0 && led[1] == 0 && led[2] == 0 && led[3] == 0 && led[4] == 0 && led[5] == 0){
+						state.heatNoPanLedLastTime = timeValues.runTime;
+						if (!state.heatNoPan){
+							state.heatNoPan = true;
+							different = true;
+						}
+					} else {
+						if (state.heatNoPan && state.heatNoPanLedLastTime + 1 < timeValues.runTime){
+							state.heatNoPan = false;
+							different = true;
+						}
+					}
+					
+					uint8_t i = 0;
+					for (; i<6; ++i){
+						if (state.lastHeatLedValues[i] != led[i]){
+							different = true;
+							break;
+						}
+					}
+					
+					if (different){
+						char* errorMsg;
+						bool errorFound = false;
+						
+						uint8_t errNr = 0;
+						for (; errNr<6; ++errNr){
+							bool isSame = true;
+							for (i = 0; i<6; ++i){
+								if (HeaterErrorPattern[errNr][i] != led[i]){
+									isSame = false;
+									break;
+								}
+							}
+							if (isSame){
+								errorFound = true;
+								errorMsg = HeaterErrorCodes[errNr];
+								break;
+							}
+						}
+						if (errorFound){
+							printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tNoPan:%d\t\telapsed Time:%d\tprev amount:%d\t\tError:%s\n",led[0],led[1],led[2],led[3],led[4],led[5], state.heatHasPower,state.heatHeating,state.heatNoPan, timeValues.runTime - timeValues.lastHeatLedTime, state.heatLedValuesSameCount, errorMsg);
+						} else {
+							printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tNoPan:%d\t\telapsed Time:%d\tprev amount:%d\n",led[0],led[1],led[2],led[3],led[4],led[5], state.heatHasPower,state.heatHeating,state.heatNoPan, timeValues.runTime - timeValues.lastHeatLedTime, state.heatLedValuesSameCount);
+						}
+						i = 0;
+						for (; i<6; ++i){
+							state.lastHeatLedValues[i] = led[i];
+						}
+						timeValues.lastHeatLedTime = time(NULL);
+						state.heatLedValuesSameCount = 0;
+					} else {
+						state.heatLedValuesSameCount = state.heatLedValuesSameCount+1;
+					}
 				}
 			}
 			if (settings.debug_enabled){printf("main loop end.\n");}
@@ -480,7 +568,7 @@ bool checkForInput(){
 
 void doOutput(){
 	prepareState(state.TotalUpdate);
-	if (state.dataChanged){// || state.timeChanged){
+	if (state.dataChanged || timeValues.lastStatusTime+MIN_STATUS_INTERVAL<timeValues.runTime){// || state.timeChanged){
 		if (settings.debug_enabled){printf("dataChanged=true\n");}
 		if (settings.useMiddleware && state.sockfd>=0){
 			if (!sendToSock(state.sockfd, state.TotalUpdate, dataType)){
@@ -493,6 +581,7 @@ void doOutput(){
 		}
 		state.dataChanged = false;
 		state.timeChanged = false;
+		timeValues.lastStatusTime=timeValues.runTime;
 	}
 	writeLog();
 }
@@ -724,7 +813,7 @@ void ScaleFunction(){
 			if (oldCommandValues.weight != currentCommandValues.weight){
 				state.dataChanged = true;
 			}
-			if (currentCommandValues.weight>=newCommandValues.weight) {//If we have reached the required mass
+			if (currentCommandValues.weight>=(newCommandValues.weight*settings.weightReachedMultiplier)) {//If we have reached the required mass
 				if (currentCommandValues.mode != MODE_WEIGHT_REACHED){
 					if(settings.BeepWeightReached > 0){
 						timeValues.beepEndTime=timeValues.runTime+settings.BeepWeightReached;
@@ -1248,6 +1337,11 @@ void ReadConfigurationFile(void){
 				} else if(strcmp(keyString, "logLines") == 0){
 					settings.logLines = StringConvertToNumber(valueString);
 					if (settings.debug_enabled){printf("\tlogLines %d\n", settings.logLines);} // (old: %d)
+					
+				} else if(strcmp(keyString, "weightReachedMultiplier") == 0){
+					settings.weightReachedMultiplier = StringConvertToDouble(valueString);
+					if (settings.debug_enabled){printf("\tweightReachedMultiplier %.2f\n", settings.weightReachedMultiplier);} // (old: %d)	
+					
 				
 				} else if(strcmp(keyString, "middlewareHostname") == 0){
 					//TODO: alloc new mem

@@ -117,6 +117,8 @@ struct Time_Values {
 	time_t lastFileChangeTime;
 	uint32_t simulationUpdateTime;
 	uint32_t lastLogSaveTime;
+	uint32_t lastHeatLedTime;
+	uint32_t lastStatusTime;
 };
 struct Running_Mode {
 	bool normalMode;
@@ -133,11 +135,13 @@ struct Running_Mode {
 struct Settings {
 	uint8_t logSaveInterval; //setting for logging interval in seconds
 	uint32_t logLines; //setting for amount of rows logging
+	uint8_t DeleteLogOnStart;  //delete log at start saves disk space set 0 to keep log
+
+	double weightReachedMultiplier;
 	
 	uint8_t BeepWeightReached;
 	uint8_t BeepStepEnd;
-	uint8_t DeleteLogOnStart;  //delete log at start saves disk space set 0 to keep log
-
+	
 	//Values for change 7seg display
 	uint32_t LowTemp;
 	uint32_t LowPress;
@@ -198,6 +202,15 @@ struct State {
 	
 	FILE *logFilePointer;
 	char** logLines;
+	
+	uint32_t lastHeatLedValues[6];
+	uint32_t heatLedValuesSameCount;
+	bool heatHeating;
+	uint32_t heatHeatingLedLastTime;
+	bool heatHasPower;
+	uint32_t heatHasPowerLedLastTime;
+	bool heatNoPan;
+	uint32_t heatNoPanLedLastTime;
 };
 
 

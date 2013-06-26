@@ -38,11 +38,17 @@ uint32_t StringConvertToNumber(const char *str){
 	uint32_t value = 0 ,len = 0, mutiple = 1;
 
 	while (str[len]){
+		if (str[len]<48 || str[len] > 57){
+			break;
+		}
 		len++;
 		mutiple *= 10;
 	}
 	len = 0;	
 	while (str[len]){
+		if (str[len]<48 || str[len] > 57){
+			break;
+		}
 		mutiple = mutiple/10;
 		value = value + (str[len]-48)*mutiple;
 		len++;
@@ -58,12 +64,18 @@ double StringConvertToDouble(char *str){
 		if (str[len] == '.'){
 			break;
 		}
+		if (str[len]<48 || str[len] > 57){
+			break;
+		}
 		len++;
 		mutiple *= 10.0;
 	}
 	len = 0;	
 	while (str[len]){
 		if (str[len] != '.'){
+			if (str[len]<48 || str[len] > 57){
+				break;
+			}
 			mutiple = mutiple/10.0;
 			value = value + (str[len]-48)*mutiple;
 		}
