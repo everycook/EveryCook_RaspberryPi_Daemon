@@ -538,6 +538,24 @@ EOF
 chown root:root $installDir/check_wlan_connected.sh
 chmod 0755 $installDir/check_wlan_connected.sh
 
+
+#@@@@@@@@@@@@@@@
+echo "create $installDir/backupConfig.sh"
+cat << EOF > $installDir/backupConfig.sh
+#!/bin/sh
+
+if [ ! -d '/home/pi/backups' ]; then
+	mkdir /home/pi/backups
+fi
+
+destname=\`date +"%Y%m%d_%H%M"\`
+destname=/home/pi/backups/config_\$destname
+cp $installDir/daemon/config \$destname
+EOF
+chown $userToUse:$webuser $installDir/backupConfig.sh
+chmod 0775 $installDir/backupConfig.sh
+
+
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 echo "install cron every 5 min for 'sudo $installDir/check_wlan_connected.sh'"

@@ -1,5 +1,6 @@
 #configuration file for the EveryCook_RaspberryPi_Daemon
 #lines starting with a # are comments
+shieldVersion=1
 
 #the conversion factor between ADC values and grams 8714000 0 8720000 100
 ForceADC1=9545120
@@ -41,7 +42,7 @@ Gain_LoadCellFrontRight=8
 Gain_LoadCellBackLeft=8
 Gain_LoadCellBackRight=8
 Gain_Press=8
-Gain_Temp=4
+Gain_Temp=2
 
 #beep time in seconds 0=no beep
 BeepWeightReached=1
@@ -52,9 +53,9 @@ DeleteLogOnStart=1
 #delete log at start saves disk space set 0 to keep log
 LogFile=/var/log/EveryCook_Daemon.log
 #interval between two log file writes in seconds
-logSaveInterval=2
+logSaveInterval=5
 #set logLines to 0 to save all Lines
-logLines=100
+logLines=60
 
 #PWM Channels Configuration
 i2c_motor=0

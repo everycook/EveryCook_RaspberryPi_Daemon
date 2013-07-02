@@ -89,7 +89,7 @@ struct I2C_Servo_Values {
 
 struct Command_Values {
 	double temp;
-	double press;
+	int32_t press;
 	uint8_t motorRpm; //0-255 
 	uint32_t motorOn;
 	uint32_t motorOff;
@@ -117,7 +117,6 @@ struct Time_Values {
 	time_t lastFileChangeTime;
 	uint32_t simulationUpdateTime;
 	uint32_t lastLogSaveTime;
-	uint32_t lastHeatLedTime;
 	uint32_t lastStatusTime;
 };
 struct Running_Mode {
@@ -127,12 +126,15 @@ struct Running_Mode {
 	bool test_7seg;
 	bool test_servo;
 	bool test_heat_led;
+	bool test_motor;
 	
 	bool simulationMode;
 	bool simulationModeShow7Segment;
 };
 
 struct Settings {
+	uint32_t shieldVersion;
+
 	uint8_t logSaveInterval; //setting for logging interval in seconds
 	uint32_t logLines; //setting for amount of rows logging
 	uint8_t DeleteLogOnStart;  //delete log at start saves disk space set 0 to keep log
@@ -144,7 +146,7 @@ struct Settings {
 	
 	//Values for change 7seg display
 	uint32_t LowTemp;
-	uint32_t LowPress;
+	int32_t LowPress;
 
 	//delay for normal operation and scale mode
 	uint32_t LongDelay;
@@ -202,17 +204,32 @@ struct State {
 	
 	FILE *logFilePointer;
 	char** logLines;
-	
-	uint32_t lastHeatLedValues[6];
-	uint32_t heatLedValuesSameCount;
-	bool heatHeating;
-	uint32_t heatHeatingLedLastTime;
-	bool heatHasPower;
-	uint32_t heatHasPowerLedLastTime;
-	bool heatNoPan;
-	uint32_t heatNoPanLedLastTime;
 };
 
+struct Heater_Led_Values {
+	bool hasPower;
+	bool isHeating;
+	bool noPan;
+	uint32_t hasPowerLedLastTime;
+	uint32_t isHeatingLedLastTime;
+	uint32_t noPanLedLastTime;
+	
+	bool tempSensorError;
+	bool IGBTSensorError;
+	bool voltageToHeightError;
+	bool voltageToLowError;
+	bool bowOutOfWaterError;
+	bool IGBTTempToHeightError;
+	uint32_t tempSensorErrorLedLastTime;
+	uint32_t IGBTSensorErrorLedLastTime;
+	uint32_t voltageToHeightErrorLedLastTime;
+	uint32_t voltageToLowErrorLedLastTime;
+	uint32_t bowOutOfWaterErrorLedLastTime;
+	uint32_t IGBTTempToHeightErrorLedLastTime;
+	
+	char* errorMsg;
+	uint32_t ledValues[6];
+};
 
 struct Daemon_Values {
 	struct ADC_Config *adc_config;
@@ -235,4 +252,5 @@ struct Daemon_Values {
 
 	struct Settings *settings;
 	struct State *state;
+	struct Heater_Led_Values *heaterStatus;
 };

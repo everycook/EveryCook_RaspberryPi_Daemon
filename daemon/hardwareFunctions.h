@@ -16,7 +16,7 @@ See GPLv3.htm in the main folder for details.
 #include "bool.h"
 
 double readTemp(struct Daemon_Values *dv);
-double readPress(struct Daemon_Values *dv);
+int32_t readPress(struct Daemon_Values *dv);
 bool HeatOn(struct Daemon_Values *dv);
 bool HeatOff(struct Daemon_Values *dv);
 void setMotorPWM(uint16_t pwm, struct Daemon_Values *dv);

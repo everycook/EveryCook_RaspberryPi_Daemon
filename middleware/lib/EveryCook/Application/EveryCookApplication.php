@@ -197,6 +197,13 @@ class EveryCookApplication extends Application
 				return '{percent:1, restTime:0' .$additional . /*', startTime:'.$_GET['startTime'] .*/ '}';
 			}
 			
+			if ($state->heaterHasPower == 0 && $state->SMODE!=self::STANDBY && $state->SMODE!=self::SCALE && $state->SMODE < self::HOT){
+				return '{"error":"Please press Power Button at front to enable Header & Motor"}';
+			}
+			if ($state->noPan == 1  && $state->SMODE!=self::STANDBY && $state->SMODE!=self::SCALE && $state->SMODE < self::HOT){
+				return '{"error":"Please add Pan"}';
+			}
+			
 			$recipe = $info->meal->meaToCous[$info->courseNr]->course->couToRecs[$recipeNr]->recipe;
 			if ($this->_debug) {
 				echo "recipeNr: $recipeNr\r\n";
@@ -216,6 +223,11 @@ class EveryCookApplication extends Application
 			
 			printf("executetTime:%s, currentTime:%s, stepStartTime:%s, restTime:%s\r\n", $executetTime, $currentTime, $stepStartTime, $restTime);
 			
+			if (isset($mealStep->nextStepTotal) && $mealStep->nextStepTotal >0){
+				$percent = 1 - ($restTime / $mealStep->nextStepTotal);
+			} else {
+				$percent = 1;
+			}
 			//$restTime = $state->STIME;
 			$additional='';
 			if ($state->SMODE==self::STANDBY || $state->SMODE==self::CUT || $state->SMODE==self::MOTOR || $state->SMODE==self::COOK || $state->SMODE==self::PRESSHOLD || $state->SMODE==self::COOK_TIMEEND || $state->SMODE==self::RECIPE_END){
@@ -242,6 +254,7 @@ class EveryCookApplication extends Application
 					$additional .= ', text: "' . $text . '"';
 				}
 			} else if ($state->SMODE==self::HEADUP || $state->SMODE==self::HOT){
+				/*
 				if ($step['STE_CELSIUS'] != 0){
 					$percent = $state->T0 / $step['STE_CELSIUS'];
 				} else {
@@ -251,12 +264,16 @@ class EveryCookApplication extends Application
 					$restTime = round(($executetTime / $percent) - $executetTime);
 				}
 				$additional .= ', executetTime: "' . $executetTime . '", totaltime: "' . ($executetTime / $percent)  . '", STIME: "' . $state->STIME . '"'; ;
+				*/
 			} else if ($state->SMODE==self::COOLDOWN || $state->SMODE==self::COLD){
+				/*
 				$percent = $step['STE_CELSIUS'] / $state->T0; //TODO: correct?
 				if ($percent>0.05){ //>5%
 					$restTime = round(($executetTime / $percent) - $executetTime);
 				}
+				*/
 			} else if ($state->SMODE==self::PRESSUP || $state->SMODE==self::PRESSURIZED){
+				/*
 				if ($step['STE_KPA'] != 0){
 					$percent = $state->P0 / $step['STE_KPA'];
 				} else {
@@ -265,11 +282,14 @@ class EveryCookApplication extends Application
 				if ($percent>0.05){ //>5%
 					$restTime = round(($executetTime / $percent) - $executetTime);
 				}
+				*/
 			} else if ($state->SMODE==self::PRESSDOWN  || $state->SMODE==self::PRESSVENT ||$state->SMODE==self::PRESSURELESS){
+				/*
 				$percent = $step['STE_KPA'] / $state->P0; //TODO: correct?
 				if ($percent>0.05){ //>5%
 					$restTime = round(($executetTime / $percent) - $executetTime);
 				}
+				*/
 			} else if ($state->SMODE==self::INPUT_ERROR){
 				return '{"error":"' . 'Input Error' . '"}';
 			} else if ($state->SMODE==self::EMERGANCY_SHUTDOWN){
@@ -339,6 +359,7 @@ class EveryCookApplication extends Application
 			
 			$additional.=', T0:' . $state->T0;
 			$additional.=', P0:' . $state->P0;
+			$additional.=', SMODE:' . $state->SMODE;
 			
 			printf(" percent:%s, restTime:%s, SID:%s, additional:%s\r\n", $state->SID, $percent, $restTime, $additional);
 			

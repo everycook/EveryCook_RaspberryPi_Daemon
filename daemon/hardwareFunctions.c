@@ -66,9 +66,9 @@ double readTemp(struct Daemon_Values *dv){
 }
 
 
-double readPress(struct Daemon_Values *dv){
+int32_t readPress(struct Daemon_Values *dv){
 	if (dv->runningMode->simulationMode){
-		double pressValue = dv->oldCommandValues->press;
+		int32_t pressValue = dv->oldCommandValues->press;
 		int deltaP=dv->newCommandValues->press-dv->oldCommandValues->press;
 		if (dv->currentCommandValues->mode==MODE_PRESSUP || dv->currentCommandValues->mode==MODE_PRESSHOLD) {
 			if (deltaP<0) {
@@ -86,12 +86,13 @@ double readPress(struct Daemon_Values *dv){
 			pressValue = pressValue-1;
 		}
 		//if (settings->debug_enabled){printf("readPress, new Value is %f\n", pressValue);}
-		printf("readPress, new Value is %f\n", pressValue);
+		printf("readPress, new Value is %d\n", pressValue);
 		return pressValue;
 	} else {
 		uint32_t pressValueInt = readADC(dv->adc_config->ADC_Press);
-		double pressValue = pressValueInt* dv->pressCalibration->scaleFactor+dv->pressCalibration->offset;
-		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Press %d digits %.1f kPa | ", pressValueInt, pressValue);}
+		//using int not uint here for show negativ value in calibration mode
+		int32_t pressValue = pressValueInt * dv->pressCalibration->scaleFactor+dv->pressCalibration->offset;
+		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Press %d digits %d kPa | ", pressValueInt, pressValue);}
 		if (dv->runningMode->measure_noise){
 			if (pressValueInt>dv->adc_noise->MaxPress) dv->adc_noise->MaxPress=pressValueInt;
 			if (pressValueInt<dv->adc_noise->MinPress) dv->adc_noise->MinPress=pressValueInt;
@@ -105,13 +106,23 @@ double readPress(struct Daemon_Values *dv){
 //Power control functions
 bool HeatOn(struct Daemon_Values *dv){
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn, was: %d\n", state->heatPowerStatus);}
+	if (dv->state->heatPowerStatus && !dv->heaterStatus->isHeating){
+		if (dv->heaterStatus->isHeatingLedLastTime + 10 < dv->timeValues->runTime){
+			dv->state->heatPowerStatus = false;
+		}
+	}
+			
 	if (!dv->state->heatPowerStatus) { //if its off
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOn status was: %d\n", dv->state->heatPowerStatus);}
+		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isHeating);}
 		if (!dv->runningMode->simulationMode){
-			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
-			delay(500);
-			writeControllButtonPin(IND_KEY4, 1);
-			if (dv->settings->debug3_enabled){printf("-->HeatOn\n");}
+			if (!dv->heaterStatus->isHeating){
+				writeControllButtonPin(IND_KEY4, 0); //"press" the power button
+				delay(500);
+				writeControllButtonPin(IND_KEY4, 1);
+				if (dv->settings->debug3_enabled){printf("-->HeatOn\n");}
+			} else {
+				printf("ERROR: should turn HeatOn, but led's say it is already on, so nothing done\n");
+			}
 		}
 		dv->state->heatPowerStatus=true; //save that we turned it on
 		return true;
@@ -123,12 +134,16 @@ bool HeatOn(struct Daemon_Values *dv){
 bool HeatOff(struct Daemon_Values *dv){
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}
 	if (dv->state->heatPowerStatus) { //if its on
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff\n");}
+	if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isHeating);}
 		if (!dv->runningMode->simulationMode){
-			writeControllButtonPin(IND_KEY4, 0); //"press" the power button
-			delay(500);
-			writeControllButtonPin(IND_KEY4, 1);
-			if (dv->settings->debug3_enabled){printf("-->HeatOff\n");}
+			if (dv->heaterStatus->isHeating){
+				writeControllButtonPin(IND_KEY4, 0); //"press" the power button
+				delay(500);
+				writeControllButtonPin(IND_KEY4, 1);
+				if (dv->settings->debug3_enabled){printf("-->HeatOff\n");}
+			} else {
+				printf("ERROR: should turn HeatOff, but led's say it is already off, so nothing done\n");
+			}
 		}
 		dv->state->heatPowerStatus=false; //save that we turned it off
 		return true;
@@ -143,7 +158,7 @@ void setMotorPWM(uint16_t pwm, struct Daemon_Values *dv){
 		if (!dv->runningMode->simulationMode){
 			writeI2CPin(dv->i2c_config->i2c_motor, pwm);
 		} else {
-			printf("setMotorPWM, pwm: %d\n", pwm);
+			printf("setMotorPWM(sim), pwm: %d\n", pwm);
 		}
 		dv->state->motorPwm = pwm;
 	}

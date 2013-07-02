@@ -26,6 +26,16 @@ function ShowData(){
 		document.getElementById("ActMode").innerHTML=ActualMode;
 		document.getElementById("ActGrams").innerHTML=data.W0;
 		document.getElementById("ActStepID").innerHTML=data.SID;
+		
+		if (data.SMODE==2 && intervalTimeout != 250) {
+			window.clearInterval(update);
+			intervalTimeout = 250;
+			update = window.setInterval("ShowData()",intervalTimeout);
+		} else if (intervalTimeout == 250){
+			window.clearInterval(update);
+			intervalTimeout = 2000;
+			update = window.setInterval("ShowData()",intervalTimeout);
+		}
 	});
 	//Actualgrams=Math.max(Actualgrams,LastGrams);
 	//LastGrams=Actualgrams;
@@ -36,7 +46,7 @@ function ShowData(){
 function MakeGraph(){
 	g = new Dygraph(
 		document.getElementById("demodiv"), "data.txt", {
-			labels: ["Time","Temp","Press","Rpm","Weight","SetTemp","SetPress","SetRpm","SetWeight","SetMode","Mode"],
+			labels: ["Time","Temp","Press","Rpm","Weight","SetTemp","SetPress","SetRpm","SetWeight","SetMode","Mode","heaterHasPower","isHeating","noPan"],
 			//title: 'The Awesome EveryCook Trend Visualisation',
 			legend: 'always',
 			labelsDivWidth: 800,
