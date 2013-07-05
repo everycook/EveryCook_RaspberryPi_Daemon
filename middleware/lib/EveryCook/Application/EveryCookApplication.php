@@ -61,6 +61,7 @@ class EveryCookApplication extends Application
 	
 	
     protected $_clients = array();
+	protected $_clientsPerRecipe = array();
     protected $_lastTimestamp = null;
 	protected $_lastFirmwareState = '';
 	protected $_firmware_client = null;
@@ -143,6 +144,7 @@ class EveryCookApplication extends Application
 	}
 	
 	private function readFromFirmware($info, $recipeNr){
+		echo "readFromFirmware(".$recipeNr.")\r\n";
 		$dest = $info->cookWith[$recipeNr];
 		$inhalt = '';
 		if (isset($dest[0])){
@@ -182,7 +184,7 @@ class EveryCookApplication extends Application
 	}
 	
 	public function getUpdateState($info, $recipeNr, $state){
-		echo "getUpdateState\r\n";
+		echo "getUpdateState(".$recipeNr.")\r\n";
 		if (isset($info->cookWith[$recipeNr]) && isset($info->cookWith[$recipeNr][0]) && $info->cookWith[$recipeNr][0]!=self::COOK_WITH_OTHER){
 			$mealStep = $info->steps[$recipeNr];
 			$mealStep->HWValues = $state;
@@ -372,7 +374,6 @@ class EveryCookApplication extends Application
 	}
 	
 	private function sendState($firmwareState){
-		$recipeNr = 0;
 		$info = $this->getFromCache(self::COOKING_INFOS);
 		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 		if (!$info){
@@ -382,15 +383,16 @@ class EveryCookApplication extends Application
 		}
 		$firmwareState = json_decode($firmwareState);
 		
-		$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
-		$this->_lastState = $state;
-		$this->_lastStateTime = time();
-		$this->_lastUpdateTime = $this->_lastStateTime;
-		$this->_sendAll($state);
+        foreach ($this->_clientsPerRecipe as $recipeNr=>$clientList) {
+			$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
+			$this->_lastState = $state;
+			$this->_lastStateTime = time();
+			$this->_lastUpdateTime = $this->_lastStateTime;
+			$this->_sendToList($state, $clientList);
+        }
 	}
 	
 	private function getAndSendState(){
-		$recipeNr = 0;
 		$info = $this->getFromCache(self::COOKING_INFOS);
 		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 		if (!$info){
@@ -399,25 +401,26 @@ class EveryCookApplication extends Application
 			return;
 		}
 		
-		$firmwareState = $this->readFromFirmware($info, $recipeNr);
-		
-		if ($firmwareState != $this->_lastFirmwareState || $this->_lastUpdateTime+self::MIN_STATUS_INTERVAL < time()){
-			$this->_lastFirmwareState = $firmwareState;
-			if (is_string($firmwareState) && strpos($firmwareState,"ERROR: ") !== false){
-				$this->_lastUpdateTime = time();
-				$this->_sendAll('{"error":"' . substr($firmwareState, 7) . '"}');
-				return;
+		foreach ($this->_clientsPerRecipe as $recipeNr=>$clientList) {
+			$firmwareState = $this->readFromFirmware($info, $recipeNr);
+			
+			if ($firmwareState != $this->_lastFirmwareState || $this->_lastUpdateTime+self::MIN_STATUS_INTERVAL < time()){
+				$this->_lastFirmwareState = $firmwareState;
+				if (is_string($firmwareState) && strpos($firmwareState,"ERROR: ") !== false){
+					$this->_lastUpdateTime = time();
+					$this->_sendAll('{"error":"' . substr($firmwareState, 7) . '"}');
+					return;
+				}
+				$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
+				$this->_lastState = $state;
+				$this->_lastStateTime = time();
+				$this->_lastUpdateTime = $this->_lastStateTime;
+				$this->_sendToList($state, $clientList);
 			}
-			$state = $this->getUpdateState($info, $recipeNr, $firmwareState);
-			$this->_lastState = $state;
-			$this->_lastStateTime = time();
-			$this->_lastUpdateTime = $this->_lastStateTime;
-			$this->_sendAll($state);
 		}
 	}
 	
 	private function sendCommand($command){
-		$recipeNr = 0;
 		$info = $this->getFromCache(self::COOKING_INFOS);
 		if (!$info){
 			$this->_lastUpdateTime = time();
@@ -425,7 +428,9 @@ class EveryCookApplication extends Application
 			return;
 		}
 		
-		$this->sendActionToFirmware($info, $recipeNr, $command);
+		foreach ($this->_clientsPerRecipe as $recipeNr=>$clientList) {
+			$this->sendActionToFirmware($info, $recipeNr, $command);
+		}
 	}
 	
 	private function sendActionToFirmware($info, $recipeNr, $command){
@@ -534,7 +539,7 @@ class EveryCookApplication extends Application
 		if (time()-$this->_lastStateTime < $this->_options['stateValidTimeout'] && !isset($params['reload'])){
 			$client->send($this->_lastState);
 		} else {
-			$recipeNr = 0;
+			$recipeNr = $this->getRecipeNr($client);
 			$info = $this->getFromCache(self::COOKING_INFOS);
 			$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
 			if (!$info){
@@ -609,12 +614,28 @@ class EveryCookApplication extends Application
 		$this->_server = $server;
     }
 	
+	public function getRecipeNr($client){
+		$recipeNr = -1;
+		$params = $client->getParams();
+		if (isset($params['recipeNr'])) {
+			$recipeNr = ($params['recipeNr'])*1;
+		}
+		return $recipeNr;
+	}
+	
     /**
      * @see Wrench\Application.Application::onConnect()
      */
     public function onConnect($client){
         $id = $client->getId();
         $this->_clients[$id] = $client;
+		$recipeNr = $this->getRecipeNr($client);
+		if ($recipeNr != -1){
+			if (!isset($this->_clientsPerRecipe[$recipeNr])){
+				$this->_clientsPerRecipe[$recipeNr] = array();
+			}
+			$this->_clientsPerRecipe[$recipeNr][$id] = $client;
+		}
     }
 
     /**
@@ -623,14 +644,26 @@ class EveryCookApplication extends Application
     public function onDisconnect($client){
         $id = $client->getId();
         unset($this->_clients[$id]);
+		$recipeNr = $this->getRecipeNr($client);
+		if ($recipeNr != -1){
+			if (isset($this->_clientsPerRecipe[$recipeNr])){
+				unset($this->_clientsPerRecipe[$recipeNr][$id]);
+				if (count($this->_clientsPerRecipe[$recipeNr]) == 0){
+					unset($this->_clientsPerRecipe[$recipeNr]);
+				}
+			}
+		}
     }
+	private function _sendAll($data){
+		return $this->_sendToList($data, $this->_clients);
+	}
 	
-    private function _sendAll($data){
-        if (count($this->_clients) < 1) {
+    private function _sendToList($data, $clientList){
+        if (count($clientList) < 1) {
             return false;
         }
 
-        foreach ($this->_clients as $sendto) {
+        foreach ($clientList as $sendto) {
 			try {
 				$sendto->send($data);
 			} catch(Exception $e) {

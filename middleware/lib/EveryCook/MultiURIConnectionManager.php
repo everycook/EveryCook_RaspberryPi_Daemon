@@ -43,6 +43,18 @@ class MultiURIConnectionManager extends ConnectionManager
     }
 
     /**
+     * Gets the application associated with the given path
+     *
+     * @param string $path
+     */
+    public function getApplicationForPath($path)
+    {
+        $path = ltrim($path, '/');
+		@list($path, $params) = explode("?", $path, 2);
+        return $this->server->getApplication($path);
+    }
+	
+    /**
      * Configures the main server socket
      *
      * @param string $uri

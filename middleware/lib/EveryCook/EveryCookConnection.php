@@ -31,7 +31,9 @@ use \Exception;
 use \InvalidArgumentException;
 
 class EveryCookConnection extends MultiURIConnection {
-    protected $isServerConnection = false;
+    protected $_isServerConnection = false;
+	protected $_path;
+	protected $_params = array();
 	
     /**
      * Constructor
@@ -50,7 +52,7 @@ class EveryCookConnection extends MultiURIConnection {
     }
 	
 	public function handshakeServerConnect($data){
-		$this->isServerConnection = true;
+		$this->_isServerConnection = true;
 		$lines = explode("\r\n", $data);
 		$firstLine = array_shift($lines);
 		$headers = array();
@@ -80,6 +82,35 @@ class EveryCookConnection extends MultiURIConnection {
 		$this->handshaked = true;
 	}
 	
+    public function handshakeNormalConnection($data)
+    {
+		try {
+			$eol = strpos($data, "\r\n");
+			if ($eol !== false) {
+				$request = substr($data, 0, $eol);
+			}
+			$matches = array(0 => null, 1 => null);
+			if (preg_match(Protocol::REQUEST_LINE_REGEX, $request, $matches) && $matches[1]) {
+				$this->_path = $matches[1];
+				@list($application, $params) = explode("?", $this->_path, 2);
+				$paramArray = array();
+				if (isset($params) && strlen($params)>0){
+					$params = explode("&", $params);
+					foreach($params as $param){
+						@list($key, $value) = explode("=", $param, 2);
+						$key = urldecode($key);
+						$value = urldecode($value);
+						$paramArray[$key]=$value;
+					}
+				}
+				$this->_params = $paramArray;
+			}
+		} catch(Exception $e){
+			echo $e;
+		}
+		parent::handshake($data);
+    }
+	
     /**
      * @see Wrench.Connection::handshake()
      */
@@ -89,7 +120,7 @@ class EveryCookConnection extends MultiURIConnection {
 			if (strlen($data)>=13 && substr($data, 0, 13) == 'ServerConnect'){
 				$this->handshakeServerConnect($data);
 			} else {
-				parent::handshake($data);
+				$this->handshakeNormalConnection($data);
 			}
 		} catch(Exception $e) {
 			$this->log('Exception in handshake: ' . $e, 'error');
@@ -123,5 +154,9 @@ class EveryCookConnection extends MultiURIConnection {
                 throw new ConnectionException('Unhandled payload type');
         }
     }
+	
+	public function getParams(){
+		return $this->_params;
+	}
 
 }
