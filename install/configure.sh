@@ -549,8 +549,10 @@ if [ ! -d '/home/pi/backups' ]; then
 fi
 
 destname=\`date +"%Y%m%d_%H%M"\`
-destname=/home/pi/backups/config_\$destname
-cp $installDir/daemon/config \$destname
+destname1=/home/pi/backups/config_\$destname
+destname2=/home/pi/backups/calibration_\$destname
+cp $installDir/daemon/config \$destname1
+cp $installDir/daemon/calibration \$destname2
 EOF
 chown $userToUse:$webuser $installDir/backupConfig.sh
 chmod 0775 $installDir/backupConfig.sh

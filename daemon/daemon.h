@@ -30,7 +30,9 @@ void writeLog();
 void parseSockInput(char* input);
 bool ReadFile();
 void evaluateInput();
+bool readConfigLine(char* keyString, char* valueString, FILE *fp);
 void ReadConfigurationFile(void);
+void ReadCalibrationFile(void);
 
 
 void OptionControl();

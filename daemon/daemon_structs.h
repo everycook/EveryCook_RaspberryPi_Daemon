@@ -167,6 +167,7 @@ struct Settings {
 	uint16_t test_servo_max;
 	
 	char *configFile;
+	char *calibrationFile;
 	char *commandFile;
 	char *statusFile;
 	char *logFile;

@@ -73,6 +73,13 @@ int main(int argc, const char* argv[])
 		}
 		sprintf(command, "$installDir/reconnect_wlan.sh");
 		found=1;
+	} else if (strcmp(argv[1], "everycook_sync_wait") == 0){
+		if (argc != 2){
+			printf("Usage is: everycook_sync_wait\r\n");
+			return 1;
+		}
+		sprintf(command, "$installDir/everycook_sync_wait.sh");
+		found=1;
 	} else if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "usage") == 0 || strcmp(argv[1], "-?") == 0){
 		printf("Usage: %s command [params]\r\n", argv[0]);
 		printf("commands are:");
@@ -85,9 +92,19 @@ int main(int argc, const char* argv[])
 	}
 	
 	if (found == 1){
-		setuid( 0 );
-		system( command );
-		return 0;
+		setuid( 0 ); //run the command as root
+		int result = system( command );
+		
+		if(result == -1) {
+			printf("some error is occured in that shell command\n");
+			return 1;
+		/*} else if (WEXITSTATUS(result) == 127){
+			printf("That shell command is not found\n");
+			return 1;
+		*/
+		} else {
+			return WEXITSTATUS(result);
+		}
 	} else {
 		printf("unknown function %s\r\n", argv[1]);
 		return 1;
@@ -209,3 +226,24 @@ fi
 EOF
 chown root:root $installDir/reconnect_wlan.sh
 chmod 0755 $installDir/reconnect_wlan.sh
+
+
+#@@@@@@@@@@@@@@@
+
+echo "create $installDir/everycook_sync_wait.sh"
+cat << EOF > $installDir/everycook_sync_wait.sh
+#!/bin/bash
+ping -c 1 www.everycook.org
+if [ "\$?" == "0" ]; then
+	pushd . > /dev/null
+	cd $installDir/sync/
+	./sync_privdata.sh
+	./sync_recipes.sh
+	./sync_php.sh
+	popd > /dev/null
+else
+	exit 1
+fi
+EOF
+chown root:root $installDir/everycook_sync_wait.sh
+chmod 0755 $installDir/everycook_sync_wait.sh

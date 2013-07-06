@@ -142,5 +142,6 @@ return array(
 		'syncCredentialsFile'=>'/opt/EveryCook/sync/login_cred',
 		'cacheMethode'=>'memcached', //'session','apc','memcached',
 		'stepMinTime'=>10,
+		'runSyncCommand'=>'/opt/EveryCook/installSettings everycook_sync_wait',
 	),
 );

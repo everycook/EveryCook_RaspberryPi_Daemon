@@ -2,47 +2,11 @@
 #lines starting with a # are comments
 shieldVersion=1
 
-#the conversion factor between ADC values and grams 8714000 0 8720000 100
-ForceADC1=9545120
-ForceADC2=9595180
-ForceValue1=0
-ForceValue2=1000
-
 weightReachedMultiplier=0.95
-
-#two calibrations points between adc values and pressure in kpa
-PressADC1=4815000
-PressValue1=0
-PressADC2=2600000
-PressValue2=100.0
-
-#two calibrations points between ADC values and temperature in °C
-TempADC1=6750000
-#digits
-TempValue1=22
-#degrees
-TempADC2=6300000
-TempValue2=98.2
 
 #values for change display
 LowTemp=40
 LowPress=10
-
-#ADC channels
-ADC_LoadCellFrontLeft=0
-ADC_LoadCellFrontRight=2
-ADC_LoadCellBackLeft=1
-ADC_LoadCellBackRight=4
-ADC_Press=3
-ADC_Temp=5
-
-#AD7794 ADC programmable gain configuration
-Gain_LoadCellFrontLeft=8
-Gain_LoadCellFrontRight=8
-Gain_LoadCellBackLeft=8
-Gain_LoadCellBackRight=8
-Gain_Press=8
-Gain_Temp=2
 
 #beep time in seconds 0=no beep
 BeepWeightReached=1
@@ -57,29 +21,6 @@ logSaveInterval=5
 #set logLines to 0 to save all Lines
 logLines=60
 
-#PWM Channels Configuration
-i2c_motor=0
-i2c_servo=1
-#DisplaySegA
-i2c_7seg_top=4
-#DisplaySegB
-i2c_7seg_top_left=3
-#DisplaySegF
-i2c_7seg_top_right=5
-#DisplaySegG
-i2c_7seg_center=2
-#DisplaySegE
-i2c_7seg_bottom_left=6
-#DisplaySegC
-i2c_7seg_bottom_right=8
-#DisplaySegD
-i2c_7seg_bottom=7
-#DisplaySegDP
-i2c_7seg_period=9
-
-i2c_servo_open=210
-i2c_servo_close=350
-
 
 #Induction Heater GPIO pins
 PowerOnPin=4
@@ -87,6 +28,7 @@ PowerOnPin=4
 #communication
 CommandFile=/run/shm/command
 StatusFile=/run/shm/status
+calibrationFile=/opt/EveryCook/daemon/calibration
 
 middlewareHostname=127.0.0.1
 middlewarePortno=8000

@@ -68,7 +68,7 @@ struct Time_Values timeValues = {};
 
 struct Running_Mode runningMode = {true, false, false, false, false, false, false,  false, false};
 
-struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/dev/shm/command", "/dev/shm/status", "/var/log/EveryCook_Daemon.log"};
+struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log"};
 
 struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, 0, ' ',false, -1,"", 0};
 
@@ -143,6 +143,7 @@ int main(int argc, const char* argv[]){
 	delay(30);
 	StringClean(state.TotalUpdate, 512);
 	ReadConfigurationFile();
+	ReadCalibrationFile();
 	
 	initOutputFile();
 	state.Delay = settings.LongDelay;
@@ -165,8 +166,7 @@ int main(int argc, const char* argv[]){
 	
 	
 	if (runningMode.normalMode){
-		int iret1;
-		iret1 = pthread_create( &threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		pthread_create( &threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
 		while (state.running){
 			if (settings.debug_enabled){printf("main loop...\n");}
 			if (timeValues.lastRunTime != timeValues.runTime){
@@ -194,11 +194,9 @@ int main(int argc, const char* argv[]){
 		setMotorPWM(0, &daemon_values);
 		setServoOpen(0, 1, 0, &daemon_values);
 		pthread_join( threadHeaterLedReader, NULL);
-		printf("thrad return was:%d\n", iret1);
 	} else if (runningMode.calibration || runningMode.measure_noise){
-		int iret1;
 		if (runningMode.calibration) {
-			iret1 = pthread_create( &threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+			pthread_create( &threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
 		}
 		while (state.running){
 			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
@@ -212,7 +210,6 @@ int main(int argc, const char* argv[]){
 		if (runningMode.calibration){
 			if (runningMode.calibration) HeatOff(&daemon_values);
 			pthread_join( threadHeaterLedReader, NULL);
-			printf("thrad return was:%d\n", iret1);
 		}
 	} else if (runningMode.test_7seg){
 		while (state.running){
@@ -376,6 +373,16 @@ int main(int argc, const char* argv[]){
 	if (settings.logLines == 0 || state.logLineNr<settings.logLines){
 		fclose(state.logFilePointer);
 	}
+	
+	//free allocated memmory
+	if (settings.logLines != 0){
+		uint32_t i=0;
+		for (; i<=state.logLineNr; ++i){
+			if (state.logLines[i] != NULL){ free(state.logLines[i]); }
+		}
+		free(state.logLines);
+	}
+	printf("program ended normally\n");
 	
 	exit(0); //To make sure all Threads are closed
 	return 0;
@@ -1035,6 +1042,7 @@ void writeLog(){
 				state.logFilePointer = fopen(settings.logFile, "w");
 				fputs(state.logLines[0], state.logFilePointer);
 				uint32_t i=1;
+				if (state.logLines[i] != NULL){ free(state.logLines[i]); }
 				for (; i<settings.logLines; ++i){
 					state.logLines[i] = state.logLines[i+1];
 					fputs(state.logLines[i], state.logFilePointer);
@@ -1202,11 +1210,175 @@ void evaluateInput(){
 
 
 
+
+bool readConfigLine(char* keyString, char* valueString, FILE *fp){
+	char c;
+	char c2;
+	
+	uint8_t i = 0;
+	c = fgetc(fp);
+	while (c != 255){
+		if (c == '#'){
+			if (settings.debug_enabled){printf("\tline with # found\n");}
+			while (c != '\r' && c != '\n' && c != 255){
+				c = fgetc(fp);
+			}
+		} else if (c == '\n'){
+			//Empty line or end of last line
+		} else if (c == '\r'){
+			//Empty line
+		} else {
+			i = 0;
+			while (c != '=' && c != '\r' && c != '\n'){
+				keyString[i] = c;
+				c = fgetc(fp);
+				++i;
+			}
+			i = 0;
+			c = fgetc(fp); //currently its '=' so read next
+			while (c != '\r' && c != '\n' && c != 255){
+				if (c == '#'){
+					//allow coment behind value
+					break;
+				}
+				valueString[i] = c;
+				c = fgetc(fp);
+				++i;
+			}
+			if (c == '#'){
+				//read until line end so comment is readed
+				if (settings.debug_enabled){printf("\tline with # at end of value found\n");}
+				c = fgetc(fp);
+				while (c != '\r' && c != '\n' && c != 255){
+					c = fgetc(fp);
+				}
+			}
+			//remove spaces at end of value
+			--i;
+			if (i>0){
+				c2 = valueString[i];
+				while (c2 == ' ' || c2 == '\t'){
+					valueString[i] = 0x00;
+					--i;
+					if (i < 0){
+						break;
+					}
+					c2 = valueString[i];
+				}
+			}
+			return true;
+		}
+		c = fgetc(fp);
+	}
+	return false;
+}
+
 /* Read the configuration
  *
  */
 void ReadConfigurationFile(void){
 	if (settings.debug_enabled){printf("ReadConfigurationFile...\n");}
+	
+	bool showReadedConfigs = settings.debug_enabled;
+	
+	FILE *fp;
+	char keyString[30];
+	char valueString[100];
+	StringClean(keyString, 30);
+	StringClean(valueString, 100);
+	fp = fopen(settings.configFile, "r");
+	if (fp != NULL){
+		while (readConfigLine(&keyString[0], &valueString[0], fp)){
+			if (settings.debug_enabled){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
+			
+			//ParseConfigValue
+			if(strcmp(keyString, "BeepWeightReached") == 0){
+				settings.BeepWeightReached = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tBeepWeightReached: %d\n", settings.BeepWeightReached);} // (old: %d)
+			} else if(strcmp(keyString, "BeepStepEnd") == 0){
+				settings.BeepStepEnd = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", settings.BeepStepEnd);} // (old: %d)
+			} else if(strcmp(keyString, "doRememberBeep") == 0){
+				settings.doRememberBeep = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tdoRememberBeep: %d\n", settings.doRememberBeep);} // (old: %d)
+			} else if(strcmp(keyString, "DeleteLogOnStart") == 0){
+				settings.DeleteLogOnStart = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tDeleteLogOnStart: %d\n", settings.DeleteLogOnStart);} // (old: %d)
+			} else if(strcmp(keyString, "calibrationFile") == 0){
+				settings.calibrationFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.calibrationFile[0], valueString);
+				if (showReadedConfigs){printf("\tcalibrationFile: %s\n", settings.calibrationFile);} // (old: %s)
+			} else if(strcmp(keyString, "LogFile") == 0){
+				settings.logFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.logFile[0], valueString);
+				if (showReadedConfigs){printf("\tLogFile: %s\n", settings.logFile);} // (old: %s)
+			} else if(strcmp(keyString, "CommandFile") == 0){
+				settings.commandFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.commandFile[0], valueString);
+				if (showReadedConfigs){printf("\tCommandFile: %s\n", settings.commandFile);} // (old: %s)
+			} else if(strcmp(keyString, "StatusFile") == 0){
+				settings.statusFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.statusFile[0], valueString);
+				if (showReadedConfigs){printf("\tStatusFile: %s\n", settings.statusFile);} // (old: %s)
+			} else if(strcmp(keyString, "LowTemp") == 0){
+				settings.LowTemp = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tLowTemp: %d\n", settings.LowTemp);} // (old: %d)
+			} else if(strcmp(keyString, "LowPress") == 0){
+				settings.LowPress = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tLowPress: %d\n", settings.LowPress);} // (old: %d)
+			} else if(strcmp(keyString, "LongDelay") == 0){
+				settings.LongDelay = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tLongDelay: %d\n", settings.LongDelay);} // (old: %d)
+			} else if(strcmp(keyString, "ShortDelay") == 0){
+				settings.ShortDelay = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tShortDelay: %d\n", settings.ShortDelay);} // (old: %d)
+				
+			} else if(strcmp(keyString, "logSaveInterval") == 0){
+				settings.logSaveInterval = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tlogSaveInterval: %d\n", settings.logSaveInterval);} // (old: %d)
+			} else if(strcmp(keyString, "logLines") == 0){
+				settings.logLines = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tlogLines %d\n", settings.logLines);} // (old: %d)
+				
+			} else if(strcmp(keyString, "weightReachedMultiplier") == 0){
+				settings.weightReachedMultiplier = StringConvertToDouble(valueString);
+				if (showReadedConfigs){printf("\tweightReachedMultiplier %.2f\n", settings.weightReachedMultiplier);} // (old: %d)	
+				
+			} else if(strcmp(keyString, "shieldVersion") == 0){
+				settings.shieldVersion = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tshieldVersion: %d\n", settings.shieldVersion);}
+			
+			
+			} else if(strcmp(keyString, "middlewareHostname") == 0){
+				settings.middlewareHostname = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.middlewareHostname[0], valueString);
+				if (showReadedConfigs){printf("\tmiddlewareHostname: %s\n", settings.middlewareHostname);}
+			} else if(strcmp(keyString, "middlewarePortno") == 0){
+				settings.middlewarePortno = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tmiddlewarePortno: %d\n", settings.middlewarePortno);}
+				
+			} else {
+				if (settings.debug_enabled){printf("\tkey not Found\n");}
+			}
+			StringClean(keyString, 30);
+			StringClean(valueString, 100);
+		}
+	} else {
+		printf("config file '%s' not found!", settings.configFile);
+	}
+	
+	fclose(fp);
+	
+	if (settings.shieldVersion != 1){
+		printf("Shield version %d unknown stop daemon.\n", settings.shieldVersion);
+		exit(1);
+	}
+	
+	if (settings.debug_enabled){printf("done.\n");}
+}
+
+void ReadCalibrationFile(void){
+	if (settings.debug_enabled){printf("ReadCalibrationFile...\n");}
 	
 	bool showReadedConfigs = settings.debug_enabled || runningMode.calibration;
 	uint32_t newADCConfig[] = {0x710, 0x711, 0x712, 0x713, 0x714, 0x115};
@@ -1214,270 +1386,156 @@ void ReadConfigurationFile(void){
 	FILE *fp;
 	char keyString[30];
 	char valueString[100];
-	uint8_t i = 0;
 	uint8_t ptr = 0;
-	char c;
-	char c2;
 	StringClean(keyString, 30);
 	StringClean(valueString, 100);
-	fp = fopen(settings.configFile, "r");
+	fp = fopen(settings.calibrationFile, "r");
 	if (fp != NULL){
-		c = fgetc(fp);
-		while (c != 255){
-			if (c == '#'){
-				if (showReadedConfigs){printf("\tline with # found\n");}
-				while (c != '\r' && c != '\n'){
-					c = fgetc(fp);
-				}
-			} else if (c == '\n'){
-				//Empty line or end of last line
-			} else if (c == '\r'){
-				//Empty line
+		while (readConfigLine(&keyString[0], &valueString[0], fp)){
+			if (settings.debug_enabled){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
+			
+			//ParseConfigValue
+			//scale
+			if(strcmp(keyString, "ForceADC1") == 0){
+				forceCalibration.ADC1 = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tForceADC1: %d\n", forceCalibration.ADC1);} // (old: %d)
+			} else if(strcmp(keyString, "ForceValue1") == 0){
+				forceCalibration.Value1 = StringConvertToDouble(valueString);
+				if (showReadedConfigs){printf("\tForceValue1: %f\n", forceCalibration.Value1);} // (old: %d)
+			} else if(strcmp(keyString, "ForceADC2") == 0){
+				forceCalibration.ADC2 = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tForceADC2: %d\n", forceCalibration.ADC2);} // (old: %d)
+			} else if(strcmp(keyString, "ForceValue2") == 0){
+				forceCalibration.Value2 = StringConvertToDouble(valueString);
+				if (showReadedConfigs){printf("\tForceValue2: %f\n", forceCalibration.Value2);} // (old: %d)
+				
+			//pressure
+			} else if(strcmp(keyString, "PressADC1") == 0){
+				pressCalibration.ADC1 = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tPressADC1: %d\n", pressCalibration.ADC1);} // (old: %d)
+			} else if(strcmp(keyString, "PressValue1") == 0){
+				pressCalibration.Value1 = StringConvertToDouble(valueString);
+				if (showReadedConfigs){printf("\tPressValue1: %f\n", pressCalibration.Value1);} // (old: %d)
+			} else if(strcmp(keyString, "PressADC2") == 0){
+				pressCalibration.ADC2 = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tPressADC2: %d\n", pressCalibration.ADC2);} // (old: %d)
+			} else if(strcmp(keyString, "PressValue2") == 0){
+				pressCalibration.Value2 = StringConvertToDouble(valueString);
+				if (showReadedConfigs){printf("\tPressValue2: %f\n", pressCalibration.Value2);} // (old: %d)
+				
+			//temperature
+			} else if(strcmp(keyString, "TempADC1") == 0){
+				tempCalibration.ADC1 = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tTempADC1: %d\n", tempCalibration.ADC1);} // (old: %d)
+			} else if(strcmp(keyString, "TempValue1") == 0){
+				tempCalibration.Value1 = StringConvertToDouble(valueString);
+				if (showReadedConfigs){printf("\tTempValue1: %f\n", tempCalibration.Value1);} // (old: %d)
+			} else if(strcmp(keyString, "TempADC2") == 0){
+				tempCalibration.ADC2 = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tTempADC2: %d\n", tempCalibration.ADC2);} // (old: %d)
+			} else if(strcmp(keyString, "TempValue2") == 0){
+				tempCalibration.Value2 = StringConvertToDouble(valueString);
+				if (showReadedConfigs){printf("\tTempValue2: %f\n", tempCalibration.Value2);} // (old: %d)
+			
+			//adc channels
+			} else if(strcmp(keyString, "ADC_LoadCellFrontLeft") == 0){
+				adc_config.ADC_LoadCellFrontLeft = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tADC_LoadCellFrontLeft: %d\n", adc_config.ADC_LoadCellFrontLeft);}
+			} else if(strcmp(keyString, "ADC_LoadCellFrontRight") == 0){
+				adc_config.ADC_LoadCellFrontRight = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tLADC_oadCellFrontRight: %d\n", adc_config.ADC_LoadCellFrontRight);}
+			} else if(strcmp(keyString, "ADC_LoadCellBackLeft") == 0){
+				adc_config.ADC_LoadCellBackLeft = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tADC_LoadCellBackLeft: %d\n", adc_config.ADC_LoadCellBackLeft);}
+			} else if(strcmp(keyString, "ADC_LoadCellBackRight") == 0){
+				adc_config.ADC_LoadCellBackRight = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tADC_LoadCellBackRight: %d\n", adc_config.ADC_LoadCellBackRight);}
+			} else if(strcmp(keyString, "ADC_Press") == 0){
+				adc_config.ADC_Press = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tADC_Press: %d\n", adc_config.ADC_Press);}
+			} else if(strcmp(keyString, "ADC_Temp") == 0){
+				adc_config.ADC_Temp = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tADC_Temp: %d\n", adc_config.ADC_Temp);}
+			
+			//adc gain
+			} else if(strcmp(keyString, "Gain_LoadCellFrontLeft") == 0){
+				ptr = adc_config.ADC_LoadCellFrontLeft;
+				newADCConfig[ptr] = StringConvertToNumber(valueString);
+				newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
+				if (showReadedConfigs){printf("\tGain_LoadCellFrontLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
+			} else if(strcmp(keyString, "Gain_LoadCellFrontRight") == 0){
+				ptr = adc_config.ADC_LoadCellFrontRight;
+				newADCConfig[ptr] = StringConvertToNumber(valueString);
+				newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
+				if (showReadedConfigs){printf("\tGain_LoadCellFrontRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
+			} else if(strcmp(keyString, "Gain_LoadCellBackLeft") == 0){
+				ptr = adc_config.ADC_LoadCellBackLeft;
+				newADCConfig[ptr] = StringConvertToNumber(valueString);
+				newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
+				if (showReadedConfigs){printf("\tGain_LoadCellBackLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
+			} else if(strcmp(keyString, "Gain_LoadCellBackRight") == 0){
+				ptr = adc_config.ADC_LoadCellBackRight;
+				newADCConfig[ptr] = StringConvertToNumber(valueString);
+				newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
+				if (showReadedConfigs){printf("\tGain_LoadCellBackRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
+			} else if(strcmp(keyString, "Gain_Press") == 0){
+				ptr = adc_config.ADC_Press;
+				newADCConfig[ptr] = StringConvertToNumber(valueString);
+				newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
+				if (showReadedConfigs){printf("\tGain_Press: %04X\n", newADCConfig[ptr]);} // (old: %d)
+			} else if(strcmp(keyString, "Gain_Temp") == 0){
+				ptr = adc_config.ADC_Temp;
+				newADCConfig[ptr] = StringConvertToNumber(valueString);
+				newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
+				if (showReadedConfigs){printf("\tGain_Temp: %04X\n", newADCConfig[ptr]);} // (old: %d)
+			
+			//7seg pins
+			} else if(strcmp(keyString, "i2c_7seg_top") == 0){
+				i2c_config.i2c_7seg_top = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_top: %d\n", i2c_config.i2c_7seg_top);}
+			} else if(strcmp(keyString, "i2c_7seg_top_left") == 0){
+				i2c_config.i2c_7seg_top_left = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_top_left: %d\n", i2c_config.i2c_7seg_top_left);}
+			} else if(strcmp(keyString, "i2c_7seg_top_right") == 0){
+				i2c_config.i2c_7seg_top_right = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_top_right: %d\n", i2c_config.i2c_7seg_top_right);}
+			} else if(strcmp(keyString, "i2c_7seg_center") == 0){
+				i2c_config.i2c_7seg_center = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_center: %d\n", i2c_config.i2c_7seg_center);}
+			} else if(strcmp(keyString, "i2c_7seg_bottom_left") == 0){
+				i2c_config.i2c_7seg_bottom_left = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_bottom_left: %d\n", i2c_config.i2c_7seg_bottom_left);}
+			} else if(strcmp(keyString, "i2c_7seg_bottom_right") == 0){
+				i2c_config.i2c_7seg_bottom_right = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_bottom_right: %d\n", i2c_config.i2c_7seg_bottom_right);}
+			} else if(strcmp(keyString, "i2c_7seg_bottom") == 0){
+				i2c_config.i2c_7seg_bottom = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_bottom: %d\n", i2c_config.i2c_7seg_bottom);}
+			} else if(strcmp(keyString, "i2c_7seg_period") == 0){
+				i2c_config.i2c_7seg_period = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_7seg_period: %d\n", i2c_config.i2c_7seg_period);}
+				
+			} else if(strcmp(keyString, "i2c_motor") == 0){
+				i2c_config.i2c_motor = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_motor: %d\n", i2c_config.i2c_motor);}
+			} else if(strcmp(keyString, "i2c_servo") == 0){
+				i2c_config.i2c_servo = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_servo %d\n", i2c_config.i2c_servo);}
+				
+			} else if(strcmp(keyString, "i2c_servo_open") == 0){
+				i2c_servo_values.i2c_servo_open = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_servo_open: %d\n", i2c_servo_values.i2c_servo_open);}
+			} else if(strcmp(keyString, "i2c_servo_closed") == 0){
+				i2c_servo_values.i2c_servo_closed = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_servo_closed %d\n", i2c_servo_values.i2c_servo_closed);}
 			} else {
-				i = 0;
-				while (c != '=' && c != '\r' && c != '\n'){
-					keyString[i] = c;
-					c = fgetc(fp);
-					++i;
-				}
-				i = 0;
-				c = fgetc(fp); //currently its '=' so read next
-				while (c != '\r' && c != '\n'){
-					if (c == '#'){
-						//allow coment behind value
-						break;
-					}
-					valueString[i] = c;
-					c = fgetc(fp);
-					++i;
-				}
-				//remove spaces at end of value
-				--i;
-				if (i>0){
-					c2 = valueString[i];
-					while (c2 == ' ' || c2 == '\t'){
-						valueString[i] = 0x00;
-						--i;
-						if (i < 0){
-							break;
-						}
-						c2 = valueString[i];
-					}
-				}
-				
-				if (showReadedConfigs){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
-				
-				//ParseConfigValue
-				//scale
-				if(strcmp(keyString, "ForceADC1") == 0){
-					forceCalibration.ADC1 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tForceADC1: %d\n", forceCalibration.ADC1);} // (old: %d)
-				} else if(strcmp(keyString, "ForceValue1") == 0){
-					forceCalibration.Value1 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tForceValue1: %f\n", forceCalibration.Value1);} // (old: %d)
-				} else if(strcmp(keyString, "ForceADC2") == 0){
-					forceCalibration.ADC2 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tForceADC2: %d\n", forceCalibration.ADC2);} // (old: %d)
-				} else if(strcmp(keyString, "ForceValue2") == 0){
-					forceCalibration.Value2 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tForceValue2: %f\n", forceCalibration.Value2);} // (old: %d)
-				//pressure
-				} else if(strcmp(keyString, "PressADC1") == 0){
-					pressCalibration.ADC1 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tPressADC1: %d\n", pressCalibration.ADC1);} // (old: %d)
-				} else if(strcmp(keyString, "PressValue1") == 0){
-					pressCalibration.Value1 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tPressValue1: %f\n", pressCalibration.Value1);} // (old: %d)
-				} else if(strcmp(keyString, "PressADC2") == 0){
-					pressCalibration.ADC2 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tPressADC2: %d\n", pressCalibration.ADC2);} // (old: %d)
-				} else if(strcmp(keyString, "PressValue2") == 0){
-					pressCalibration.Value2 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tPressValue2: %f\n", pressCalibration.Value2);} // (old: %d)
-				//temperature
-				} else if(strcmp(keyString, "TempADC1") == 0){
-					tempCalibration.ADC1 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tTempADC1: %d\n", tempCalibration.ADC1);} // (old: %d)
-				} else if(strcmp(keyString, "TempValue1") == 0){
-					tempCalibration.Value1 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tTempValue1: %f\n", tempCalibration.Value1);} // (old: %d)
-				} else if(strcmp(keyString, "TempADC2") == 0){
-					tempCalibration.ADC2 = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tTempADC2: %d\n", tempCalibration.ADC2);} // (old: %d)
-				} else if(strcmp(keyString, "TempValue2") == 0){
-					tempCalibration.Value2 = StringConvertToDouble(valueString);
-					if (showReadedConfigs){printf("\tTempValue2: %f\n", tempCalibration.Value2);} // (old: %d)
-				
-				//adc channels
-				} else if(strcmp(keyString, "ADC_LoadCellFrontLeft") == 0){
-					adc_config.ADC_LoadCellFrontLeft = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_LoadCellFrontLeft: %d\n", adc_config.ADC_LoadCellFrontLeft);}
-
-				} else if(strcmp(keyString, "ADC_LoadCellFrontRight") == 0){
-					adc_config.ADC_LoadCellFrontRight = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tLADC_oadCellFrontRight: %d\n", adc_config.ADC_LoadCellFrontRight);}
-
-				} else if(strcmp(keyString, "ADC_LoadCellBackLeft") == 0){
-					adc_config.ADC_LoadCellBackLeft = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_LoadCellBackLeft: %d\n", adc_config.ADC_LoadCellBackLeft);}
-
-				} else if(strcmp(keyString, "ADC_LoadCellBackRight") == 0){
-					adc_config.ADC_LoadCellBackRight = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_LoadCellBackRight: %d\n", adc_config.ADC_LoadCellBackRight);}
-
-				} else if(strcmp(keyString, "ADC_Press") == 0){
-					adc_config.ADC_Press = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_Press: %d\n", adc_config.ADC_Press);}
-
-				} else if(strcmp(keyString, "ADC_Temp") == 0){
-					adc_config.ADC_Temp = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tADC_Temp: %d\n", adc_config.ADC_Temp);}
-					
-				} else if(strcmp(keyString, "Gain_LoadCellFrontLeft") == 0){
-					ptr = adc_config.ADC_LoadCellFrontLeft;
-					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
-					if (showReadedConfigs){printf("\tGain_LoadCellFrontLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				} else if(strcmp(keyString, "Gain_LoadCellFrontRight") == 0){
-					ptr = adc_config.ADC_LoadCellFrontRight;
-					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
-					if (showReadedConfigs){printf("\tGain_LoadCellFrontRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				} else if(strcmp(keyString, "Gain_LoadCellBackLeft") == 0){
-					ptr = adc_config.ADC_LoadCellBackLeft;
-					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
-					if (showReadedConfigs){printf("\tGain_LoadCellBackLeft: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				} else if(strcmp(keyString, "Gain_LoadCellBackRight") == 0){
-					ptr = adc_config.ADC_LoadCellBackRight;
-					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
-					if (showReadedConfigs){printf("\tGain_LoadCellBackRight: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				} else if(strcmp(keyString, "Gain_Press") == 0){
-					ptr = adc_config.ADC_Press;
-					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
-					if (showReadedConfigs){printf("\tGain_Press: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				} else if(strcmp(keyString, "Gain_Temp") == 0){
-					ptr = adc_config.ADC_Temp;
-					newADCConfig[ptr] = StringConvertToNumber(valueString);
-					newADCConfig[ptr] = POWNTimes(newADCConfig[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
-					if (showReadedConfigs){printf("\tGain_Temp: %04X\n", newADCConfig[ptr]);} // (old: %d)
-				
-				} else if(strcmp(keyString, "BeepWeightReached") == 0){
-					settings.BeepWeightReached = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tBeepWeightReached: %d\n", settings.BeepWeightReached);} // (old: %d)
-				} else if(strcmp(keyString, "BeepStepEnd") == 0){
-					settings.BeepStepEnd = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", settings.BeepStepEnd);} // (old: %d)
-				} else if(strcmp(keyString, "doRememberBeep") == 0){
-					settings.doRememberBeep = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tdoRememberBeep: %d\n", settings.doRememberBeep);} // (old: %d)
-				} else if(strcmp(keyString, "DeleteLogOnStart") == 0){
-					settings.DeleteLogOnStart = StringConvertToNumber(valueString);
-					if (showReadedConfigs){printf("\tDeleteLogOnStart: %d\n", settings.DeleteLogOnStart);} // (old: %d)
-				} else if(strcmp(keyString, "LogFile") == 0){
-					settings.logFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
-					strcpy(&settings.logFile[0], valueString);
-					if (showReadedConfigs){printf("\tLogFile: %s\n", settings.logFile);} // (old: %s)
-				} else if(strcmp(keyString, "CommandFile") == 0){
-					settings.commandFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
-					strcpy(&settings.commandFile[0], valueString);
-					if (showReadedConfigs){printf("\tCommandFile: %s\n", settings.commandFile);} // (old: %s)
-				} else if(strcmp(keyString, "StatusFile") == 0){
-					settings.statusFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
-					strcpy(&settings.statusFile[0], valueString);
-					if (settings.debug_enabled){printf("\tStatusFile: %s\n", settings.statusFile);} // (old: %s)
-				} else if(strcmp(keyString, "LowTemp") == 0){
-					settings.LowTemp = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tLowTemp: %d\n", settings.LowTemp);} // (old: %d)
-				} else if(strcmp(keyString, "LowPress") == 0){
-					settings.LowPress = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tLowPress: %d\n", settings.LowPress);} // (old: %d)
-				} else if(strcmp(keyString, "LongDelay") == 0){
-					settings.LongDelay = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tLongDelay: %d\n", settings.LongDelay);} // (old: %d)
-				} else if(strcmp(keyString, "ShortDelay") == 0){
-					settings.ShortDelay = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tShortDelay: %d\n", settings.ShortDelay);} // (old: %d)
-					
-				} else if(strcmp(keyString, "logSaveInterval") == 0){
-					settings.logSaveInterval = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tlogSaveInterval: %d\n", settings.logSaveInterval);} // (old: %d)
-				} else if(strcmp(keyString, "logLines") == 0){
-					settings.logLines = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tlogLines %d\n", settings.logLines);} // (old: %d)
-					
-				} else if(strcmp(keyString, "weightReachedMultiplier") == 0){
-					settings.weightReachedMultiplier = StringConvertToDouble(valueString);
-					if (settings.debug_enabled){printf("\tweightReachedMultiplier %.2f\n", settings.weightReachedMultiplier);} // (old: %d)	
-					
-				} else if(strcmp(keyString, "shieldVersion") == 0){
-					settings.shieldVersion = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tshieldVersion: %d\n", settings.shieldVersion);}
-				
-				
-				} else if(strcmp(keyString, "middlewareHostname") == 0){
-					settings.middlewareHostname = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
-					strcpy(&settings.middlewareHostname[0], valueString);
-					if (settings.debug_enabled){printf("\tmiddlewareHostname: %s\n", settings.middlewareHostname);}
-				} else if(strcmp(keyString, "middlewarePortno") == 0){
-					settings.middlewarePortno = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\tmiddlewarePortno: %d\n", settings.middlewarePortno);}
-					
-				} else if(strcmp(keyString, "i2c_7seg_top") == 0){
-					i2c_config.i2c_7seg_top = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_top: %d\n", i2c_config.i2c_7seg_top);}
-				} else if(strcmp(keyString, "i2c_7seg_top_left") == 0){
-					i2c_config.i2c_7seg_top_left = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_top_left: %d\n", i2c_config.i2c_7seg_top_left);}
-				} else if(strcmp(keyString, "i2c_7seg_top_right") == 0){
-					i2c_config.i2c_7seg_top_right = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_top_right: %d\n", i2c_config.i2c_7seg_top_right);}
-				} else if(strcmp(keyString, "i2c_7seg_center") == 0){
-					i2c_config.i2c_7seg_center = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_center: %d\n", i2c_config.i2c_7seg_center);}
-				} else if(strcmp(keyString, "i2c_7seg_bottom_left") == 0){
-					i2c_config.i2c_7seg_bottom_left = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_bottom_left: %d\n", i2c_config.i2c_7seg_bottom_left);}
-				} else if(strcmp(keyString, "i2c_7seg_bottom_right") == 0){
-					i2c_config.i2c_7seg_bottom_right = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_bottom_right: %d\n", i2c_config.i2c_7seg_bottom_right);}
-				} else if(strcmp(keyString, "i2c_7seg_bottom") == 0){
-					i2c_config.i2c_7seg_bottom = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_bottom: %d\n", i2c_config.i2c_7seg_bottom);}
-				} else if(strcmp(keyString, "i2c_7seg_period") == 0){
-					i2c_config.i2c_7seg_period = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_7seg_period: %d\n", i2c_config.i2c_7seg_period);}
-					
-				} else if(strcmp(keyString, "i2c_motor") == 0){
-					i2c_config.i2c_motor = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_motor: %d\n", i2c_config.i2c_motor);}
-				} else if(strcmp(keyString, "i2c_servo") == 0){
-					i2c_config.i2c_servo = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_servo %d\n", i2c_config.i2c_servo);}
-					
-				} else if(strcmp(keyString, "i2c_servo_open") == 0){
-					i2c_servo_values.i2c_servo_open = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_servo_open: %d\n", i2c_servo_values.i2c_servo_open);}
-				} else if(strcmp(keyString, "i2c_servo_closed") == 0){
-					i2c_servo_values.i2c_servo_closed = StringConvertToNumber(valueString);
-					if (settings.debug_enabled){printf("\ti2c_servo_closed %d\n", i2c_servo_values.i2c_servo_closed);}
-				} else {
-					if (settings.debug_enabled){printf("\tkey not Found\n");}
-				}
-				StringClean(keyString, 30);
-				StringClean(valueString, 100);
+				if (settings.debug_enabled){printf("\tkey not Found\n");}
 			}
-			if (c != '#'){
-				c = fgetc(fp);
-			}
+			StringClean(keyString, 30);
+			StringClean(valueString, 100);
 		}
-	}
-	
-	if (settings.shieldVersion != 1){
-		printf("Shield version %d unknown stop daemon.\n", settings.shieldVersion);
-		exit(1);
+	} else {
+		printf("calibration file '%s' not found!", settings.calibrationFile);
 	}
 	
 	forceCalibration.scaleFactor=(forceCalibration.Value2-forceCalibration.Value1)/((double)forceCalibration.ADC2-(double)forceCalibration.ADC1);
