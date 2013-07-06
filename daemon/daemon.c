@@ -42,8 +42,6 @@ See GPLv3.htm in the main folder for details.
 #include "daemon_structs.h"
 #include "hardwareFunctions.h"
 
-const float MOTOR_RPM_TO_PWM = 4095.0/200.0;
-
 const uint32_t MIN_STATUS_INTERVAL = 20;
 
 const uint8_t ALLWAYS_STOP_BUZZING = 0;
@@ -59,6 +57,8 @@ struct ADC_Calibration tempCalibration = {};
 struct I2C_Config i2c_config = {I2C_MOTOR, I2C_SERVO, I2C_7SEG_TOP, I2C_7SEG_TOP_LEFT, I2C_7SEG_TOP_RIGHT, I2C_7SEG_CENTER, I2C_7SEG_BOTTOM_LEFT, I2C_7SEG_BOTTOM_RIGHT, I2C_7SEG_BOTTOM, I2C_7SEG_PERIOD};
 
 struct I2C_Servo_Values i2c_servo_values = {I2C_VALVE_OPEN_VALUE, I2C_VALVE_CLOSED_VALUE, 0, 0, 0, 0, 0, I2C_VALVE_CLOSED_VALUE, 0};
+struct I2C_Motor_Values i2c_motor_values = {10,10, 0,0,0.0, 0,0,0,10}; //last value (motorRpm) set to 10 so it will be reset to 0 on startup
+
 
 struct Command_Values newCommandValues = {0,0,0,0,0,0,0,0,-2};
 struct Command_Values currentCommandValues = {0,0,0,0,0,0,0,0,-2};
@@ -70,7 +70,7 @@ struct Running_Mode runningMode = {true, false, false, false, false, false, fals
 
 struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log"};
 
-struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, 0, ' ',false, -1,"", 0};
+struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, ' ',false, -1,"", 0};
 
 struct Heater_Led_Values heaterStatus = {};
 
@@ -121,6 +121,7 @@ int main(int argc, const char* argv[]){
 	daemon_values.tempCalibration = &tempCalibration;
 	daemon_values.i2c_config = &i2c_config;
 	daemon_values.i2c_servo_values = &i2c_servo_values;
+	daemon_values.i2c_motor_values = &i2c_motor_values;
 	daemon_values.newCommandValues = &newCommandValues;
 	daemon_values.currentCommandValues = &currentCommandValues;
 	daemon_values.oldCommandValues = &oldCommandValues;
@@ -191,7 +192,11 @@ int main(int argc, const char* argv[]){
 			delay(state.Delay);
 		}
 		HeatOff(&daemon_values);
-		setMotorPWM(0, &daemon_values);
+		//cheating so it will realy stop motor
+		i2c_motor_values.motorRpm = i2c_motor_values.i2c_motor_speed_min;
+		i2c_motor_values.destRpm = i2c_motor_values.motorRpm;
+		setMotorRPM(0, &daemon_values);
+
 		setServoOpen(0, 1, 0, &daemon_values);
 		pthread_join( threadHeaterLedReader, NULL);
 	} else if (runningMode.calibration || runningMode.measure_noise){
@@ -668,7 +673,8 @@ void ProcessCommand(void){
 		if (newCommandValues.stepId < currentCommandValues.stepId){
 			//-1 stop/not aus
 			if(newCommandValues.stepId == -1){
-				setMotorPWM(0, &daemon_values);
+				i2c_motor_values.motorRpm = i2c_motor_values.i2c_motor_speed_min; //cheating so it will realy stop motor
+				setMotorRPM(0, &daemon_values);
 				HeatOff(&daemon_values);
 			}
 			//TODO is reset/stop? or is someone try to begin new recipe before old is ended?
@@ -691,10 +697,10 @@ void ProcessCommand(void){
 	}
 	TempControl();
 	PressControl();
-	MotorControl();
 	if (settings.debug3_enabled){
 		printf("\n");
 	}
+	MotorControl();
 	ValveControl();
 	ScaleFunction();
 	
@@ -845,10 +851,9 @@ void MotorControl(){
 			currentCommandValues.motorRpm = 0;
 		}
 	} else {
-		currentCommandValues.motorRpm=0;
+		currentCommandValues.motorRpm = 0;
 	}
-	uint16_t motorPwm = currentCommandValues.motorRpm * MOTOR_RPM_TO_PWM;
-	setMotorPWM(motorPwm, &daemon_values);
+	setMotorRPM(currentCommandValues.motorRpm, &daemon_values);
 }
 
 //void ValveControl(struct State state, struct Settings settings, struct Command_Values currentCommandValues, struct Time_Values timeValues){
@@ -1320,6 +1325,7 @@ void ReadConfigurationFile(void){
 				settings.statusFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.statusFile[0], valueString);
 				if (showReadedConfigs){printf("\tStatusFile: %s\n", settings.statusFile);} // (old: %s)
+				
 			} else if(strcmp(keyString, "LowTemp") == 0){
 				settings.LowTemp = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tLowTemp: %d\n", settings.LowTemp);} // (old: %d)
@@ -1356,7 +1362,15 @@ void ReadConfigurationFile(void){
 			} else if(strcmp(keyString, "middlewarePortno") == 0){
 				settings.middlewarePortno = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tmiddlewarePortno: %d\n", settings.middlewarePortno);}
-				
+			
+			//motor values
+			} else if(strcmp(keyString, "i2c_motor_speed_min") == 0){
+				i2c_motor_values.i2c_motor_speed_min = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_motor_speed_min: %d\n", i2c_motor_values.i2c_motor_speed_min);}
+			} else if(strcmp(keyString, "i2c_motor_speed_ramp") == 0){
+				i2c_motor_values.i2c_motor_speed_ramp = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_motor_speed_ramp %d\n", i2c_motor_values.i2c_motor_speed_ramp);}
+			
 			} else {
 				if (settings.debug_enabled){printf("\tkey not Found\n");}
 			}

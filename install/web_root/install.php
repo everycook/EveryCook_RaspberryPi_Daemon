@@ -6,14 +6,14 @@ $validateUrl = 'http://www.everycook.org/db/synch/validateLogin';
 $wlanConfigAddScript = '/opt/EveryCook/installSettings add_wlan';
 $wlanConfigChangeModeScript = '/opt/EveryCook/installSettings change_wlanmode';
 $wlanReconnectScript = '/opt/EveryCook/installSettings reconnect_wlan';
-$restartDeamonScript = '/opt/EveryCook/installSettings restartDeamonAndMiddleware';
+$restartDaemonScript = '/opt/EveryCook/installSettings restartDaemonAndMiddleware';
 
 $wlanConfiguredWlansScript = '/opt/EveryCook/installSettings get_configured_wlans';
 $wlanModeCommand_iwconfig = '/sbin/iwconfig wlan0 | sed -n \'/Mode:/s/.*Mode:\([^ ]*\).*/\1/p\'';
 $wlanModeCommand = 'ls -l /etc/network/interfaces | sed -n \'/->/s/.* -> interfaces\(.*\)/\1/p\'';
 $checkWlanConnectedCommand = '/sbin/ip -f inet addr show dev wlan0 | sed -n \'s/^ *inet *\([.0-9]*\).*/\1/p\'';
 $availableWlanCommand = '/sbin/iwlist wlan0 scan | sed -n \'/ESSID:/s/ *ESSID:"\([^"]*\)".*/\1/p\'';
-//$checkDeamonStartedCommand = 'ps -fp `cat /opt/EveryCook/deamon/ecdeamon.pid`'
+//$checkDaamonStartedCommand = 'ps -fp `cat /opt/EveryCook/deamon/ecdaemon.pid`'
 //$checkMiddlewareStartedCommand = 'ps -fp `cat /opt/EveryCook/middleware/ecmiddleware.pid`'
 
 session_start();
@@ -140,10 +140,10 @@ if ($defineUser ||!$userSet){
 
 echo '<br><br>' ."\r\n";
 
-if(isset($_GET['restartDeamon']) && $_GET['restartDeamon'] != ''){
-	exec($restartDeamonScript);
+if(isset($_GET['restartDaemon']) && $_GET['restartDaemon'] != ''){
+	exec($restartDaemonScript);
 } else {
-	echo '<a href="?restartDeamon=true">restart deamon and middleware</a><br>';
+	echo '<a href="?restartDaemon=true">restart daemon and middleware</a><br>';
 }
 
 	

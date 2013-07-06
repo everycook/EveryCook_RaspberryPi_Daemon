@@ -87,6 +87,20 @@ struct I2C_Servo_Values {
 	uint8_t servoOpen;
 };
 
+struct I2C_Motor_Values {
+	uint16_t i2c_motor_speed_min;
+	uint16_t i2c_motor_speed_ramp;
+	
+	uint16_t destRpm;
+	uint16_t steps;
+	float stepSize;
+	
+	int16_t currentStep;
+	float currentValue;
+	uint16_t i2c_motor_value;
+	uint16_t motorRpm;
+};
+
 struct Command_Values {
 	double temp;
 	int32_t press;
@@ -188,8 +202,6 @@ struct State {
 
 	bool isBuzzing; //to be sure first send a off to buzzer
 
-	uint16_t motorPwm;
-
 	char oldSegmentDisplay;
 	bool blinkState;
 
@@ -242,6 +254,7 @@ struct Daemon_Values {
 	struct I2C_Config *i2c_config;
 
 	struct I2C_Servo_Values *i2c_servo_values;
+	struct I2C_Motor_Values *i2c_motor_values;
 
 	struct Command_Values *newCommandValues;
 	struct Command_Values *currentCommandValues;

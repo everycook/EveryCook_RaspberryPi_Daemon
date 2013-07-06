@@ -21,6 +21,9 @@ logSaveInterval=5
 #set logLines to 0 to save all Lines
 logLines=60
 
+#motor values
+i2c_motor_speed_min=10
+i2c_motor_speed_ramp=10
 
 #Induction Heater GPIO pins
 PowerOnPin=4

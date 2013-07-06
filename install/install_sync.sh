@@ -149,12 +149,12 @@ else
 	if [ -r $installDir/sync/recipeSyncDate.txt ];
 	then
 	        echo "import changes";
-	        mysqlbinlog --start-datetime="\`cat $installDir/sync/recipeSyncDate.txt\`" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec
+	        mysqlbinlog --short-form --start-datetime="\`cat $installDir/sync/recipeSyncDate.txt\`" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec
 	else
 	        echo "import full mysqldump";
 		gzip -d -c $installDir/sync/recipes/EC_INITIAL_\`cat $installDir/sync/recipes/EC_INITIAL_DATE.txt\`.sql.gz | mysql -h localhost -uec --database=ec
 	        echo "import changes since mysqldump";
-	        mysqlbinlog --start-datetime="\`cat $installDir/sync/recipes/EC_INITIAL_DATE.txt\` 00:00:00" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec
+	        mysqlbinlog --short-form --start-datetime="\`cat $installDir/sync/recipes/EC_INITIAL_DATE.txt\` 00:00:00" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec
 	fi
 fi
 EOF

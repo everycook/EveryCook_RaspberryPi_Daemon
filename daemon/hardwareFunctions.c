@@ -24,6 +24,8 @@ See GPLv3.htm in the main folder for details.
 #include "daemon_structs.h"
 #include "hardwareFunctions.h"
 
+const float MOTOR_RPM_TO_PWM = 4095.0/200.0;
+
 /******************* functions to evaluate **********************/
 
 double readTemp(struct Daemon_Values *dv){
@@ -152,15 +154,60 @@ bool HeatOff(struct Daemon_Values *dv){
 	}
 }
 
-void setMotorPWM(uint16_t pwm, struct Daemon_Values *dv){
-	if (dv->settings->debug_enabled){printf("setMotorPWM, pwm: %d\n", pwm);}
-	if (dv->state->motorPwm != pwm){
-		if (!dv->runningMode->simulationMode){
-			writeI2CPin(dv->i2c_config->i2c_motor, pwm);
-		} else {
-			printf("setMotorPWM(sim), pwm: %d\n", pwm);
+void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
+	if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("setMotorRPM, rpm: %d (current: %d)\n", rpm, dv->i2c_motor_values->motorRpm );}
+	if (rpm != 0 && rpm < dv->i2c_motor_values->i2c_motor_speed_min){
+		rpm = dv->i2c_motor_values->i2c_motor_speed_min;
+		if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("rpm was to low, changed to: %d\n", rpm);}
+	}
+	if (dv->i2c_motor_values->motorRpm != rpm){
+		if (dv->i2c_motor_values->destRpm != rpm){
+			dv->i2c_motor_values->destRpm = rpm;
+			dv->i2c_motor_values->currentStep = 0;
+			dv->i2c_motor_values->stepSize = dv->i2c_motor_values->i2c_motor_speed_ramp / (1000.0/dv->settings->LongDelay);
+			dv->i2c_motor_values->currentValue = dv->i2c_motor_values->motorRpm;
+			
+			
+			//logic for speed min
+			if (rpm == 0){
+				rpm = dv->i2c_motor_values->i2c_motor_speed_min;
+			} else if (dv->i2c_motor_values->motorRpm == 0){
+				dv->i2c_motor_values->currentStep = -1;
+				dv->i2c_motor_values->currentValue = dv->i2c_motor_values->i2c_motor_speed_min;
+			}
+			
+			int16_t changeRpm = rpm - dv->i2c_motor_values->currentValue;
+			if (rpm < dv->i2c_motor_values->motorRpm){
+				dv->i2c_motor_values->stepSize = -dv->i2c_motor_values->stepSize;
+			}
+			dv->i2c_motor_values->steps = changeRpm / dv->i2c_motor_values->stepSize;
+			
+			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setMotorRPM: current:%d, steps:%d, stepSize:%.2f\n", dv->i2c_motor_values->motorRpm, dv->i2c_motor_values->steps, dv->i2c_motor_values->stepSize);}
 		}
-		dv->state->motorPwm = pwm;
+		
+		if (dv->i2c_motor_values->currentStep < dv->i2c_motor_values->steps){
+			++dv->i2c_motor_values->currentStep;
+			if (dv->i2c_motor_values->currentStep != 0){
+				dv->i2c_motor_values->currentValue=dv->i2c_motor_values->currentValue + dv->i2c_motor_values->stepSize;
+			}
+			dv->i2c_motor_values->i2c_motor_value=dv->i2c_motor_values->currentValue * MOTOR_RPM_TO_PWM;
+			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setMotorRPM: value:%.2f, motor_value:%d\n", dv->i2c_motor_values->currentValue, dv->i2c_motor_values->i2c_motor_value);}
+			if (!dv->runningMode->simulationMode){
+				writeI2CPin(dv->i2c_config->i2c_motor, dv->i2c_motor_values->i2c_motor_value);
+			}
+			dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->currentValue;
+			dv->state->Delay = dv->settings->LongDelay;
+		} else {
+			if (dv->i2c_motor_values->motorRpm != dv->i2c_motor_values->destRpm){
+				dv->i2c_motor_values->currentValue = dv->i2c_motor_values->destRpm;
+				dv->i2c_motor_values->i2c_motor_value=dv->i2c_motor_values->currentValue * MOTOR_RPM_TO_PWM;
+				if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setMotorRPM: value:%.2f, motor_value:%d\n", dv->i2c_motor_values->currentValue, dv->i2c_motor_values->i2c_motor_value);}
+				if (!dv->runningMode->simulationMode){
+					writeI2CPin(dv->i2c_config->i2c_motor, dv->i2c_motor_values->i2c_motor_value);
+				}
+			}
+			dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->destRpm;
+		}
 	}
 }
 
@@ -175,14 +222,14 @@ void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct 
 			dv->i2c_servo_values->destOpenPercent = openPercent;
 			
 			int16_t minMaxDiff = dv->i2c_servo_values->i2c_servo_open-dv->i2c_servo_values->i2c_servo_closed;
-			int8_t changePercent = openPercent-dv->i2c_servo_values->servoOpen;
+			int8_t changePercent = openPercent - dv->i2c_servo_values->servoOpen;
 			float onePercent = minMaxDiff/100.0;
 			float stepSize = (changePercent*onePercent)/steps;
 			dv->i2c_servo_values->stepSize = stepSize;
 			dv->i2c_servo_values->stepPercentSize = changePercent/steps;
 			dv->i2c_servo_values->currentStep = 0;
 			
-			dv->i2c_servo_values->currentValue = dv->i2c_servo_values->servoOpen*onePercent;
+			dv->i2c_servo_values->currentValue = dv->i2c_servo_values->servoOpen * onePercent;
 			dv->i2c_servo_values->i2c_servo_value = dv->i2c_servo_values->i2c_servo_closed;
 			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setServoOpen: minMaxDiff:%d, changePercent:%d onePercent:%.2f, stepSize:%.2f\n", minMaxDiff, changePercent, onePercent, stepSize);}
 		}
@@ -190,13 +237,13 @@ void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct 
 		if (dv->i2c_servo_values->currentStep < steps){
 		//while(dv->i2c_servo_values->currentStep < steps){
 			++dv->i2c_servo_values->currentStep;
-			dv->i2c_servo_values->currentValue=dv->i2c_servo_values->currentValue+dv->i2c_servo_values->stepSize;
+			dv->i2c_servo_values->currentValue=dv->i2c_servo_values->currentValue + dv->i2c_servo_values->stepSize;
 			dv->i2c_servo_values->i2c_servo_value=dv->i2c_servo_values->i2c_servo_closed + (int)(dv->i2c_servo_values->currentValue);
 			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setServoOpen: value:%.2f, servo_value:%d\n", dv->i2c_servo_values->currentValue, dv->i2c_servo_values->i2c_servo_value);}
 			if (!dv->runningMode->simulationMode){
 				writeI2CPin(dv->i2c_config->i2c_servo, dv->i2c_servo_values->i2c_servo_value);
 			}
-			dv->i2c_servo_values->servoOpen = dv->i2c_servo_values->servoOpen+dv->i2c_servo_values->stepPercentSize;
+			dv->i2c_servo_values->servoOpen = dv->i2c_servo_values->servoOpen + dv->i2c_servo_values->stepPercentSize;
 			//delay(stepWait);
 			dv->state->Delay = stepWait;
 		} else {
