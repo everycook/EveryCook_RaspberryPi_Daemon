@@ -20,8 +20,6 @@ See GPLv3.htm in the main folder for details.
 
 #include "bool.h"
 
-
-
 void resetValues();
 void ProcessCommand(void);
 void prepareState(char* TotalUpdate);
@@ -40,6 +38,7 @@ void TempControl();
 void PressControl();
 void MotorControl();
 void ValveControl();
+bool isLidOpen();
 void ScaleFunction();
 void setFreqTimer();
 void FreqHandler(); 

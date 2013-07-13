@@ -32,6 +32,7 @@ PowerOnPin=4
 CommandFile=/run/shm/command
 StatusFile=/run/shm/status
 calibrationFile=/opt/EveryCook/daemon/calibration
+hourCounterFile=/opt/EveryCook/daemon/hourCounter
 
 middlewareHostname=127.0.0.1
 middlewarePortno=8000

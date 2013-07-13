@@ -127,6 +127,7 @@ bool HeatOn(struct Daemon_Values *dv){
 			}
 		}
 		dv->state->heatPowerStatus=true; //save that we turned it on
+		dv->timeValues->heaterStartTime = dv->timeValues->runTime;
 		return true;
 	} else {
 		return false;
@@ -136,7 +137,7 @@ bool HeatOn(struct Daemon_Values *dv){
 bool HeatOff(struct Daemon_Values *dv){
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}
 	if (dv->state->heatPowerStatus) { //if its on
-	if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isHeating);}
+		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isHeating);}
 		if (!dv->runningMode->simulationMode){
 			if (dv->heaterStatus->isHeating){
 				writeControllButtonPin(IND_KEY4, 0); //"press" the power button
@@ -148,6 +149,7 @@ bool HeatOff(struct Daemon_Values *dv){
 			}
 		}
 		dv->state->heatPowerStatus=false; //save that we turned it off
+		dv->timeValues->heaterStopTime = dv->timeValues->runTime;
 		return true;
 	} else {
 		return false;
@@ -332,29 +334,39 @@ double readWeightSeparate(double* values, struct Daemon_Values *dv){
 		if (!dv->state->scaleReady) {
 			return 0.0;
 		} else {
-			int deltaW = dv->newCommandValues->weight-dv->oldCommandValues->weight;
-			double weightValue = dv->oldCommandValues->weight;
-			if (deltaW<0) {
-				--weightValue;
-			} else if (deltaW==0) {
-				//Nothing
-			} else if (deltaW<=10) {
-				weightValue = weightValue + 2;
-			} else if (deltaW<=50) {
-				weightValue = weightValue + 5;
+			if (dv->timeValues->runTime <= dv->timeValues->simulationUpdateTime){
+				return dv->oldCommandValues->weight; 
 			} else {
-				weightValue = weightValue + 10;
+				int deltaW = dv->newCommandValues->weight-dv->oldCommandValues->weight;
+				double weightValue = dv->oldCommandValues->weight;
+				if (deltaW<0) {
+					--weightValue;
+				} else if (deltaW==0) {
+					//Nothing
+				} else if (deltaW<=10) {
+					weightValue = weightValue + 2;
+				} else if (deltaW<=50) {
+					weightValue = weightValue + 5;
+				} else {
+					weightValue = weightValue + 10;
+				}
+				if (weightValue != dv->oldCommandValues->weight){
+					weightValue += dv->state->referenceForce;
+					printf("readWeight, new Value is %f (old:%f)\n", weightValue, dv->oldCommandValues->weight);
+					//if (settings->debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
+				} else {
+					weightValue += dv->state->referenceForce;
+				}
+				dv->timeValues->simulationUpdateTime = dv->timeValues->runTime;
+				
+				if (values != NULL){
+					values[0] = weightValue;
+					values[1] = weightValue;
+					values[2] = weightValue;
+					values[3] = weightValue;
+				}
+				return weightValue;
 			}
-			weightValue += dv->state->referenceForce;
-			if (dv->settings->debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
-			
-			if (values != NULL){
-				values[0] = weightValue;
-				values[1] = weightValue;
-				values[2] = weightValue;
-				values[3] = weightValue;
-			}
-			return weightValue;
 		}
 	} else {
 		uint32_t weightValue1 = readADC(dv->adc_config->ADC_LoadCellFrontLeft);
@@ -374,12 +386,33 @@ double readWeightSeparate(double* values, struct Daemon_Values *dv){
 		double weightValue = (double)weightValueSum;
 		weightValue *=dv->forceCalibration->scaleFactor;
 		weightValue = roundf(weightValue);
-		if (dv->settings->debug_enabled){
+		if (dv->settings->debug_enabled || dv->runningMode->calibration){
 			if (values != NULL){
-				printf("readWeight, new Value is %d / %f (%d, %d, %d, %d / %f, %f, %f, %f)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4, values[0], values[1], values[2], values[3]);
+				printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d / FL %f FR %f BL %f BR %f)\n", weightValueSum, weightValue, (weightValue+dv->state->referenceForce), weightValue1, weightValue2, weightValue3, weightValue4, values[0], values[1], values[2], values[3]);
 			} else {
-				printf("readWeight, new Value is %d / %f (%d, %d, %d, %d)\n", weightValueSum, weightValue, weightValue1, weightValue2, weightValue3, weightValue4);
+				printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, (weightValue+dv->state->referenceForce), weightValue1, weightValue2, weightValue3, weightValue4);
 			}
+		}
+		if (dv->runningMode->measure_noise){
+			if (weightValue1>dv->adc_noise->MaxWeight1) dv->adc_noise->MaxWeight1=weightValue1;
+			if (weightValue1<dv->adc_noise->MinWeight1) dv->adc_noise->MinWeight1=weightValue1;
+			dv->adc_noise->DeltaWeight1=dv->adc_noise->MaxWeight1-dv->adc_noise->MinWeight1;
+			printf("NoiseWeightFL %d | ", dv->adc_noise->DeltaWeight1);
+			
+			if (weightValue2>dv->adc_noise->MaxWeight2) dv->adc_noise->MaxWeight2=weightValue2;
+			if (weightValue2<dv->adc_noise->MinWeight2) dv->adc_noise->MinWeight2=weightValue2;
+			dv->adc_noise->DeltaWeight2=dv->adc_noise->MaxWeight2-dv->adc_noise->MinWeight2;
+			printf("NoiseWeightFR %d | ", dv->adc_noise->DeltaWeight2);
+			
+			if (weightValue3>dv->adc_noise->MaxWeight3) dv->adc_noise->MaxWeight3=weightValue3;
+			if (weightValue3<dv->adc_noise->MinWeight3) dv->adc_noise->MinWeight3=weightValue3;
+			dv->adc_noise->DeltaWeight3=dv->adc_noise->MaxWeight3-dv->adc_noise->MinWeight3;
+			printf("NoiseWeightBL %d | ", dv->adc_noise->DeltaWeight3);
+			
+			if (weightValue4>dv->adc_noise->MaxWeight4) dv->adc_noise->MaxWeight4=weightValue4;
+			if (weightValue4<dv->adc_noise->MinWeight4) dv->adc_noise->MinWeight4=weightValue4;
+			dv->adc_noise->DeltaWeight4=dv->adc_noise->MaxWeight4-dv->adc_noise->MinWeight4;
+			printf("NoiseWeightBR %d\n", dv->adc_noise->DeltaWeight4);
 		}
 		return weightValue;
 	}

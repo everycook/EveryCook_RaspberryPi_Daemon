@@ -124,15 +124,19 @@ struct Time_Values {
 	uint32_t stepStartTime;
 	uint32_t middlewareConnectTime;
 	uint32_t motorStartTime; //When did we start the motor?
+	uint32_t motorStopTime; //When did we stop the motor?
 	uint32_t remainTime;
 	uint32_t beepEndTime; //when to stop the beeper
-	uint32_t lastBlinkTime; //when to stop the beeper
+	uint32_t lastBlinkTime;
 	
 	time_t lastFileChangeTime;
 	uint32_t simulationUpdateTime;
 	uint32_t lastLogSaveTime;
 	uint32_t lastStatusTime;
+	uint32_t heaterStartTime; //when did we start the heater
+	uint32_t heaterStopTime; //when did we stop the heater
 };
+
 struct Running_Mode {
 	bool normalMode;
 	bool calibration;
@@ -185,7 +189,7 @@ struct Settings {
 	char *commandFile;
 	char *statusFile;
 	char *logFile;
-
+	char *hourCounterFile;
 };
 
 struct State {
@@ -217,6 +221,9 @@ struct State {
 	
 	FILE *logFilePointer;
 	char** logLines;
+	
+	double weightValues[4];
+	bool lidOpen;
 };
 
 struct Heater_Led_Values {
@@ -244,6 +251,13 @@ struct Heater_Led_Values {
 	uint32_t ledValues[6];
 };
 
+struct HourCounter {
+	char identifier[4];
+	uint32_t daemon;
+	uint32_t heater;
+	uint32_t motor;
+};
+
 struct Daemon_Values {
 	struct ADC_Config *adc_config;
 	struct ADC_Noise_Values *adc_noise;
@@ -267,4 +281,5 @@ struct Daemon_Values {
 	struct Settings *settings;
 	struct State *state;
 	struct Heater_Led_Values *heaterStatus;
+	struct HourCounter *hourCounter;
 };

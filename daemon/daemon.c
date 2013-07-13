@@ -42,11 +42,16 @@ See GPLv3.htm in the main folder for details.
 #include "daemon_structs.h"
 #include "hardwareFunctions.h"
 
+
 const uint32_t MIN_STATUS_INTERVAL = 20;
 
 const uint8_t ALLWAYS_STOP_BUZZING = 0;
 
 const uint8_t dataType = TYPE_TEXT;
+
+const double SECONDS_PER_HOUR = 3600; //60*60
+
+const uint8_t HOUR_COUNTER_VERSION = 0;
 
 struct ADC_Config adc_config = {0,1,2,3,4,5,0};
 struct ADC_Noise_Values adc_noise = {0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0};
@@ -68,13 +73,16 @@ struct Time_Values timeValues = {};
 
 struct Running_Mode runningMode = {true, false, false, false, false, false, false,  false, false};
 
-struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log"};
+struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter"};
 
 struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, ' ',false, -1,"", 0};
 
 struct Heater_Led_Values heaterStatus = {};
 
 struct Daemon_Values daemon_values;
+
+//struct HourCounter hourCounter = {['H','C','V', HOUR_COUNTER_VERSION], 0.0, 0.0, 0.0};
+struct HourCounter hourCounter = {"HCV\0", 0.0, 0.0, 0.0};
 
 pthread_t threadHeaterLedReader;
 
@@ -86,9 +94,13 @@ uint8_t HeaterErrorTimeout[7] = {1, 4, 4, 2, 2, 3, 2};
 int parseParams(int argc, const char* argv[]);
 void defineSignalHandler();
 void handleSignal(int signum);
+void clearHourCounter();
 void initOutputFile(void);
 bool checkForInput();
 void doOutput();
+
+void updateMotorTime();
+void updateHeaterTime();
 
 void SegmentDisplaySimple(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
 void SegmentDisplayOptimized(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
@@ -130,6 +142,7 @@ int main(int argc, const char* argv[]){
 	daemon_values.settings = &settings;
 	daemon_values.state = &state;
 	daemon_values.heaterStatus = &heaterStatus;
+	daemon_values.hourCounter = &hourCounter;
 	
 	printf("starting EveryCook daemon...\n");
 	if (settings.debug_enabled){printf("main\n");}
@@ -164,7 +177,6 @@ int main(int argc, const char* argv[]){
 	timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
 	printf("runtime is now: %d \n", timeValues.runTime);
 	timeValues.stepStartTime = timeValues.runTime; //TODO WIA CHANGE THIS
-	
 	
 	if (runningMode.normalMode){
 		pthread_create( &threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
@@ -543,6 +555,16 @@ void handleSignal(int signum) {
 	}
 }
 
+void clearHourCounter(){
+	hourCounter.identifier[0] = 'H';
+	hourCounter.identifier[1] = 'C';
+	hourCounter.identifier[2] = 'V';
+	hourCounter.identifier[3] = HOUR_COUNTER_VERSION;
+	hourCounter.daemon = 0;
+	hourCounter.heater = 0;
+	hourCounter.motor = 0;
+}
+
 void initOutputFile(void){
 	if (settings.debug_enabled){printf("iniOutputFile\n");}
 	FILE *fp;
@@ -564,6 +586,36 @@ void initOutputFile(void){
 			//TODO read current log content and set state.logLineNr
 		}
 		state.logFilePointer = fopen(settings.logFile, "a");
+	}
+	
+	FILE *hourCounterFilePointer = fopen(settings.hourCounterFile, "r");
+	if (hourCounterFilePointer == NULL){
+		printf("error reading hourCounter values, file does not exist %s\n", settings.hourCounterFile);
+		clearHourCounter();
+	} else {
+		if (!feof(hourCounterFilePointer)){
+			size_t readAmount = fread(&hourCounter, sizeof(hourCounter), 1, hourCounterFilePointer);
+			if (readAmount != 1) {//struct amount not bytes
+				printf("error reading hourCounter values, read %d instat of %d structs from file %s\n", readAmount, 1, settings.hourCounterFile);
+				clearHourCounter();
+			} else if (hourCounter.identifier[0] != 'H' ||hourCounter.identifier[1] != 'C' ||hourCounter.identifier[2] != 'V'){
+				printf("error reading hourCounter values, identifier not found, file invalid %s\n", settings.hourCounterFile);
+				clearHourCounter();
+			} else if (hourCounter.identifier[3] != HOUR_COUNTER_VERSION){
+				printf("error reading hourCounter values, unknown hour counter Version, file invalid %s\n", settings.hourCounterFile);
+				clearHourCounter();
+			} else {
+				char lineBracke = fgetc(hourCounterFilePointer);
+				if (lineBracke != '\n'){
+					printf("error reading hourCounter values, no linebracke after values, file invalid %s\n", settings.hourCounterFile);
+					clearHourCounter();
+				}
+			}
+		} else {
+			printf("error reading hourCounter values, file is empty %s\n", settings.hourCounterFile);
+			clearHourCounter();
+		}
+		fclose(hourCounterFilePointer);
 	}
 }
 
@@ -703,6 +755,7 @@ void ProcessCommand(void){
 	MotorControl();
 	ValveControl();
 	ScaleFunction();
+	isLidOpen();
 	
 	if (timeValues.stepEndTime > timeValues.runTime) {
 		timeValues.remainTime=timeValues.stepEndTime-timeValues.runTime;
@@ -854,6 +907,12 @@ void MotorControl(){
 		currentCommandValues.motorRpm = 0;
 	}
 	setMotorRPM(currentCommandValues.motorRpm, &daemon_values);
+	
+	if (i2c_motor_values.motorRpm == 0){
+		if(timeValues.motorStopTime < timeValues.motorStartTime){
+			timeValues.motorStopTime = timeValues.runTime;
+		}
+	}
 }
 
 //void ValveControl(struct State state, struct Settings settings, struct Command_Values currentCommandValues, struct Time_Values timeValues){
@@ -872,12 +931,29 @@ void ValveControl(){
 	}
 }
 
+bool isLidOpen(){
+	double sumOfForces;
+	if (!state.scaleReady) {
+		sumOfForces = readWeightSeparate(&state.weightValues[0], &daemon_values);
+	} else {
+		sumOfForces = state.referenceForce;
+	}
+	double front = (state.weightValues[0] + state.weightValues[1]) / 2 - sumOfForces;
+	double back = (state.weightValues[2] + state.weightValues[3]) / 2 - sumOfForces;
+	
+	double ratio = front / back;
+	state.lidOpen = ratio < 0.8;
+	
+	return state.lidOpen;
+}
+
 //void ScaleFunction(struct State state, struct Settings settings, struct Command_Values oldCommandValues, struct Command_Values currentCommandValues, struct Command_Values newCommandValues, struct Time_Values timeValues){
 void ScaleFunction(){
 	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
 		timeValues.stepEndTime=timeValues.runTime+2;
 		oldCommandValues.weight = currentCommandValues.weight;
-		double sumOfForces = readWeight(&daemon_values);
+		//double sumOfForces = readWeight(&daemon_values);
+		double sumOfForces = readWeightSeparate(&state.weightValues[0], &daemon_values);
 		if (settings.debug_enabled){printf("ScaleFunction\n");}
 		
 		if (!state.scaleReady) { //we are not ready for weighting
@@ -979,11 +1055,18 @@ void Beep(){
 	if (timeValues.runTime<timeValues.beepEndTime){
 		if (!state.isBuzzing){
 			state.isBuzzing = true;
-			buzzer(1, BUZZER_PWM);
+			uint32_t duration = timeValues.beepEndTime-timeValues.runTime;
+			char command[100];
+			sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d", duration);
+			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir /opt/EveryCook/daemon/sounds --wavfile ding.wav", duration);
+			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir %s --wavfile %s", duration, settings.wavdir, settings.wavfile);
+			printf(command);
+			system(command);
+			//buzzer(1, BUZZER_PWM);
 		}
 	} else {
 		if (state.isBuzzing || ALLWAYS_STOP_BUZZING){
-			buzzer(0, BUZZER_PWM);
+			//buzzer(0, BUZZER_PWM);
 			state.isBuzzing = false;
 		}
 	}
@@ -997,8 +1080,8 @@ void Beep(){
 void prepareState(char* TotalUpdate){
 	StringClean(TotalUpdate, 512);
 	
-	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isHeating\":%d,\"noPan\":%d}",	currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isHeating, heaterStatus.noPan);
-	if (settings.debug_enabled){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isHeating: %d, noPan: %d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isHeating, heaterStatus.noPan);}
+	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isHeating\":%d,\"noPan\":%d,\"lidOpen\":%d}",	currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isHeating, heaterStatus.noPan, state.lidOpen);
+	if (settings.debug_enabled){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isHeating: %d, noPan: %d, lidOpen:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isHeating, heaterStatus.noPan, state.lidOpen);}
 }
 
 void writeStatus(char* data){
@@ -1013,6 +1096,36 @@ void writeStatus(char* data){
 	if (settings.debug_enabled){printf("WriteStatus: after write\n");}
 }
 
+void updateMotorTime(){
+	//if (currentCommandValues.motorRpm>0){
+	if (i2c_motor_values.motorRpm>0){
+		if (timeValues.motorStartTime < timeValues.lastLogSaveTime){
+			hourCounter.motor = hourCounter.motor + (timeValues.runTime - timeValues.lastLogSaveTime);
+		} else {
+			hourCounter.motor = hourCounter.motor + (timeValues.runTime - timeValues.motorStartTime);
+		}
+	} else if (i2c_motor_values.motorRpm == 0){
+		if (timeValues.motorStopTime > timeValues.lastLogSaveTime){
+			hourCounter.motor = hourCounter.motor + (timeValues.motorStopTime - timeValues.lastLogSaveTime);
+		}
+	}
+}
+
+
+void updateHeaterTime(){
+	//if (currentCommandValues.motorRpm>0){
+	if (state.heatPowerStatus){
+		if (timeValues.heaterStartTime < timeValues.lastLogSaveTime){
+			hourCounter.heater = hourCounter.heater + (timeValues.runTime - timeValues.lastLogSaveTime);
+		} else {
+			hourCounter.heater = hourCounter.heater + (timeValues.runTime - timeValues.heaterStartTime);
+		}
+	} else {
+		if (timeValues.heaterStopTime > timeValues.lastLogSaveTime){
+			hourCounter.heater = hourCounter.heater + (timeValues.heaterStopTime - timeValues.lastLogSaveTime);
+		}
+	}
+}
 
 void writeLog(){
 	if (settings.debug_enabled){printf("writeLog\n");}
@@ -1057,6 +1170,18 @@ void writeLog(){
 				fputs(state.logLines[state.logLineNr], state.logFilePointer);
 				fclose(state.logFilePointer);
 			}
+		}
+		
+		if (timeValues.lastLogSaveTime>0){
+			hourCounter.daemon = hourCounter.daemon + (timeValues.runTime - timeValues.lastLogSaveTime);
+			updateHeaterTime();
+			updateMotorTime();
+			
+			FILE *hourCounterFilePointer = fopen(settings.hourCounterFile, "w");
+			fwrite(&hourCounter, sizeof(hourCounter), 1, hourCounterFilePointer);
+			fprintf(hourCounterFilePointer, "\nhours on: %.2f\nmotor hours: %.2f\nheater hours: %.2f\n", hourCounter.daemon/SECONDS_PER_HOUR, hourCounter.motor/SECONDS_PER_HOUR, hourCounter.heater/SECONDS_PER_HOUR);
+			//fprintf(hourCounterFilePointer, "\nhours on: %d\nmotor hours: %d\nheater hours: %d\n", hourCounter.daemon, hourCounter.motor, hourCounter.heater);
+			fclose(hourCounterFilePointer);
 		}
 		timeValues.lastLogSaveTime=timeValues.runTime;
 	}
@@ -1325,6 +1450,11 @@ void ReadConfigurationFile(void){
 				settings.statusFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.statusFile[0], valueString);
 				if (showReadedConfigs){printf("\tStatusFile: %s\n", settings.statusFile);} // (old: %s)
+			} else if(strcmp(keyString, "hourCounterFile") == 0){
+				settings.hourCounterFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.hourCounterFile[0], valueString);
+				if (showReadedConfigs){printf("\thourCounterFile: %s\n", settings.hourCounterFile);}
+				
 				
 			} else if(strcmp(keyString, "LowTemp") == 0){
 				settings.LowTemp = StringConvertToNumber(valueString);
