@@ -184,7 +184,7 @@ class EveryCookApplication extends Application
 	}
 	
 	public function getUpdateState($info, $recipeNr, $state){
-		echo "getUpdateState(".$recipeNr.")\r\n";
+		//echo "getUpdateState(".$recipeNr.")\r\n";
 		if (isset($info->cookWith[$recipeNr]) && isset($info->cookWith[$recipeNr][0]) && $info->cookWith[$recipeNr][0]!=self::COOK_WITH_OTHER){
 			$mealStep = $info->steps[$recipeNr];
 			$mealStep->HWValues = $state;
@@ -312,6 +312,10 @@ class EveryCookApplication extends Application
 						$mealStep->weightReachedTime = 0;
 					}
 					/* alernative logic
+					//TODO: Get and save weightReachedTime, to separate cache so no problems occure
+					$weightReachedTime = $this->getFromCache('weightReachedTime_' . $recipeNr);
+					$this->saveToCache('weightReachedTime_' . $recipeNr, $weightReachedTime, 10*60); //only valid vor max. 10 min
+					
 					//Wait 5 Sec with only small changes (between 90% and 110%)
 					if ($percent>=0.90 && $percent<=1.10 && $mealStep->weightReachedTime != 0){
 						if ($currentTime - $mealStep->weightReachedTime >=5){
@@ -351,19 +355,23 @@ class EveryCookApplication extends Application
 			$mealStep->percent = $percent;
 			$mealStep->nextStepIn = $restTime;
 			
+			/*
+			//do not write back changes(not realy needed) because of "repeat steps bug"
 			$cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+			echo date("[D M d H:i:s Y] ") . "getUpdateState save, cookingInfoChangeCounter: ". $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT) ."\n";
 			if ($this->_cookingInfoChangeCounter == $cookingInfoChangeCounter){
 				$this->saveToCache(self::COOKING_INFOS, $info);
 				$this->saveToCache(self::COOKING_INFOS_CHANGEAMOUNT, $cookingInfoChangeCounter+1);
 			} else {
 				$this->_server->log('Conncurent Modification Exception, counter is ' . $cookingInfoChangeCounter . ' but was ' . $this->_cookingInfoChangeCounter .' before.', 'warn');
 			}
+			*/
 			
 			$additional.=', T0:' . $state->T0;
 			$additional.=', P0:' . $state->P0;
 			$additional.=', SMODE:' . $state->SMODE;
 			
-			printf(" percent:%s, restTime:%s, SID:%s, additional:%s\r\n", $state->SID, $percent, $restTime, $additional);
+			printf(" percent:%s, restTime:%s, SID:%s, additional:%s\r\n", $percent, $restTime, $state->SID, $additional);
 			
 			return '{percent:' . $percent . ', restTime:' . $restTime .$additional . ', SID:' . $state->SID . '}'; //', startTime:'.$_GET['startTime']
 			
@@ -375,7 +383,8 @@ class EveryCookApplication extends Application
 	
 	private function sendState($firmwareState){
 		$info = $this->getFromCache(self::COOKING_INFOS);
-		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+		//$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+		//echo date("[D M d H:i:s Y] ") . "sendState, cookingInfoChangeCounter: ". $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT) ."\n";
 		if (!$info){
 			$this->_lastUpdateTime = time();
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
@@ -389,12 +398,15 @@ class EveryCookApplication extends Application
 			$this->_lastStateTime = time();
 			$this->_lastUpdateTime = $this->_lastStateTime;
 			$this->_sendToList($state, $clientList);
+			//$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+			//echo date("[D M d H:i:s Y] ") . "sendState2, cookingInfoChangeCounter: ". $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT) ."\n";
         }
 	}
 	
 	private function getAndSendState(){
 		$info = $this->getFromCache(self::COOKING_INFOS);
-		$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+		//$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+		//echo date("[D M d H:i:s Y] ") . "getAndSendState, cookingInfoChangeCounter: ". $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT) ."\n";
 		if (!$info){
 			$this->_lastUpdateTime = time();
 			$this->_sendAll('{"error":"Current cooking information not found!"}');
@@ -416,6 +428,9 @@ class EveryCookApplication extends Application
 				$this->_lastStateTime = time();
 				$this->_lastUpdateTime = $this->_lastStateTime;
 				$this->_sendToList($state, $clientList);
+				
+				//$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+				//echo date("[D M d H:i:s Y] ") . "getAndSendState2, cookingInfoChangeCounter: ". $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT) ."\n";
 			}
 		}
 	}
@@ -542,6 +557,7 @@ class EveryCookApplication extends Application
 			$recipeNr = $this->getRecipeNr($client);
 			$info = $this->getFromCache(self::COOKING_INFOS);
 			$this->_cookingInfoChangeCounter = $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT);
+			echo date("[D M d H:i:s Y] ") . "clientCommand_getState, cookingInfoChangeCounter: ". $this->getFromCache(self::COOKING_INFOS_CHANGEAMOUNT) ."\n";
 			if (!$info){
 				$this->_lastUpdateTime = time();
 				$client->send('{"error":"Current cooking information not found!"}');
