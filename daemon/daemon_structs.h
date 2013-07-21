@@ -26,6 +26,9 @@ struct ADC_Config {
 	uint8_t ADC_Temp;
 
 	uint8_t ADC_ref; //0=REFIN1, 1=REFIN2, 2=Internal 1.17V, 3=reserved
+	uint8_t ADC_update_rate;
+	
+	uint32_t ADC_ConfigReg[6];
 };
 
 struct ADC_Noise_Values {	
@@ -85,6 +88,8 @@ struct I2C_Servo_Values {
 	float currentValue;
 	uint16_t i2c_servo_value;
 	uint8_t servoOpen;
+	
+	uint8_t i2c_servo_stay_open;
 };
 
 struct I2C_Motor_Values {
@@ -99,6 +104,13 @@ struct I2C_Motor_Values {
 	float currentValue;
 	uint16_t i2c_motor_value;
 	uint16_t motorRpm;
+};
+
+struct Button_Values {
+	uint32_t button[3];
+	uint32_t buttonPressedTime[3];
+	uint32_t buttonOnTime[3];
+	uint32_t buttonOffTime[3];
 };
 
 struct Command_Values {
@@ -116,6 +128,7 @@ struct Command_Values {
 struct Time_Values {
 	uint32_t runTime; //we need a runtime in seconds
 	uint32_t lastRunTime;
+	uint32_t runTimeMillis;
 	
 	time_t nowTime;
 	struct tm *localTime;
@@ -135,6 +148,8 @@ struct Time_Values {
 	uint32_t lastStatusTime;
 	uint32_t heaterStartTime; //when did we start the heater
 	uint32_t heaterStopTime; //when did we stop the heater
+	
+	uint32_t servoStayEndTime; //when to close the servo
 };
 
 struct Running_Mode {
@@ -145,6 +160,8 @@ struct Running_Mode {
 	bool test_servo;
 	bool test_heat_led;
 	bool test_motor;
+	bool test_buttons;
+	bool test_adc;
 	
 	bool simulationMode;
 	bool simulationModeShow7Segment;
@@ -183,6 +200,10 @@ struct Settings {
 
 	uint16_t test_servo_min;
 	uint16_t test_servo_max;
+	
+	uint16_t test_ADC_update_rate;
+	uint16_t test_ADC_offsetCalibration;
+	uint16_t test_ADC_fullScaleCalibration;
 	
 	char *configFile;
 	char *calibrationFile;
@@ -228,24 +249,29 @@ struct State {
 
 struct Heater_Led_Values {
 	bool hasPower;
-	bool isHeating;
-	bool noPan;
-	uint32_t hasPowerLedLastTime;
-	uint32_t isHeatingLedLastTime;
-	uint32_t noPanLedLastTime;
+	bool isOn;
+	bool isModeHeating;
+	bool isModeKeepwarm;
+	uint8_t level;
+	uint32_t hasPowerLedOnLastTime;
+	uint32_t hasPowerLedOffLastTime;
+	uint32_t isOnLastTime;
 	
+	bool hasError;
+	bool noPanError;
+	bool IGBTTempToHeightError;
 	bool tempSensorError;
 	bool IGBTSensorError;
 	bool voltageToHeightError;
 	bool voltageToLowError;
 	bool bowOutOfWaterError;
-	bool IGBTTempToHeightError;
-	uint32_t tempSensorErrorLedLastTime;
-	uint32_t IGBTSensorErrorLedLastTime;
-	uint32_t voltageToHeightErrorLedLastTime;
-	uint32_t voltageToLowErrorLedLastTime;
-	uint32_t bowOutOfWaterErrorLedLastTime;
-	uint32_t IGBTTempToHeightErrorLedLastTime;
+	uint32_t errorLastTime;
+	
+	bool lastMultiplexer;
+	bool lastDiffMultiplexer;
+	bool ledsOffBlinkState;
+	
+	uint32_t multiplexerLastTime1;
 	
 	char* errorMsg;
 	uint32_t ledValues[6];
@@ -282,4 +308,5 @@ struct Daemon_Values {
 	struct State *state;
 	struct Heater_Led_Values *heaterStatus;
 	struct HourCounter *hourCounter;
+	struct Button_Values *buttonValues;
 };

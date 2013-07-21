@@ -108,19 +108,19 @@ int32_t readPress(struct Daemon_Values *dv){
 //Power control functions
 bool HeatOn(struct Daemon_Values *dv){
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn, was: %d\n", state->heatPowerStatus);}
-	if (dv->state->heatPowerStatus && !dv->heaterStatus->isHeating){
-		if (dv->heaterStatus->isHeatingLedLastTime + 10 < dv->timeValues->runTime){
+	if (dv->state->heatPowerStatus && !dv->heaterStatus->isOn){
+		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) > 5000){
 			dv->state->heatPowerStatus = false;
 		}
 	}
 			
 	if (!dv->state->heatPowerStatus) { //if its off
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isHeating);}
+		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
 		if (!dv->runningMode->simulationMode){
-			if (!dv->heaterStatus->isHeating){
-				writeControllButtonPin(IND_KEY4, 0); //"press" the power button
+			if (!dv->heaterStatus->isOn){
+				writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
 				delay(500);
-				writeControllButtonPin(IND_KEY4, 1);
+				writeControllButtonPin(IND_KEY_POWER, 1);
 				if (dv->settings->debug3_enabled){printf("-->HeatOn\n");}
 			} else {
 				printf("ERROR: should turn HeatOn, but led's say it is already on, so nothing done\n");
@@ -137,12 +137,12 @@ bool HeatOn(struct Daemon_Values *dv){
 bool HeatOff(struct Daemon_Values *dv){
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}
 	if (dv->state->heatPowerStatus) { //if its on
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isHeating);}
+		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
 		if (!dv->runningMode->simulationMode){
-			if (dv->heaterStatus->isHeating){
-				writeControllButtonPin(IND_KEY4, 0); //"press" the power button
+			if (dv->heaterStatus->isOn){
+				writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
 				delay(500);
-				writeControllButtonPin(IND_KEY4, 1);
+				writeControllButtonPin(IND_KEY_POWER, 1);
 				if (dv->settings->debug3_enabled){printf("-->HeatOff\n");}
 			} else {
 				printf("ERROR: should turn HeatOff, but led's say it is already off, so nothing done\n");

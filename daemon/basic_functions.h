@@ -19,10 +19,17 @@ See GPLv3.htm in the main folder for details.
 
 #include "bool.h"
 
-#define IND_KEY1	0 //14
-#define IND_KEY2	1 //15
-#define IND_KEY3	2 //18
-#define IND_KEY4	3 //23
+#define IND_KEY_MODE	0
+#define IND_KEY_MINUS	1
+#define IND_KEY_PLUS	2
+#define IND_KEY_POWER	3
+
+#define IND_LED_POWER			0
+#define IND_LED_MODE_KEEPWARM	1
+#define IND_LED_MODE_HEATING	2
+#define IND_LED_TEMP_MAX		3
+#define IND_LED_TEMP_MIDDLE		4
+#define IND_LED_TEMP_MIN		5
 
 #define I2C_MOTOR				0
 #define I2C_SERVO				1
@@ -45,8 +52,9 @@ See GPLv3.htm in the main folder for details.
 #define I2C_VALVE_CLOSED_VALUE	350
 
 void setDebugEnabled(bool value);
-void initHardware();
+void initHardware(uint32_t shieldVersion);
 void setADCConfigReg(uint32_t newConfig[]);
+void setADCModeReg(uint16_t newModeReg);
 
 //GPIO PCA9685 initialization
 void GPIOInit(void);
@@ -58,6 +66,7 @@ uint32_t readADC(uint8_t i);
 uint32_t readSignPin(uint8_t i);
 uint32_t readRaspberryPin(uint8_t i);
 void writeControllButtonPin(uint8_t i, uint8_t on);
+uint32_t readButton(uint8_t i);
 void writeRaspberryPin(uint8_t i, uint8_t on);
 void buzzer(uint8_t on, uint32_t pwm);
 void writeI2CPin(uint8_t i, uint32_t value);

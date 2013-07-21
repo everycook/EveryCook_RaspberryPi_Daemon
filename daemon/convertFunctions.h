@@ -19,3 +19,4 @@ void StringClean(char *str, uint32_t len);
 uint32_t StringConvertToNumber(const char *str);
 double StringConvertToDouble(char *str);
 int POWNTimes(uint32_t num, uint8_t n);
+char* my_itoa(int val, int base);

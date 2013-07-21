@@ -26,11 +26,19 @@ See GPLv3.htm in the main folder for details.
 #include "basic_functions.h"
 
 uint32_t ConfigurationReg[] = {0x390, 0x391, 0x392, 0x393, 0x914, 0x295};//For AD7794 conf-reg
+uint16_t ModeReg = 0x008;
 
-uint8_t PinNumSign[] = {24, 25, 27, 22, 7, 17};
+uint8_t* PinHeaterLeds;
+uint8_t PinHeaterLeds_v1[] = {24, 25, 27, 22, 7, 17};
+uint8_t PinHeaterLeds_v2[] = {4,14,15,7};
 
-uint8_t PinNumControllButtons[] = {14, 15, 18, 23};
+uint8_t* PinHeaterControllButtons;
+uint8_t PinHeaterControllButtons_v1[] = {14, 15, 18, 23};
+uint8_t PinHeaterControllButtons_v2[] = {18, 23, 24, 25};
 
+uint8_t* PinButtons;
+uint8_t PinButtons_v1[] = {};
+uint8_t PinButtons_v2[] = {17, 27, 22};
 
 uint8_t Data[10];
 
@@ -40,8 +48,18 @@ void setDebugEnabled(bool value){
 	debug_enabled2 = value;
 }
 
-void initHardware(){
+void initHardware(uint32_t shieldVersion){
 	if (debug_enabled2){printf("initHardware\n");}
+	
+	if(shieldVersion == 1){
+		PinHeaterLeds = &PinHeaterLeds_v1[0];
+		PinHeaterControllButtons = &PinHeaterControllButtons_v1[0];
+		PinButtons = &PinButtons_v1[0];
+	} else if(shieldVersion == 2){
+		PinHeaterLeds = &PinHeaterLeds_v2[0];
+		PinHeaterControllButtons = &PinHeaterControllButtons_v2[0];
+		PinButtons = &PinButtons_v2[0];
+	}
 	VirtualSPIInit();
 	VirtualI2CInit();
 	GPIOInit();
@@ -60,23 +78,32 @@ void setADCConfigReg(uint32_t newConfig[]){
 	if (debug_enabled2){printf("done.\n");}
 }
 
+void setADCModeReg(uint16_t newModeReg){
+	ModeReg = newModeReg;
+}
+
 //GPIO PCA9685 initialization
 void GPIOInit(void){
 	if (debug_enabled2){printf("GPIOInit\n");}
-	pinMode(24 ,INPUT);	//SIG1
-	pinMode(25 ,INPUT);	//SIG2
-	pinMode(27 ,INPUT);	//SIG3
-	pinMode(22 ,INPUT);	//SIG4
-	pinMode(7 ,INPUT);	//SIG5
-	pinMode(17 ,INPUT);	//SIG6
-	pinMode(14, OUTPUT);	//KEY1
-	pinMode(15, OUTPUT);	//KEY2
-	pinMode(18, OUTPUT);	//KEY3
-	pinMode(23, OUTPUT);	//KEY4
-	writeRaspberryPin(14,1);
-	writeRaspberryPin(15,1);
-	writeRaspberryPin(18,1);
-	writeRaspberryPin(23,1);
+	//heater led pins
+	uint8_t heaterLedCount = sizeof(PinHeaterLeds);
+	uint8_t i=0;
+	for(;i<heaterLedCount;++i){
+		pinMode(PinHeaterLeds[i], INPUT);
+	}
+	//heater button pins
+	uint8_t heaterButtonCount = sizeof(PinHeaterControllButtons);
+	i=0;
+	for(;i<heaterButtonCount;++i){
+		pinMode(PinHeaterControllButtons[i], OUTPUT);
+		writeRaspberryPin(PinHeaterControllButtons[i],1);
+	}
+	//button pins
+	uint8_t buttonCount = sizeof(PinButtons);
+	i=0;
+	for(;i<buttonCount;++i){
+		pinMode(PinButtons[i], INPUT);
+	}
 }
 void PCA9685Init(void){
 	if (debug_enabled2){printf("PCA9685Init\n");}
@@ -99,7 +126,7 @@ void AD7794Init(void){
 	if (debug_enabled2){printf("AD7794Init\n");}
 	SPIReset();	
 	delay(30);
-	SPIWrite2Bytes(WRITE_MODE_REG, 0x0002);
+	SPIWrite2Bytes(WRITE_MODE_REG, ModeReg);
 }
 
 
@@ -108,8 +135,16 @@ void AD7794Init(void){
 //read/write functions
 uint32_t readADC(uint8_t i){
 	uint32_t data;
-	SPIWrite2Bytes(WRITE_STRUCT_REG, ConfigurationReg[i]);
-	delay(50);
+	SPIWrite2Bytes(WRITE_CONFIG_REG, ConfigurationReg[i]);
+	bool readyToRead = false;
+	while (!readyToRead){
+		uint8_t adcState = SPIReadByte(READ_STATUS_REG);
+		if ((adcState & 0x80) == 0){
+			readyToRead = true;
+		} else {
+			delay(5);
+		}
+	}
 	data = SPIRead3Bytes(READ_DATA_REG);
 	if (debug_enabled2){printf("readADC(%d): %06X\n", i, data);}
 	return data;
@@ -117,7 +152,7 @@ uint32_t readADC(uint8_t i){
 
 uint32_t readSignPin(uint8_t i){
 	uint32_t data;
-	data = digitalRead(PinNumSign[i]);
+	data = digitalRead(PinHeaterLeds[i]);
 	if (debug_enabled2){printf("readSignPin(%d): %06X\n", i, data);}
 	return data;
 }
@@ -132,14 +167,17 @@ uint32_t readRaspberryPin(uint8_t i){
 void writeControllButtonPin(uint8_t i, uint8_t on){
 	if (debug_enabled2){printf("writeControllButtonPin(%d): %d\n", i, on);}
 	if (on){
-		digitalWrite(PinNumControllButtons[i], HIGH);
+		digitalWrite(PinHeaterControllButtons[i], HIGH);
 	} else {
-		digitalWrite(PinNumControllButtons[i], LOW);
-		/*
-		delay(500);
-		digitalWrite(PinNumControllButtons[i], HIGH);
-		*/
+		digitalWrite(PinHeaterControllButtons[i], LOW);
 	}
+}
+
+uint32_t readButton(uint8_t i){
+	uint32_t data;
+	data = digitalRead(PinButtons[i]);
+	if (debug_enabled2){printf("readButton(%d): %06X\n", i, data);}
+	return data;
 }
 
 void writeRaspberryPin(uint8_t i, uint8_t on){
@@ -148,11 +186,6 @@ void writeRaspberryPin(uint8_t i, uint8_t on){
 		digitalWrite(i, HIGH);
 	} else {
 		digitalWrite(i, LOW);
-		/*
-		//TODO set back to high, but not here, to long delay while running firmware...
-		delay(500);
-		digitalWrite(i, HIGH);
-		*/
 	}
 }
 

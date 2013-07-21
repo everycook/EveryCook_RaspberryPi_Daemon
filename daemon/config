@@ -13,7 +13,7 @@ BeepWeightReached=1
 BeepStepEnd=1
 
 #logging
-DeleteLogOnStart=1  
+DeleteLogOnStart=1
 #delete log at start saves disk space set 0 to keep log
 LogFile=/var/log/EveryCook_Daemon.log
 #interval between two log file writes in seconds
@@ -25,8 +25,12 @@ logLines=60
 i2c_motor_speed_min=10
 i2c_motor_speed_ramp=10
 
-#Induction Heater GPIO pins
-PowerOnPin=4
+#servo stay open after pressure less in seconds
+i2c_servo_stay_open=8
+
+#ADC update rate setting
+ADC_update_rate=10
+
 
 #communication
 CommandFile=/run/shm/command

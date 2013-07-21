@@ -27,13 +27,19 @@ See GPLv3.htm in the main folder for details.
 #define READ_STATUS_REG		0x40
 #define READ_MODE_REG		0x48
 #define WRITE_MODE_REG		0x08
-#define READ_STRUCT_REG		0x50
-#define WRITE_STRUCT_REG	0x10
+#define READ_CONFIG_REG		0x50
+#define WRITE_CONFIG_REG	0x10
 #define READ_DATA_REG		0x58
 #define READ_SERIAL_REG		0x60
 #define READ_IO_REG 		0x68
 #define WRITE_IO_REG		0x28
 #define READ_SHIFT_REG		0x70
+#define READ_FULLSCALE_REG	0x78
+
+#define internalZeroScaleCalibration	0x8000;
+#define internalFullScaleCalibration	0xA000;
+#define systemZeroScaleCalibration		0xC000;
+#define systemFullScaleCalibration		0xE000;
 
 #ifdef __cplusplus
 extern "C" {
