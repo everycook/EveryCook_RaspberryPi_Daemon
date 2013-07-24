@@ -58,6 +58,7 @@ const uint8_t HOUR_COUNTER_VERSION = 0;
 
 struct ADC_Config adc_config = {0,1,2,3,4,5, 0,8, {0x710, 0x711, 0x712, 0x713, 0x714, 0x115}};
 struct ADC_Noise_Values adc_noise = {0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0};
+struct ADC_Values adc_values;
 
 struct ADC_Calibration forceCalibration = {};
 struct ADC_Calibration pressCalibration = {};
@@ -90,6 +91,7 @@ struct HourCounter hourCounter = {"HCV\0", 0.0, 0.0, 0.0};
 struct Button_Values buttonValues;
 
 pthread_t threadHeaterLedReader;
+pthread_t threadReadADCValues;
 
 
 uint8_t HeaterErrorPattern[7][6] = {{0, 0, 0, 0, 0, 0},{0, 0, 1, 1, 1, 1},{1, 0, 1, 1, 1, 1},{0, 1, 1, 1, 1, 1},{1, 0, 0, 1, 1, 1},{0, 0, 0, 1, 1, 1}};
@@ -107,11 +109,8 @@ void doOutput();
 void updateMotorTime();
 void updateHeaterTime();
 
-void SegmentDisplaySimple(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
-void SegmentDisplayOptimized(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
-void blink7Segment(struct I2C_Config *i2c_config);
-
 void *heaterLedEvaluation(void *ptr);
+void *readADCValues(void *ptr);
 
 /*
 The Modes:
@@ -149,6 +148,7 @@ int main(int argc, const char* argv[]){
 	daemon_values.heaterStatus = &heaterStatus;
 	daemon_values.hourCounter = &hourCounter;
 	daemon_values.buttonValues = &buttonValues;
+	daemon_values.adc_values = &adc_values;
 	
 	printf("starting EveryCook daemon...\n");
 	if (settings.debug_enabled){printf("main\n");}
@@ -186,7 +186,8 @@ int main(int argc, const char* argv[]){
 	timeValues.stepStartTime = timeValues.runTime; //TODO WIA CHANGE THIS
 	
 	if (runningMode.normalMode){
-		pthread_create( &threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
 		while (state.running){
 			if (settings.debug_enabled){printf("main loop...\n");}
 			if (timeValues.lastRunTime != timeValues.runTime){
@@ -196,6 +197,7 @@ int main(int argc, const char* argv[]){
 			bool valueChanged = checkForInput();
 			
 			timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
+			timeValues.runTimeMillis = millis();
 			
 			if (valueChanged){
 				if (settings.debug_enabled){printf("valueChanged=true\n");}
@@ -217,23 +219,40 @@ int main(int argc, const char* argv[]){
 		setMotorRPM(0, &daemon_values);
 
 		setServoOpen(0, 1, 0, &daemon_values);
-		pthread_join( threadHeaterLedReader, NULL);
+		pthread_join(threadReadADCValues, NULL);
+		pthread_join(threadHeaterLedReader, NULL);
 	} else if (runningMode.calibration || runningMode.measure_noise){
 		if (runningMode.calibration) {
-			pthread_create( &threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
 		}
+		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
 		while (state.running){
+			timeValues.runTime = time(NULL);
+			timeValues.runTimeMillis = millis();
 			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
 			if (runningMode.calibration) HeatOn(&daemon_values);
-			readTemp(&daemon_values);
-			readPress(&daemon_values);
-			readWeight(&daemon_values);
+			if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled || runningMode.measure_noise) {printf("time %8d | ", timeValues.runTimeMillis);}
+			
+			if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Temp %d dig %.0f °C | ", adc_values.Temp.adc_value, adc_values.Temp.valueByOffset);}
+			if (runningMode.measure_noise) {printf("NoiseTemp %d | ", adc_noise.DeltaTemp);}
+			
+			if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Press %d digits %.0f kPa | ", adc_values.Press.adc_value, adc_values.Press.valueByOffset);}
+			if (runningMode.measure_noise){printf("NoisePress %d |", adc_noise.DeltaPress);}
+			
+			if (settings.debug_enabled || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}			
+			if (runningMode.measure_noise){
+				printf("NoiseWeightFL %d | ", adc_noise.DeltaWeight1);
+				printf("NoiseWeightFR %d | ", adc_noise.DeltaWeight2);
+				printf("NoiseWeightBL %d | ", adc_noise.DeltaWeight3);
+				printf("NoiseWeightBR %d\n", adc_noise.DeltaWeight4);
+			}
 			SegmentDisplay();
 			delay(state.Delay);
 		}
+		pthread_join(threadReadADCValues, NULL);
 		if (runningMode.calibration){
 			if (runningMode.calibration) HeatOff(&daemon_values);
-			pthread_join( threadHeaterLedReader, NULL);
+			pthread_join(threadHeaterLedReader, NULL);
 		}
 	} else if (runningMode.test_7seg){
 		while (state.running){
@@ -1207,7 +1226,6 @@ void ProcessCommand(void){
 	MotorControl();
 	ValveControl();
 	ScaleFunction();
-	isLidOpen();
 	
 	if (timeValues.stepEndTime > timeValues.runTime) {
 		timeValues.remainTime=timeValues.stepEndTime-timeValues.runTime;
@@ -1254,7 +1272,9 @@ void TempControl(){
 	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
 		oldCommandValues.temp = currentCommandValues.temp;
-		currentCommandValues.temp=readTemp(&daemon_values);
+		currentCommandValues.temp = adc_values.Temp.valueByOffset;
+		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Temp %d dig %.0f °C | ", adc_values.Temp.adc_value, adc_values.Temp.valueByOffset);}
+		if (runningMode.measure_noise) {printf("NoiseTemp %d | ", adc_noise.DeltaTemp);}
 		
 		if (oldCommandValues.temp != currentCommandValues.temp){
 			state.dataChanged = true;
@@ -1285,8 +1305,9 @@ void TempControl(){
 		}
 	} else {
 		oldCommandValues.temp = currentCommandValues.temp;
-		currentCommandValues.temp=readTemp(&daemon_values);
-		
+		currentCommandValues.temp = adc_values.Temp.valueByOffset;
+		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Temp %d dig %.0f °C | ", adc_values.Temp.adc_value, adc_values.Temp.valueByOffset);}
+		if (runningMode.measure_noise) {printf("NoiseTemp %d | ", adc_noise.DeltaTemp);}
 		if (oldCommandValues.temp != currentCommandValues.temp){
 			state.dataChanged = true;
 		}
@@ -1297,7 +1318,9 @@ void PressControl(){
 	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_PRESS_MODE && currentCommandValues.mode<=MAX_PRESS_MODE) {
 		oldCommandValues.press = currentCommandValues.press;
-		currentCommandValues.press = readPress(&daemon_values);
+		currentCommandValues.press = adc_values.Press.valueByOffset;
+		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Press %d digits %.0f kPa | ", adc_values.Press.adc_value, adc_values.Press.valueByOffset);}
+		if (runningMode.measure_noise){printf("NoisePress %d |", adc_noise.DeltaPress);}
 		
 		if (oldCommandValues.press != currentCommandValues.press){
 			state.dataChanged = true;
@@ -1328,7 +1351,9 @@ void PressControl(){
 		}
 	} else {
 		oldCommandValues.press = currentCommandValues.press;
-		currentCommandValues.press = readPress(&daemon_values);
+		currentCommandValues.press = adc_values.Press.valueByOffset;
+		if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Press %d digits %.0f kPa | ", adc_values.Press.adc_value, adc_values.Press.valueByOffset);}
+		if (runningMode.measure_noise){printf("NoisePress %d |", adc_noise.DeltaPress);}
 		
 		if (oldCommandValues.press != currentCommandValues.press){
 			state.dataChanged = true;
@@ -1336,7 +1361,6 @@ void PressControl(){
 	}
 }
 
-//void MotorControl(struct State state, struct Command_Values currentCommandValues, struct Command_Values newCommandValues, struct Time_Values timeValues){
 void MotorControl(){
 	if (currentCommandValues.mode==MODE_CUT || currentCommandValues.mode>=MIN_TEMP_MODE){
 		if (currentCommandValues.mode==MODE_CUT) timeValues.stepEndTime=timeValues.runTime+1;
@@ -1390,29 +1414,19 @@ void ValveControl(){
 	}
 }
 
-bool isLidOpen(){
-	double sumOfForces;
-	if (!state.scaleReady) {
-		sumOfForces = readWeightSeparate(&state.weightValues[0], &daemon_values);
-	} else {
-		sumOfForces = state.referenceForce;
-	}
-	double front = (state.weightValues[0] + state.weightValues[1]) / 2 - sumOfForces;
-	double back = (state.weightValues[2] + state.weightValues[3]) / 2 - sumOfForces;
-	
-	double ratio = front / back;
-	state.lidOpen = ratio < 0.8;
-	
-	return state.lidOpen;
-}
-
 //void ScaleFunction(struct State state, struct Settings settings, struct Command_Values oldCommandValues, struct Command_Values currentCommandValues, struct Command_Values newCommandValues, struct Time_Values timeValues){
 void ScaleFunction(){
 	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
 		timeValues.stepEndTime=timeValues.runTime+2;
 		oldCommandValues.weight = currentCommandValues.weight;
-		//double sumOfForces = readWeight(&daemon_values);
-		double sumOfForces = readWeightSeparate(&state.weightValues[0], &daemon_values);
+		double sumOfForces = adc_values.Weight.value;
+		if (settings.debug_enabled || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}			
+		if (runningMode.measure_noise){
+			printf("NoiseWeightFL %d | ", adc_noise.DeltaWeight1);
+			printf("NoiseWeightFR %d | ", adc_noise.DeltaWeight2);
+			printf("NoiseWeightBL %d | ", adc_noise.DeltaWeight3);
+			printf("NoiseWeightBR %d\n", adc_noise.DeltaWeight4);
+		}
 		if (settings.debug_enabled){printf("ScaleFunction\n");}
 		
 		if (!state.scaleReady) { //we are not ready for weighting
@@ -1516,16 +1530,15 @@ void Beep(){
 			state.isBuzzing = true;
 			uint32_t duration = timeValues.beepEndTime-timeValues.runTime;
 			char command[100];
-			sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d &", duration);
-			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir /opt/EveryCook/daemon/sounds --wavfile ding.wav", duration);
-			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir %s --wavfile %s", duration, settings.wavdir, settings.wavfile);
-			printf(command);
+			sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d 1>/dev/null 2>&1 &", duration);
+			//char command[200];
+			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir /opt/EveryCook/daemon/sounds --wavfile ding.wav &", duration);
+			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir %s --wavfile %s &", duration, settings.wavdir, settings.wavfile);
+			printf("%s\n",command);
 			system(command);
-			//buzzer(1, BUZZER_PWM);
 		}
 	} else {
 		if (state.isBuzzing || ALLWAYS_STOP_BUZZING){
-			//buzzer(0, BUZZER_PWM);
 			state.isBuzzing = false;
 		}
 	}
@@ -2286,6 +2299,7 @@ void *heaterLedEvaluation(void *ptr){
 		
 		uint32_t leds, led1,led2,led3;
 		uint32_t updateDelay = 10;
+		uint32_t runTimeMillis;
 		while (state.running){
 			bool different = false;
 			uint8_t i = 0;
@@ -2298,13 +2312,13 @@ void *heaterLedEvaluation(void *ptr){
 			led2 = readSignPin(2);
 			led3 = readSignPin(3);
 			delayMicroseconds(200);
-			timeValues.runTimeMillis = millis();
+			runTimeMillis = millis();
 			if (multiplexer == leds && leds == readSignPin(0) && led1 == readSignPin(1) && led2 == readSignPin(2) && led3 == readSignPin(3)){
 				if (multiplexer==0){
 					led[0] = led1;
 					led[1] = led2;
 					led[2] = led3;
-					if (heaterStatus.hasPower && (timeValues.runTimeMillis - heaterStatus.multiplexerLastTime1) > 200){
+					if (heaterStatus.hasPower && (runTimeMillis - heaterStatus.multiplexerLastTime1) > 200){
 						//multiplexer value not changed for a amount of time -> No Power
 						led[3] = 0;
 						led[4] = 0;
@@ -2314,10 +2328,10 @@ void *heaterLedEvaluation(void *ptr){
 					led[3] = led1;
 					led[4] = led2;
 					led[5] = led3;
-					heaterStatus.multiplexerLastTime1 = timeValues.runTimeMillis;
+					heaterStatus.multiplexerLastTime1 = runTimeMillis;
 				}
 				
-				if (settings.debug_enabled){printf("%d\t%d\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",timeValues.runTimeMillis,multiplexer, led[0],led[1],led[2],led[3],led[4],led[5]);}
+				if (settings.debug_enabled){printf("%d\t%d\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",runTimeMillis,multiplexer, led[0],led[1],led[2],led[3],led[4],led[5]);}
 			} else {
 				delay(updateDelay);
 				continue;
@@ -2362,14 +2376,14 @@ void *heaterLedEvaluation(void *ptr){
 			
 			if (settings.debug_enabled){printf("do check\n");}
 			if (led[IND_LED_POWER]){
-				heaterStatus.hasPowerLedOnLastTime = timeValues.runTimeMillis;
+				heaterStatus.hasPowerLedOnLastTime = runTimeMillis;
 				if (!heaterStatus.hasPower){
 					heaterStatus.hasPower = true;
 					different = true;
 				}
 			} else {
-				heaterStatus.hasPowerLedOffLastTime = timeValues.runTimeMillis;
-				if (heaterStatus.hasPower && ((timeValues.runTimeMillis - heaterStatus.hasPowerLedOnLastTime) > 1000 || (timeValues.runTimeMillis - heaterStatus.multiplexerLastTime1) > 200)){ //if not heating, blinking in about 500ms cycles
+				heaterStatus.hasPowerLedOffLastTime = runTimeMillis;
+				if (heaterStatus.hasPower && ((runTimeMillis - heaterStatus.hasPowerLedOnLastTime) > 1000 || (runTimeMillis - heaterStatus.multiplexerLastTime1) > 200)){ //if not heating, blinking in about 500ms cycles
 					heaterStatus.hasPower = false;
 					different = true;
 					
@@ -2384,7 +2398,7 @@ void *heaterLedEvaluation(void *ptr){
 				if(led[IND_LED_TEMP_MAX] ^ led[IND_LED_TEMP_MIDDLE] ^ led[IND_LED_TEMP_MIN]){
 					//one(only one!) of the level leds are on
 					if (led[IND_LED_MODE_HEATING] ^ led[IND_LED_MODE_KEEPWARM]){
-						heaterStatus.isOnLastTime = timeValues.runTimeMillis;
+						heaterStatus.isOnLastTime = runTimeMillis;
 						heaterStatus.errorMsg = NULL;
 						if (!heaterStatus.isOn || heaterStatus.hasError){
 							heaterStatus.isOn = true;
@@ -2409,11 +2423,11 @@ void *heaterLedEvaluation(void *ptr){
 			
 			if(newHasError){
 				if(heaterStatus.hasPower){
-					if (heaterStatus.isOn && (timeValues.runTimeMillis - heaterStatus.hasPowerLedOffLastTime) < 1000){ //if not heating, blinking in about 500ms cycles
+					if (heaterStatus.isOn && (runTimeMillis - heaterStatus.hasPowerLedOffLastTime) < 1000){ //if not heating, blinking in about 500ms cycles
 						if (settings.debug_enabled){printf("Set isOn to false\n");}
 						heaterStatus.isOn = false;
 						different = true;
-					} else if (!heaterStatus.isOn && (timeValues.runTimeMillis - heaterStatus.hasPowerLedOffLastTime) > 1000){
+					} else if (!heaterStatus.isOn && (runTimeMillis - heaterStatus.hasPowerLedOffLastTime) > 1000){
 						//This one is needed for correct error handling, if it is set to false in couse of error, but is still on
 						if (settings.debug_enabled){printf("Set isOn to true\n");}
 						heaterStatus.isOn = true;
@@ -2421,7 +2435,7 @@ void *heaterLedEvaluation(void *ptr){
 					}
 				}
 				if (heaterStatus.isOn){
-					if(different || !heaterStatus.hasError || (timeValues.runTimeMillis - heaterStatus.errorLastTime) > 5000){
+					if(different || !heaterStatus.hasError || (runTimeMillis - heaterStatus.errorLastTime) > 5000){
 						if(!led[IND_LED_MODE_HEATING] && !led[IND_LED_MODE_KEEPWARM] && !led[IND_LED_TEMP_MAX] && !led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
 							//Error leds off blink state
 							if (settings.debug_enabled){printf("Error leds off blink state\n");}
@@ -2458,7 +2472,7 @@ void *heaterLedEvaluation(void *ptr){
 								heaterStatus.bowOutOfWaterError = true;
 								heaterStatus.errorMsg = "The bow out of water";
 							}
-							heaterStatus.errorLastTime = timeValues.runTimeMillis;
+							heaterStatus.errorLastTime = runTimeMillis;
 						}
 					}
 				}
@@ -2482,3 +2496,200 @@ void *heaterLedEvaluation(void *ptr){
 	}
 	return 0;
 }
+
+void *readADCValues(void *ptr){
+	uint32_t delayWeight;
+	uint32_t delayTempPess;
+	
+	if (runningMode.simulationMode){
+		state.lidOpen = false;
+		delayWeight = 300;
+		delayTempPess = 1000;
+		while (state.running){		
+			if (currentCommandValues.mode == MODE_SCALE){
+				double weightValue;
+				if (!state.scaleReady) {
+					weightValue = 0.0;
+				} else {
+					if (timeValues.runTime <= timeValues.simulationUpdateTime){
+						delay(delayWeight);
+						continue;
+					} else {
+						int deltaW = newCommandValues.weight-oldCommandValues.weight;
+						weightValue = oldCommandValues.weight;
+						if (deltaW<0) {
+							--weightValue;
+						} else if (deltaW==0) {
+							//Nothing
+						} else if (deltaW<=10) {
+							weightValue = weightValue + 2;
+						} else if (deltaW<=50) {
+							weightValue = weightValue + 5;
+						} else {
+							weightValue = weightValue + 10;
+						}
+						weightValue += state.referenceForce;
+						timeValues.simulationUpdateTime = timeValues.runTime;
+					}
+				}
+				if (adc_values.Weight.valueByOffset != weightValue){
+					adc_values.Weight.valueByOffset = weightValue;
+					adc_values.Weight.value = adc_values.Weight.valueByOffset - state.referenceForce;
+					adc_values.Weight.adc_value = adc_values.Weight.value / forceCalibration.scaleFactor;
+					
+					adc_values.LoadCellFrontLeft.adc_value = adc_values.Weight.adc_value;
+					adc_values.LoadCellFrontLeft.value = adc_values.Weight.value;
+					adc_values.LoadCellFrontLeft.valueByOffset = adc_values.Weight.valueByOffset;
+					
+					adc_values.LoadCellFrontRight.adc_value = adc_values.Weight.adc_value;
+					adc_values.LoadCellFrontRight.value = adc_values.Weight.value;
+					adc_values.LoadCellFrontRight.valueByOffset = adc_values.Weight.valueByOffset;
+					
+					adc_values.LoadCellBackLeft.adc_value = adc_values.Weight.adc_value;
+					adc_values.LoadCellBackLeft.value = adc_values.Weight.value;
+					adc_values.LoadCellBackLeft.valueByOffset = adc_values.Weight.valueByOffset;
+					
+					adc_values.LoadCellBackRight.adc_value = adc_values.Weight.adc_value;
+					adc_values.LoadCellBackRight.value = adc_values.Weight.value;
+					adc_values.LoadCellBackRight.valueByOffset = adc_values.Weight.valueByOffset;
+				}
+				delay(delayWeight);
+			}
+			if (currentCommandValues.mode != MODE_SCALE){
+				double tempValue = oldCommandValues.temp;
+				int deltaT=newCommandValues.temp-oldCommandValues.temp;
+				if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
+					if (deltaT<0) {
+						--tempValue;
+					} else if (deltaT==0) {
+						//Nothing
+					} else if (deltaT <= 10) {
+						tempValue = tempValue+1;
+					} else if (deltaT <= 20) {
+						tempValue = tempValue+5;
+					} else if (deltaT <= 50) {
+						tempValue = tempValue+25;
+					} else {
+						tempValue = tempValue+40;
+					}
+				} else if (currentCommandValues.mode==MODE_COOLDOWN){
+					tempValue = tempValue-1;
+				}
+				adc_values.Temp.valueByOffset = tempValue;
+				adc_values.Temp.value = adc_values.Temp.valueByOffset - tempCalibration.offset;
+				adc_values.Temp.adc_value = adc_values.Temp.value / tempCalibration.scaleFactor;
+				
+				int32_t pressValue = oldCommandValues.press;
+				int deltaP=newCommandValues.press - oldCommandValues.press;
+				if (currentCommandValues.mode == MODE_PRESSUP || currentCommandValues.mode == MODE_PRESSHOLD) {
+					if (deltaP<0) {
+						--pressValue;
+					} else if (deltaP==0) {
+						//Nothing
+					} else if (deltaP <= 10) {
+						pressValue = pressValue+2;
+					} else if (deltaP <= 50) {
+						pressValue = pressValue+5;
+					} else {
+						pressValue = pressValue+10;
+					}
+				} else if (currentCommandValues.mode == MODE_PRESSDOWN){
+					pressValue = pressValue-1;
+				}
+				adc_values.Press.valueByOffset = pressValue;
+				adc_values.Press.value = pressValue - pressCalibration.offset;
+				adc_values.Press.adc_value = adc_values.Press.value / pressCalibration.scaleFactor;
+				delay(delayTempPess);
+			}
+		}
+		return 0;
+	}
+	
+	delayWeight = 10;
+	delayTempPess = 100;
+	while (state.running){
+		if (currentCommandValues.mode == MODE_SCALE || millis() - timeValues.lastWeightUpdateTime > 2000 || runningMode.calibration || runningMode.measure_noise)){
+			adc_values.LoadCellFrontLeft.adc_value = readADC(adc_config.ADC_LoadCellFrontLeft);
+			adc_values.LoadCellFrontLeft.value = (double)adc_values.LoadCellFrontLeft.adc_value * forceCalibration.scaleFactor;
+			adc_values.LoadCellFrontLeft.valueByOffset=adc_values.LoadCellFrontLeft.value + state.referenceForce;
+			adc_values.LoadCellFrontLeft.valueByOffset = round(adc_values.LoadCellFrontLeft.valueByOffset);
+			
+			adc_values.LoadCellFrontRight.adc_value = readADC(adc_config.ADC_LoadCellFrontRight);
+			adc_values.LoadCellFrontRight.value = (double)adc_values.LoadCellFrontRight.adc_value * forceCalibration.scaleFactor;
+			adc_values.LoadCellFrontRight.valueByOffset=adc_values.LoadCellFrontRight.value + state.referenceForce;
+			adc_values.LoadCellFrontRight.valueByOffset = round(adc_values.LoadCellFrontRight.valueByOffset);
+			
+			adc_values.LoadCellBackLeft.adc_value = readADC(adc_config.ADC_LoadCellBackLeft);
+			adc_values.LoadCellBackLeft.value = (double)adc_values.LoadCellBackLeft.adc_value * forceCalibration.scaleFactor;
+			adc_values.LoadCellBackLeft.valueByOffset=adc_values.LoadCellBackLeft.value + state.referenceForce;
+			adc_values.LoadCellBackLeft.valueByOffset = round(adc_values.LoadCellBackLeft.valueByOffset);
+			
+			adc_values.LoadCellBackRight.adc_value = readADC(adc_config.ADC_LoadCellBackRight);
+			adc_values.LoadCellBackRight.value = (double)adc_values.LoadCellBackRight.adc_value * forceCalibration.scaleFactor;
+			adc_values.LoadCellBackRight.valueByOffset=adc_values.LoadCellBackRight.value + state.referenceForce;
+			adc_values.LoadCellBackRight.valueByOffset = round(adc_values.LoadCellBackRight.valueByOffset);
+			
+			adc_values.Weight.adc_value = (adc_values.LoadCellFrontLeft.adc_value + adc_values.LoadCellFrontRight.adc_value + adc_values.LoadCellBackLeft.adc_value + adc_values.LoadCellBackRight.adc_value) / 4;
+			adc_values.Weight.value = (double)adc_values.Weight.adc_value * forceCalibration.scaleFactor;
+			adc_values.Weight.valueByOffset=adc_values.Weight.value + state.referenceForce;
+			adc_values.Weight.valueByOffset = round(adc_values.Weight.valueByOffset);
+			
+			timeValues.lastWeightUpdateTime = millis();
+			
+			if (currentCommandValues.mode != MODE_SCALE){
+				//check isLidOpen
+				double front = (adc_values.LoadCellFrontLeft.valueByOffset + adc_values.LoadCellFrontRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
+				double back = (adc_values.LoadCellBackLeft.valueByOffset + adc_values.LoadCellBackRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
+				
+				double ratio = front / back;
+				state.lidOpen = ratio < 0.8;
+			}
+			
+			if (runningMode.measure_noise){
+				if (adc_values.LoadCellFrontLeft.adc_value > adc_noise.MaxWeight1) adc_noise.MaxWeight1 = adc_values.LoadCellFrontLeft.adc_value;
+				if (adc_values.LoadCellFrontLeft.adc_value < adc_noise.MinWeight1) adc_noise.MinWeight1 = adc_values.LoadCellFrontLeft.adc_value;
+				adc_noise.DeltaWeight1 = adc_noise.MaxWeight1 - adc_noise.MinWeight1;
+				
+				if (adc_values.LoadCellFrontRight.adc_value > adc_noise.MaxWeight2) adc_noise.MaxWeight2 = adc_values.LoadCellFrontRight.adc_value;
+				if (adc_values.LoadCellFrontRight.adc_value < adc_noise.MinWeight2) adc_noise.MinWeight2 = adc_values.LoadCellFrontRight.adc_value;
+				adc_noise.DeltaWeight2 = adc_noise.MaxWeight2 - adc_noise.MinWeight2;
+				
+				if (adc_values.LoadCellBackLeft.adc_value > adc_noise.MaxWeight3) adc_noise.MaxWeight3 = adc_values.LoadCellBackLeft.adc_value;
+				if (adc_values.LoadCellBackLeft.adc_value < adc_noise.MinWeight3) adc_noise.MinWeight3 = adc_values.LoadCellBackLeft.adc_value;
+				adc_noise.DeltaWeight3 = adc_noise.MaxWeight3 - adc_noise.MinWeight3;
+				
+				if (adc_values.LoadCellBackRight.adc_value > adc_noise.MaxWeight4) adc_noise.MaxWeight4 = adc_values.LoadCellBackRight.adc_value;
+				if (adc_values.LoadCellBackRight.adc_value < adc_noise.MinWeight4) adc_noise.MinWeight4 = adc_values.LoadCellBackRight.adc_value;
+				adc_noise.DeltaWeight4 = adc_noise.MaxWeight4 - adc_noise.MinWeight4;
+			}
+			
+			delay(delayWeight);
+		}
+		if (currentCommandValues.mode != MODE_SCALE || runningMode.calibration || runningMode.measure_noise){
+			adc_values.Temp.adc_value = readADC(adc_config.ADC_Temp);
+			adc_values.Temp.value = (double)adc_values.Temp.adc_value * tempCalibration.scaleFactor;
+			adc_values.Temp.valueByOffset=adc_values.Temp.value + tempCalibration.offset;
+			adc_values.Temp.valueByOffset = round(adc_values.Temp.valueByOffset);
+			
+			if (runningMode.measure_noise) {
+				if (adc_values.Temp.adc_value > adc_noise.MaxTemp) adc_noise.MaxTemp = adc_values.Temp.adc_value;
+				if (adc_values.Temp.adc_value < adc_noise.MinTemp) adc_noise.MinTemp = adc_values.Temp.adc_value;
+				adc_noise.DeltaTemp = adc_noise.MaxTemp - adc_noise.MinTemp;
+			}
+			
+			adc_values.Press.adc_value = readADC(adc_config.ADC_Press);
+			adc_values.Press.value = (double)adc_values.Press.adc_value * pressCalibration.scaleFactor;
+			adc_values.Press.valueByOffset=adc_values.Press.value + pressCalibration.offset;
+			adc_values.Press.valueByOffset = round(adc_values.Press.valueByOffset);
+			if (runningMode.measure_noise){
+				if (adc_values.Press.adc_value > adc_noise.MaxPress) adc_noise.MaxPress = adc_values.Press.adc_value;
+				if (adc_values.Press.adc_value < adc_noise.MinPress) adc_noise.MinPress = adc_values.Press.adc_value;
+				adc_noise.DeltaPress = adc_noise.MaxPress - adc_noise.MinPress;
+			}
+			
+			delay(delayTempPess);
+		}
+	}
+	return 0;
+}
+

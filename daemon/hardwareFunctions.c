@@ -29,80 +29,14 @@ const float MOTOR_RPM_TO_PWM = 4095.0/200.0;
 /******************* functions to evaluate **********************/
 
 double readTemp(struct Daemon_Values *dv){
-	if (dv->runningMode->simulationMode){
-		double tempValue = dv->oldCommandValues->temp;
-		int deltaT=dv->newCommandValues->temp-dv->oldCommandValues->temp;
-		if (dv->currentCommandValues->mode==MODE_HEATUP || dv->currentCommandValues->mode==MODE_COOK) {
-			if (deltaT<0) {
-				--tempValue;
-			} else if (deltaT==0) {
-				//Nothing
-			} else if (deltaT <= 10) {
-				tempValue = tempValue+1;
-			} else if (deltaT <= 20) {
-				tempValue = tempValue+5;
-			} else if (deltaT <= 50) {
-				tempValue = tempValue+25;
-			} else {
-				tempValue = tempValue+40;
-			}
-		} else if (dv->currentCommandValues->mode==MODE_COOLDOWN){
-			tempValue = tempValue-1;
-		}
-		//if (settings->debug_enabled){printf("readTemp, new Value is %f\n", tempValue);}
-		printf("readTemp, new Value is %f\n", tempValue);
-		return tempValue;
-	} else {
-		uint32_t tempValueInt = readADC(dv->adc_config->ADC_Temp);
-		double tempValue = (double)tempValueInt * dv->tempCalibration->scaleFactor+dv->tempCalibration->offset;
-		tempValue = round(tempValue);
-		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Temp %d dig %.0f °C | ", tempValueInt, tempValue);}
-		if (dv->runningMode->measure_noise) {
-			if (tempValueInt>dv->adc_noise->MaxTemp) dv->adc_noise->MaxTemp=tempValueInt;
-			if (tempValueInt<dv->adc_noise->MinTemp) dv->adc_noise->MinTemp=tempValueInt;
-			dv->adc_noise->DeltaTemp=dv->adc_noise->MaxTemp-dv->adc_noise->MinTemp;
-			printf("NoiseTemp %d | ", dv->adc_noise->DeltaTemp);
-		}
-		return tempValue;
-	}
+		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Temp %d dig %.0f °C | ", dv->adc_values->Temp.adc_value, dv->adc_values->Temp.valueByOffset);}
+		return dv->adc_values->Temp.valueByOffset;
 }
 
 
 int32_t readPress(struct Daemon_Values *dv){
-	if (dv->runningMode->simulationMode){
-		int32_t pressValue = dv->oldCommandValues->press;
-		int deltaP=dv->newCommandValues->press-dv->oldCommandValues->press;
-		if (dv->currentCommandValues->mode==MODE_PRESSUP || dv->currentCommandValues->mode==MODE_PRESSHOLD) {
-			if (deltaP<0) {
-				--pressValue;
-			} else if (deltaP==0) {
-				//Nothing
-			} else if (deltaP <= 10) {
-				pressValue = pressValue+2;
-			} else if (deltaP <= 50) {
-				pressValue = pressValue+5;
-			} else {
-				pressValue = pressValue+10;
-			}
-		} else if (dv->currentCommandValues->mode==MODE_PRESSDOWN){
-			pressValue = pressValue-1;
-		}
-		//if (settings->debug_enabled){printf("readPress, new Value is %f\n", pressValue);}
-		printf("readPress, new Value is %d\n", pressValue);
-		return pressValue;
-	} else {
-		uint32_t pressValueInt = readADC(dv->adc_config->ADC_Press);
-		//using int not uint here for show negativ value in calibration mode
-		int32_t pressValue = pressValueInt * dv->pressCalibration->scaleFactor+dv->pressCalibration->offset;
-		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Press %d digits %d kPa | ", pressValueInt, pressValue);}
-		if (dv->runningMode->measure_noise){
-			if (pressValueInt>dv->adc_noise->MaxPress) dv->adc_noise->MaxPress=pressValueInt;
-			if (pressValueInt<dv->adc_noise->MinPress) dv->adc_noise->MinPress=pressValueInt;
-			dv->adc_noise->DeltaPress=dv->adc_noise->MaxPress-dv->adc_noise->MinPress;
-			printf("NoisePress %d |", dv->adc_noise->DeltaPress);
-		}
-		return pressValue;
-	}
+		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Press %d digits %.0f kPa | ", dv->adc_values->Press.adc_value, dv->adc_values->Press.valueByOffset);}
+		return dv->adc_values->Press.valueByOffset;
 }
 
 //Power control functions
@@ -113,9 +47,9 @@ bool HeatOn(struct Daemon_Values *dv){
 			dv->state->heatPowerStatus = false;
 		}
 	}
-			
+	
 	if (!dv->state->heatPowerStatus) { //if its off
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
+		if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
 		if (!dv->runningMode->simulationMode){
 			if (!dv->heaterStatus->isOn){
 				writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
@@ -137,7 +71,7 @@ bool HeatOn(struct Daemon_Values *dv){
 bool HeatOff(struct Daemon_Values *dv){
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}
 	if (dv->state->heatPowerStatus) { //if its on
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode || dv->runningMode->calibration){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
+		if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
 		if (!dv->runningMode->simulationMode){
 			if (dv->heaterStatus->isOn){
 				writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
@@ -162,6 +96,27 @@ void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 		rpm = dv->i2c_motor_values->i2c_motor_speed_min;
 		if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("rpm was to low, changed to: %d\n", rpm);}
 	}
+	
+	if (!dv->heaterStatus->hasPower && rpm != 0){
+		uint32_t timeouts[2];
+		if (dv->settings->shieldVersion == 1){
+			timeouts[0] = 12000;
+			timeouts[1] = 5000;
+		} else {
+			timeouts[0] = 5000;
+			timeouts[1] = 2000;
+		}
+		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->hasPowerLedOnLastTime) > timeouts[0]){
+			//Manipulate values, so it will set to 0 directly, because there is no power
+			rpm = 0;
+			dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->i2c_motor_speed_min;
+			dv->i2c_motor_values->destRpm = dv->i2c_motor_values->i2c_motor_speed_min;
+		} else if ((dv->timeValues->runTimeMillis - dv->heaterStatus->hasPowerLedOnLastTime) > timeouts[1]){
+			//set dest rpm to 0, so it will create a ramp down, if hasPower state is false it will not stop directly.
+			rpm = 0;
+		}
+	}
+	
 	if (dv->i2c_motor_values->motorRpm != rpm){
 		if (dv->i2c_motor_values->destRpm != rpm){
 			dv->i2c_motor_values->destRpm = rpm;
@@ -260,132 +215,36 @@ void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct 
 }
 
 double readWeight(struct Daemon_Values *dv){
-	if (dv->runningMode->simulationMode){
-		if (!dv->state->scaleReady) {
-			return 0.0;
-		} else {
-			if (dv->timeValues->runTime <= dv->timeValues->simulationUpdateTime){
-				return dv->oldCommandValues->weight; 
-			} else {
-				int deltaW = dv->newCommandValues->weight-dv->oldCommandValues->weight;
-				double weightValue = dv->oldCommandValues->weight;
-				if (deltaW<0) {
-					--weightValue;
-				} else if (deltaW==0) {
-					//Nothing
-				} else if (deltaW<=10) {
-					weightValue = weightValue + 2;
-				} else if (deltaW<=50) {
-					weightValue = weightValue + 5;
-				} else {
-					weightValue = weightValue + 10;
-				}
-				if (weightValue != dv->oldCommandValues->weight){
-					weightValue += dv->state->referenceForce;
-					printf("readWeight, new Value is %f (old:%f)\n", weightValue, dv->oldCommandValues->weight);
-					//if (settings->debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
-				} else {
-					weightValue += dv->state->referenceForce;
-				}
-				dv->timeValues->simulationUpdateTime = dv->timeValues->runTime;
-				return weightValue;
-			}
-		}
-	} else {
-		uint32_t weightValue1 = readADC(dv->adc_config->ADC_LoadCellFrontLeft);
-		uint32_t weightValue2 = readADC(dv->adc_config->ADC_LoadCellFrontRight);
-		uint32_t weightValue3 = readADC(dv->adc_config->ADC_LoadCellBackLeft);
-		uint32_t weightValue4 = readADC(dv->adc_config->ADC_LoadCellBackRight);
+		uint32_t weightValue1 = dv->adc_values->LoadCellFrontLeft.adc_value;
+		uint32_t weightValue2 = dv->adc_values->LoadCellFrontRight.adc_value;
+		uint32_t weightValue3 = dv->adc_values->LoadCellBackLeft.adc_value;
+		uint32_t weightValue4 = dv->adc_values->LoadCellBackRight.adc_value;
 		
-		uint32_t weightValueSum = (weightValue1+weightValue2+weightValue3+weightValue4) / 4;
+		uint32_t weightValueSum = dv->adc_values->Weight.adc_value;
+		double weightValue = dv->adc_values->Weight.value;
 		
-		double weightValue = (double)weightValueSum;
-		weightValue *=dv->forceCalibration->scaleFactor;
-		weightValue = roundf(weightValue);
 		//if (settings->debug_enabled || runningMode->calibration){printf("readWeight %d digits, %->1f grams\n", weightValueSum, weightValue);}
 		if (dv->settings->debug_enabled || dv->runningMode->calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, (weightValue+dv->state->referenceForce), weightValue1, weightValue2, weightValue3, weightValue4);}
-		if (dv->runningMode->measure_noise){
-			if (weightValue1>dv->adc_noise->MaxWeight1) dv->adc_noise->MaxWeight1=weightValue1;
-			if (weightValue1<dv->adc_noise->MinWeight1) dv->adc_noise->MinWeight1=weightValue1;
-			dv->adc_noise->DeltaWeight1=dv->adc_noise->MaxWeight1-dv->adc_noise->MinWeight1;
-			printf("NoiseWeightFL %d | ", dv->adc_noise->DeltaWeight1);
-			
-			if (weightValue2>dv->adc_noise->MaxWeight2) dv->adc_noise->MaxWeight2=weightValue2;
-			if (weightValue2<dv->adc_noise->MinWeight2) dv->adc_noise->MinWeight2=weightValue2;
-			dv->adc_noise->DeltaWeight2=dv->adc_noise->MaxWeight2-dv->adc_noise->MinWeight2;
-			printf("NoiseWeightFR %d | ", dv->adc_noise->DeltaWeight2);
-			
-			if (weightValue3>dv->adc_noise->MaxWeight3) dv->adc_noise->MaxWeight3=weightValue3;
-			if (weightValue3<dv->adc_noise->MinWeight3) dv->adc_noise->MinWeight3=weightValue3;
-			dv->adc_noise->DeltaWeight3=dv->adc_noise->MaxWeight3-dv->adc_noise->MinWeight3;
-			printf("NoiseWeightBL %d | ", dv->adc_noise->DeltaWeight3);
-			
-			if (weightValue4>dv->adc_noise->MaxWeight4) dv->adc_noise->MaxWeight4=weightValue4;
-			if (weightValue4<dv->adc_noise->MinWeight4) dv->adc_noise->MinWeight4=weightValue4;
-			dv->adc_noise->DeltaWeight4=dv->adc_noise->MaxWeight4-dv->adc_noise->MinWeight4;
-			printf("NoiseWeightBR %d\n", dv->adc_noise->DeltaWeight4);
-		}
+
 		return weightValue;
-	}
 }
 
 double readWeightSeparate(double* values, struct Daemon_Values *dv){
-	if (dv->runningMode->simulationMode){
-		if (!dv->state->scaleReady) {
-			return 0.0;
-		} else {
-			if (dv->timeValues->runTime <= dv->timeValues->simulationUpdateTime){
-				return dv->oldCommandValues->weight; 
-			} else {
-				int deltaW = dv->newCommandValues->weight-dv->oldCommandValues->weight;
-				double weightValue = dv->oldCommandValues->weight;
-				if (deltaW<0) {
-					--weightValue;
-				} else if (deltaW==0) {
-					//Nothing
-				} else if (deltaW<=10) {
-					weightValue = weightValue + 2;
-				} else if (deltaW<=50) {
-					weightValue = weightValue + 5;
-				} else {
-					weightValue = weightValue + 10;
-				}
-				if (weightValue != dv->oldCommandValues->weight){
-					weightValue += dv->state->referenceForce;
-					printf("readWeight, new Value is %f (old:%f)\n", weightValue, dv->oldCommandValues->weight);
-					//if (settings->debug_enabled){printf("readWeight, new Value is %f\n", weightValue);}
-				} else {
-					weightValue += dv->state->referenceForce;
-				}
-				dv->timeValues->simulationUpdateTime = dv->timeValues->runTime;
-				
-				if (values != NULL){
-					values[0] = weightValue;
-					values[1] = weightValue;
-					values[2] = weightValue;
-					values[3] = weightValue;
-				}
-				return weightValue;
-			}
-		}
-	} else {
-		uint32_t weightValue1 = readADC(dv->adc_config->ADC_LoadCellFrontLeft);
-		uint32_t weightValue2 = readADC(dv->adc_config->ADC_LoadCellFrontRight);
-		uint32_t weightValue3 = readADC(dv->adc_config->ADC_LoadCellBackLeft);
-		uint32_t weightValue4 = readADC(dv->adc_config->ADC_LoadCellBackRight);
+		uint32_t weightValue1 = dv->adc_values->LoadCellFrontLeft.adc_value;
+		uint32_t weightValue2 = dv->adc_values->LoadCellFrontRight.adc_value;
+		uint32_t weightValue3 = dv->adc_values->LoadCellBackLeft.adc_value;
+		uint32_t weightValue4 = dv->adc_values->LoadCellBackRight.adc_value;
 		
 		if (values != NULL){
-			values[0] = (double)weightValue1 * dv->forceCalibration->scaleFactor;
-			values[1] = (double)weightValue2 * dv->forceCalibration->scaleFactor;
-			values[2] = (double)weightValue3 * dv->forceCalibration->scaleFactor;
-			values[3] = (double)weightValue4 * dv->forceCalibration->scaleFactor;
+			values[0] = dv->adc_values->LoadCellFrontLeft.value;
+			values[1] = dv->adc_values->LoadCellFrontRight.value;
+			values[2] = dv->adc_values->LoadCellBackLeft.value;
+			values[3] = dv->adc_values->LoadCellBackRight.value;
 		}
 		
-		uint32_t weightValueSum = (weightValue1+weightValue2+weightValue3+weightValue4) / 4;
+		uint32_t weightValueSum = dv->adc_values->Weight.adc_value;
+		double weightValue = dv->adc_values->Weight.value;
 		
-		double weightValue = (double)weightValueSum;
-		weightValue *=dv->forceCalibration->scaleFactor;
-		weightValue = roundf(weightValue);
 		if (dv->settings->debug_enabled || dv->runningMode->calibration){
 			if (values != NULL){
 				printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d / FL %f FR %f BL %f BR %f)\n", weightValueSum, weightValue, (weightValue+dv->state->referenceForce), weightValue1, weightValue2, weightValue3, weightValue4, values[0], values[1], values[2], values[3]);
@@ -393,29 +252,7 @@ double readWeightSeparate(double* values, struct Daemon_Values *dv){
 				printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", weightValueSum, weightValue, (weightValue+dv->state->referenceForce), weightValue1, weightValue2, weightValue3, weightValue4);
 			}
 		}
-		if (dv->runningMode->measure_noise){
-			if (weightValue1>dv->adc_noise->MaxWeight1) dv->adc_noise->MaxWeight1=weightValue1;
-			if (weightValue1<dv->adc_noise->MinWeight1) dv->adc_noise->MinWeight1=weightValue1;
-			dv->adc_noise->DeltaWeight1=dv->adc_noise->MaxWeight1-dv->adc_noise->MinWeight1;
-			printf("NoiseWeightFL %d | ", dv->adc_noise->DeltaWeight1);
-			
-			if (weightValue2>dv->adc_noise->MaxWeight2) dv->adc_noise->MaxWeight2=weightValue2;
-			if (weightValue2<dv->adc_noise->MinWeight2) dv->adc_noise->MinWeight2=weightValue2;
-			dv->adc_noise->DeltaWeight2=dv->adc_noise->MaxWeight2-dv->adc_noise->MinWeight2;
-			printf("NoiseWeightFR %d | ", dv->adc_noise->DeltaWeight2);
-			
-			if (weightValue3>dv->adc_noise->MaxWeight3) dv->adc_noise->MaxWeight3=weightValue3;
-			if (weightValue3<dv->adc_noise->MinWeight3) dv->adc_noise->MinWeight3=weightValue3;
-			dv->adc_noise->DeltaWeight3=dv->adc_noise->MaxWeight3-dv->adc_noise->MinWeight3;
-			printf("NoiseWeightBL %d | ", dv->adc_noise->DeltaWeight3);
-			
-			if (weightValue4>dv->adc_noise->MaxWeight4) dv->adc_noise->MaxWeight4=weightValue4;
-			if (weightValue4<dv->adc_noise->MinWeight4) dv->adc_noise->MinWeight4=weightValue4;
-			dv->adc_noise->DeltaWeight4=dv->adc_noise->MaxWeight4-dv->adc_noise->MinWeight4;
-			printf("NoiseWeightBR %d\n", dv->adc_noise->DeltaWeight4);
-		}
 		return weightValue;
-	}
 }
 
 void SegmentDisplaySimple(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config){

@@ -38,7 +38,6 @@ void TempControl();
 void PressControl();
 void MotorControl();
 void ValveControl();
-bool isLidOpen();
 void ScaleFunction();
 void setFreqTimer();
 void FreqHandler(); 

@@ -17,7 +17,7 @@ See GPLv3.htm in the main folder for details.
 
 #include "bool.h"
 
-struct ADC_Config {	
+struct ADC_Config {
 	uint8_t ADC_LoadCellFrontLeft;
 	uint8_t ADC_LoadCellFrontRight;
 	uint8_t ADC_LoadCellBackLeft;
@@ -31,7 +31,7 @@ struct ADC_Config {
 	uint32_t ADC_ConfigReg[6];
 };
 
-struct ADC_Noise_Values {	
+struct ADC_Noise_Values {
 	uint32_t MaxWeight1;
 	uint32_t MinWeight1;
 	uint32_t DeltaWeight1;
@@ -60,6 +60,23 @@ struct ADC_Calibration {
 	double Value1;
 	uint32_t ADC2;
 	double Value2;
+};
+
+struct ADC_Value {
+	uint32_t adc_value;
+	double value;
+	double valueByOffset;
+};
+
+struct ADC_Values {
+	struct ADC_Value LoadCellFrontLeft;
+	struct ADC_Value LoadCellFrontRight;
+	struct ADC_Value LoadCellBackLeft;
+	struct ADC_Value LoadCellBackRight;
+	struct ADC_Value Press;
+	struct ADC_Value Temp;
+	
+	struct ADC_Value Weight;
 };
 
 struct I2C_Config {
@@ -122,7 +139,7 @@ struct Command_Values {
 	double weight;
 	uint32_t time;
 	uint32_t mode;
-	uint32_t stepId;
+	int32_t stepId;
 };
 
 struct Time_Values {
@@ -150,6 +167,7 @@ struct Time_Values {
 	uint32_t heaterStopTime; //when did we stop the heater
 	
 	uint32_t servoStayEndTime; //when to close the servo
+	int32_t lastWeightUpdateTime; //when to close the servo
 };
 
 struct Running_Mode {
@@ -309,4 +327,5 @@ struct Daemon_Values {
 	struct Heater_Led_Values *heaterStatus;
 	struct HourCounter *hourCounter;
 	struct Button_Values *buttonValues;
+	struct ADC_Values *adc_values;
 };
