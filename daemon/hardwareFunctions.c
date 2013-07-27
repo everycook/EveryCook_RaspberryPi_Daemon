@@ -101,7 +101,7 @@ void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 		uint32_t timeouts[2];
 		if (dv->settings->shieldVersion == 1){
 			timeouts[0] = 12000;
-			timeouts[1] = 5000;
+			timeouts[1] = 6000;
 		} else {
 			timeouts[0] = 5000;
 			timeouts[1] = 2000;

@@ -327,7 +327,7 @@ int main(int argc, const char* argv[]){
 				}
 				
 				if (led[0] == 1 && led[1] == 1 && led[2] == 1 && led[3] == 1 && led[4] == 1 && led[5] == 1){
-					if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 3 < timeValues.runTime){
+					if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < timeValues.runTime){
 						heaterStatus.hasPower = false;
 						different = true;
 					}
@@ -681,13 +681,13 @@ int main(int argc, const char* argv[]){
 		delay(50);
 		uint32_t lastTime = millis();
 		uint32_t amount = 0;
-		uint32_t adcValues[6] = {0,0,0,0,0,0};
-		uint32_t adcTime[6] = {0,0,0,0,0,0};
-		uint32_t adcLoops[6] = {0,0,0,0,0,0};
+		uint32_t adcValues[8] = {0,0,0,0,0,0};
+		uint32_t adcTime[8] = {0,0,0,0,0,0};
+		uint32_t adcLoops[8] = {0,0,0,0,0,0};
 		
 		if (settings.test_ADC_offsetCalibration != 0 || settings.test_ADC_fullScaleCalibration != 0){
 			printf("before calibration\n");
-			for (;adcChannel<6;adcChannel++) {
+			for (;adcChannel<8;adcChannel++) {
 				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
 				delay(50);
 				uint32_t fullscale = SPIRead3Bytes(READ_FULLSCALE_REG);
@@ -776,11 +776,11 @@ int main(int argc, const char* argv[]){
 				adcValues[adcChannel] = data;
 				adcTime[adcChannel] = millis() - lastTime;
 				adcLoops[adcChannel] = amount;
-				if (adcChannel < 5){
+				if (adcChannel < 7){
 					++adcChannel;
 				} else {
 					adcChannel = 0;
-					uint32_t totalTime = adcTime[0] + adcTime[1] + adcTime[2] + adcTime[3] + adcTime[4] + adcTime[5];
+					uint32_t totalTime = adcTime[0] + adcTime[1] + adcTime[2] + adcTime[3] + adcTime[4] + adcTime[5] + adcTime[6] + adcTime[7];
 					
 					//printf("%d\tval:\t%d\t%d\t%d\t%d\t%d\t%d\tTime:\t%d\t%d\t%d\t%d\t%d\t%d\tloops:\t%d\t%d\t%d\t%d\t%d\t%d\n", totalTime, adcValues[0], adcValues[1], adcValues[2], adcValues[3], adcValues[4], adcValues[5], adcTime[0], adcTime[1], adcTime[2], adcTime[3], adcTime[4], adcTime[5], adcLoops[0], adcLoops[1], adcLoops[2], adcLoops[3], adcLoops[4], adcLoops[5]);
 					//printf("%d\tval:\t%d\t%d\t%d\t%d\t%d\t%d\tTime:\t%d | %d | %d | %d | %d | %d\tloops:\t%d | %d | %d | %d | %d | %d\n", totalTime, adcValues[0], adcValues[1], adcValues[2], adcValues[3], adcValues[4], adcValues[5], adcTime[0], adcTime[1], adcTime[2], adcTime[3], adcTime[4], adcTime[5], adcLoops[0], adcLoops[1], adcLoops[2], adcLoops[3], adcLoops[4], adcLoops[5]);
@@ -799,13 +799,14 @@ int main(int argc, const char* argv[]){
 					double tp = ((double)adcValues[adc_config.ADC_Temp]) * tempCalibration.scaleFactor + tempCalibration.offset;
 					
 					
-					printf("%d\tweight:\t%.1f\tdig:\tfl:%.1f\tfr:%.1f\tbl:%.1f\tbr:%.1f\tps:%.1f\ttp:%.1f\tval:\t%d\t%d\t%d\t%d\t%d\t%d\tTime:\t%d | %d | %d | %d | %d | %d\tloops:\t%d | %d | %d | %d | %d | %d\n", totalTime, fullWeight,fl,fr,bl,br,ps,tp,
+					printf("%d\tweight:\t%.1f\tdig:\tfl:%.1f\tfr:%.1f\tbl:%.1f\tbr:%.1f\tps:%.1f\ttp:%.1f\tval:\t%d\t%d\t%d\t%d\t%d\t%d\tTime:\t%d | %d | %d | %d | %d | %d\tloops:\t%d | %d | %d | %d | %d | %d\t\tInternal Temp: %d / %d(time:%d, loops:%d)\tAVdd: %d / %d(time:%d, loops:%d)\n", totalTime, fullWeight,fl,fr,bl,br,ps,tp,
 					/*adcValues[0], adcValues[1], adcValues[2], adcValues[3], adcValues[4], adcValues[5],
 					adcTime[0], adcTime[1], adcTime[2], adcTime[3], adcTime[4], adcTime[5], 
 					adcLoops[0], adcLoops[1], adcLoops[2], adcLoops[3], adcLoops[4], adcLoops[5]);*/
 					adcValues[adc_config.ADC_LoadCellFrontLeft], adcValues[adc_config.ADC_LoadCellFrontRight], adcValues[adc_config.ADC_LoadCellBackLeft], adcValues[adc_config.ADC_LoadCellBackRight], adcValues[adc_config.ADC_Press], adcValues[adc_config.ADC_Temp],
 					adcTime[adc_config.ADC_LoadCellFrontLeft], adcTime[adc_config.ADC_LoadCellFrontRight], adcTime[adc_config.ADC_LoadCellBackLeft], adcTime[adc_config.ADC_LoadCellBackRight], adcTime[adc_config.ADC_Press], adcTime[adc_config.ADC_Temp], 
-					adcLoops[adc_config.ADC_LoadCellFrontLeft], adcLoops[adc_config.ADC_LoadCellFrontRight], adcLoops[adc_config.ADC_LoadCellBackLeft], adcLoops[adc_config.ADC_LoadCellBackRight], adcLoops[adc_config.ADC_Press], adcLoops[adc_config.ADC_Temp]);
+					adcLoops[adc_config.ADC_LoadCellFrontLeft], adcLoops[adc_config.ADC_LoadCellFrontRight], adcLoops[adc_config.ADC_LoadCellBackLeft], adcLoops[adc_config.ADC_LoadCellBackRight], adcLoops[adc_config.ADC_Press], adcLoops[adc_config.ADC_Temp],
+					adcValues[6], adcValues[6] - 0x800001, adcTime[6], adcLoops[6],  adcValues[7], adcValues[7] - 0x800001, adcTime[7], adcLoops[7]);
 				}
 				lastTime = millis();
 				amount = 0;
@@ -1036,7 +1037,7 @@ void initOutputFile(void){
 	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":-2}", fp);
 	fclose(fp);
 	
-	char* headerLine = "Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode, heaterHasPower, isOn, noPan\n";
+	char* headerLine = "Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode, heaterHasPower, isOn, noPan, lidOpen\n";
 	if (settings.logLines != 0){
 		state.logLines = (char **)malloc(sizeof(char *) * (settings.logLines+1)); //+1 for headerline/line 0
 		state.logLines[0] = (char *) malloc(strlen(headerLine) * sizeof(char) + 1);
@@ -1371,6 +1372,8 @@ void MotorControl(){
 				} else if (currentCommandValues.motorRpm==0){
 					currentCommandValues.motorRpm = newCommandValues.motorRpm;
 					timeValues.motorStartTime=timeValues.runTime;
+				} else if (currentCommandValues.motorRpm != newCommandValues.motorRpm){
+					currentCommandValues.motorRpm = newCommandValues.motorRpm;
 				}
 			} else {
 				currentCommandValues.motorRpm = newCommandValues.motorRpm;
@@ -1609,7 +1612,7 @@ void writeLog(){
 		StringClean(tempString, 20);
 		strftime(tempString, 20,"%F %T",timeValues.localTime);
 		char logline[200];
-		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError);
+		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, i2c_motor_values.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidOpen);
 		
 		if (settings.logLines == 0){
 			fputs(logline, state.logFilePointer);
@@ -2229,7 +2232,7 @@ void *heaterLedEvaluation(void *ptr){
 			heaterStatus.ledValues[5] = readSignPin(5);
 			
 			if (heaterStatus.ledValues[0] && heaterStatus.ledValues[1] && heaterStatus.ledValues[2]  && heaterStatus.ledValues[3] && heaterStatus.ledValues[4]  && heaterStatus.ledValues[5]){
-				if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 3 < timeValues.runTime){
+				if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < timeValues.runTime){
 					heaterStatus.hasPower = false;
 				}
 			} else {
@@ -2608,7 +2611,7 @@ void *readADCValues(void *ptr){
 	delayWeight = 10;
 	delayTempPess = 100;
 	while (state.running){
-		if (currentCommandValues.mode == MODE_SCALE || millis() - timeValues.lastWeightUpdateTime > 2000 || runningMode.calibration || runningMode.measure_noise)){
+		if (currentCommandValues.mode == MODE_SCALE || millis() - timeValues.lastWeightUpdateTime > 2000 || runningMode.calibration || runningMode.measure_noise){
 			adc_values.LoadCellFrontLeft.adc_value = readADC(adc_config.ADC_LoadCellFrontLeft);
 			adc_values.LoadCellFrontLeft.value = (double)adc_values.LoadCellFrontLeft.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellFrontLeft.valueByOffset=adc_values.LoadCellFrontLeft.value + state.referenceForce;
@@ -2641,8 +2644,9 @@ void *readADCValues(void *ptr){
 				double front = (adc_values.LoadCellFrontLeft.valueByOffset + adc_values.LoadCellFrontRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
 				double back = (adc_values.LoadCellBackLeft.valueByOffset + adc_values.LoadCellBackRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
 				
-				double ratio = front / back;
-				state.lidOpen = ratio < 0.8;
+				double diff = front - back;
+				state.lidOpen = diff < -1000;
+				if (settings.debug3_enabled) {printf("lidopen front: %2.f, back: %2.f, diff: %2.f\n", front, back, diff);}
 			}
 			
 			if (runningMode.measure_noise){
