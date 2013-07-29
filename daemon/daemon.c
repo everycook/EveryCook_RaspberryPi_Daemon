@@ -56,7 +56,7 @@ const double SECONDS_PER_HOUR = 3600; //60*60
 
 const uint8_t HOUR_COUNTER_VERSION = 0;
 
-struct ADC_Config adc_config = {0,1,2,3,4,5, 0,8, {0x710, 0x711, 0x712, 0x713, 0x714, 0x115}};
+struct ADC_Config adc_config = {0,1,2,3,4,5, 0,8, {0x710, 0x711, 0x712, 0x713, 0x714, 0x115}, {0,0,0,0,0,0}};
 struct ADC_Noise_Values adc_noise = {0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0};
 struct ADC_Values adc_values;
 
@@ -772,7 +772,10 @@ int main(int argc, const char* argv[]){
 			if ((adcState & 0x80) == 0){
 				uint32_t data = SPIRead3Bytes(READ_DATA_REG);
 				//printf("readADC(%d): %d / %06X, loops: %d, time: %d\n", adcChannel, data, data, amount, millis() - lastTime);
-				
+				if (adc_config.inverse[adcChannel]){
+					data = 0x00FFFFFF - data;
+				}
+			
 				adcValues[adcChannel] = data;
 				adcTime[adcChannel] = millis() - lastTime;
 				adcLoops[adcChannel] = amount;
@@ -2487,6 +2490,26 @@ void ReadCalibrationFile(void){
 				adc_config.ADC_ConfigReg[ptr] = POWNTimes(adc_config.ADC_ConfigReg[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 				if (showReadedConfigs){printf("\tGain_Temp: %04X\n", adc_config.ADC_ConfigReg[ptr]);} // (old: %d)
 			
+			//adc inversee
+			} else if(strcmp(keyString, "inverse_LoadCellFrontLeft") == 0){
+				adc_config.inverse[adc_config.ADC_LoadCellFrontLeft] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tinverse_LoadCellFrontLeft: %d\n", adc_config.inverse[adc_config.ADC_LoadCellFrontLeft]);}
+			} else if(strcmp(keyString, "inverse_LoadCellFrontRight") == 0){
+				adc_config.inverse[adc_config.ADC_LoadCellFrontRight] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tinverse_LoadCellFrontRight: %d\n", adc_config.inverse[adc_config.ADC_LoadCellFrontRight]);}
+			} else if(strcmp(keyString, "inverse_LoadCellBackLeft") == 0){
+				adc_config.inverse[adc_config.ADC_LoadCellBackLeft] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tinverse_LoadCellBackLeft: %d\n", adc_config.inverse[adc_config.ADC_LoadCellBackLeft]);}
+			} else if(strcmp(keyString, "inverse_LoadCellBackRight") == 0){
+				adc_config.inverse[adc_config.ADC_LoadCellBackRight] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tinverse_LoadCellBackRight: %d\n", adc_config.inverse[adc_config.ADC_LoadCellBackRight]);}
+			} else if(strcmp(keyString, "inverse_Press") == 0){
+				adc_config.inverse[adc_config.ADC_Press] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tinverse_Press: %d\n", adc_config.inverse[adc_config.ADC_Press]);}
+			} else if(strcmp(keyString, "inverse_Temp") == 0){
+				adc_config.inverse[adc_config.ADC_Temp] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tinverse_Temp: %d\n", adc_config.inverse[adc_config.ADC_Temp]);}
+			
 			//7seg pins
 			} else if(strcmp(keyString, "i2c_7seg_top") == 0){
 				i2c_config.i2c_7seg_top = StringConvertToNumber(valueString);
@@ -2978,21 +3001,33 @@ void *readADCValues(void *ptr){
 	while (state.running){
 		if (currentCommandValues.mode == MODE_SCALE || millis() - timeValues.lastWeightUpdateTime > 2000 || runningMode.calibration || runningMode.measure_noise){
 			adc_values.LoadCellFrontLeft.adc_value = readADC(adc_config.ADC_LoadCellFrontLeft);
+			if (adc_config.inverse[adc_config.ADC_LoadCellFrontLeft]){
+				adc_values.LoadCellFrontLeft.adc_value = 0x00FFFFFF - adc_values.LoadCellFrontLeft.adc_value;
+			}
 			adc_values.LoadCellFrontLeft.value = (double)adc_values.LoadCellFrontLeft.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellFrontLeft.valueByOffset=adc_values.LoadCellFrontLeft.value + state.referenceForce;
 			adc_values.LoadCellFrontLeft.valueByOffset = round(adc_values.LoadCellFrontLeft.valueByOffset);
 			
 			adc_values.LoadCellFrontRight.adc_value = readADC(adc_config.ADC_LoadCellFrontRight);
+			if (adc_config.inverse[adc_config.ADC_LoadCellFrontRight]){
+				adc_values.LoadCellFrontRight.adc_value = 0x00FFFFFF - adc_values.LoadCellFrontRight.adc_value;
+			}
 			adc_values.LoadCellFrontRight.value = (double)adc_values.LoadCellFrontRight.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellFrontRight.valueByOffset=adc_values.LoadCellFrontRight.value + state.referenceForce;
 			adc_values.LoadCellFrontRight.valueByOffset = round(adc_values.LoadCellFrontRight.valueByOffset);
 			
 			adc_values.LoadCellBackLeft.adc_value = readADC(adc_config.ADC_LoadCellBackLeft);
+			if (adc_config.inverse[adc_config.ADC_LoadCellBackLeft]){
+				adc_values.LoadCellBackLeft.adc_value = 0x00FFFFFF - adc_values.LoadCellBackLeft.adc_value;
+			}
 			adc_values.LoadCellBackLeft.value = (double)adc_values.LoadCellBackLeft.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellBackLeft.valueByOffset=adc_values.LoadCellBackLeft.value + state.referenceForce;
 			adc_values.LoadCellBackLeft.valueByOffset = round(adc_values.LoadCellBackLeft.valueByOffset);
 			
 			adc_values.LoadCellBackRight.adc_value = readADC(adc_config.ADC_LoadCellBackRight);
+			if (adc_config.inverse[adc_config.ADC_LoadCellBackRight]){
+				adc_values.LoadCellBackRight.adc_value = 0x00FFFFFF - adc_values.LoadCellBackRight.adc_value;
+			}
 			adc_values.LoadCellBackRight.value = (double)adc_values.LoadCellBackRight.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellBackRight.valueByOffset=adc_values.LoadCellBackRight.value + state.referenceForce;
 			adc_values.LoadCellBackRight.valueByOffset = round(adc_values.LoadCellBackRight.valueByOffset);
@@ -3036,6 +3071,9 @@ void *readADCValues(void *ptr){
 		}
 		if (currentCommandValues.mode != MODE_SCALE || runningMode.calibration || runningMode.measure_noise){
 			adc_values.Temp.adc_value = readADC(adc_config.ADC_Temp);
+			if (adc_config.inverse[adc_config.ADC_Temp]){
+				adc_values.Temp.adc_value = 0x00FFFFFF - adc_values.Temp.adc_value;
+			}
 			adc_values.Temp.value = (double)adc_values.Temp.adc_value * tempCalibration.scaleFactor;
 			adc_values.Temp.valueByOffset=adc_values.Temp.value + tempCalibration.offset;
 			adc_values.Temp.valueByOffset = round(adc_values.Temp.valueByOffset);
@@ -3047,6 +3085,9 @@ void *readADCValues(void *ptr){
 			}
 			
 			adc_values.Press.adc_value = readADC(adc_config.ADC_Press);
+			if (adc_config.inverse[adc_config.ADC_Press]){
+				adc_values.Press.adc_value = 0x00FFFFFF - adc_values.Press.adc_value;
+			}
 			adc_values.Press.value = (double)adc_values.Press.adc_value * pressCalibration.scaleFactor;
 			adc_values.Press.valueByOffset=adc_values.Press.value + pressCalibration.offset;
 			adc_values.Press.valueByOffset = round(adc_values.Press.valueByOffset);

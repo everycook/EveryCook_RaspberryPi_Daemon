@@ -29,6 +29,7 @@ struct ADC_Config {
 	uint8_t ADC_update_rate;
 	
 	uint32_t ADC_ConfigReg[6];
+	bool inverse[6];
 };
 
 struct ADC_Noise_Values {

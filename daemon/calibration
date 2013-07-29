@@ -36,6 +36,13 @@ Gain_LoadCellBackRight=8
 Gain_Press=8
 Gain_Temp=2
 
+#ADC inverse
+inverse_LoadCellFrontLeft=0
+inverse_LoadCellFrontRight=0
+inverse_LoadCellBackLeft=0
+inverse_LoadCellBackRight=0
+inverse_Press=0
+inverse_Temp=0
 
 #PWM Channels Configuration
 i2c_motor=0
@@ -57,5 +64,6 @@ i2c_7seg_bottom=7
 #DisplaySegDP
 i2c_7seg_period=9
 
+#servo values
 i2c_servo_open=210
 i2c_servo_closed=350
