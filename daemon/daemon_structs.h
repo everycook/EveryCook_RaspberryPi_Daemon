@@ -180,6 +180,8 @@ struct Running_Mode {
 	bool test_motor;
 	bool test_buttons;
 	bool test_adc;
+	bool test_heating_power;
+	bool test_heating_press;
 	
 	bool simulationMode;
 	bool simulationModeShow7Segment;

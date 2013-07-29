@@ -43,7 +43,7 @@ int32_t readPress(struct Daemon_Values *dv){
 bool HeatOn(struct Daemon_Values *dv){
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn, was: %d\n", state->heatPowerStatus);}
 	if (dv->state->heatPowerStatus && !dv->heaterStatus->isOn){
-		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) > 5000){
+		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) > 6000){
 			dv->state->heatPowerStatus = false;
 		}
 	}
@@ -69,6 +69,12 @@ bool HeatOn(struct Daemon_Values *dv){
 }
 
 bool HeatOff(struct Daemon_Values *dv){
+	if (!dv->state->heatPowerStatus && dv->heaterStatus->isOn){
+		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) < 3000){
+			dv->state->heatPowerStatus = true;
+		}
+	}
+	
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}
 	if (dv->state->heatPowerStatus) { //if its on
 		if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}

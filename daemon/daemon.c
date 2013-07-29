@@ -75,7 +75,7 @@ struct Command_Values oldCommandValues = {0,0,0,0,0,0,0,0,-2};
 
 struct Time_Values timeValues = {};
 
-struct Running_Mode runningMode = {true, false, false, false, false, false, false,  false, false};
+struct Running_Mode runningMode = {true, false, false, false, false, false, false, false, false,  false, false};
 
 struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, 8,0x0000,0x0000, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter"};
 
@@ -817,6 +817,348 @@ int main(int argc, const char* argv[]){
 			}
 			delay(state.Delay);
 		}
+	} else if (runningMode.test_heating_power){
+		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
+		uint8_t currentTestPart = 0;
+		uint32_t partReachedTime = 0;
+		uint32_t partErrorTime = 0;
+		
+		uint32_t weight = 0;
+		//uint32_t startTime;
+		uint32_t time40 = 0;
+		uint32_t time90 = 0;
+		double lastTemp = 0;
+		uint32_t lastOutputTime = 0;
+		
+		Beep();
+		//time for initialize weight
+		currentCommandValues.mode = MODE_SCALE;
+		delay(2000);
+		currentCommandValues.mode = MODE_STANDBY;
+		
+		printf("Open lid (and remove stirrer if inserted)\n");
+		while (state.running){
+			timeValues.runTime = time(NULL);
+			timeValues.runTimeMillis = millis();
+			if (settings.debug_enabled || settings.debug3_enabled){printf("time: %9d\tWeight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", timeValues.runTimeMillis,  adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}
+			if (currentTestPart == 0){
+				if (state.lidOpen){
+					if (partReachedTime == 0){
+						partReachedTime = timeValues.runTimeMillis;
+					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
+						currentCommandValues.mode = MODE_SCALE;
+						delay(1000); //to be sure current walue is good referenceForce
+						state.referenceForce = -adc_values.Weight.value;
+						state.scaleReady = true;
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("insert 2 Liter of water\n");
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 1){
+				printf("time: %5.3f\tWeight: %.0fg\n", (double)timeValues.runTimeMillis / 1000, adc_values.Weight.valueByOffset);
+				if (adc_values.Weight.valueByOffset >= 2000){
+					if (partReachedTime == 0){
+						timeValues.beepEndTime = timeValues.runTime+1;
+						Beep();
+						partReachedTime = timeValues.runTimeMillis;
+					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
+						weight = adc_values.Weight.valueByOffset;
+						currentCommandValues.mode = MODE_STANDBY;
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("insert stirrer and close lid\n");
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 2){
+				if (!state.lidOpen){
+					if (adc_values.Weight.valueByOffset - weight < 400){
+						if (partErrorTime == 0){
+							partErrorTime = timeValues.runTimeMillis;
+							printf("you need to add stirrer before close lid!\n");
+						} else if (timeValues.runTimeMillis - partErrorTime > 4000){
+							partErrorTime = 0;
+						}
+					} else {
+						if (partReachedTime == 0){
+							partReachedTime = timeValues.runTimeMillis;
+						} else if (timeValues.runTimeMillis - partReachedTime > 5000){
+							//startTime = timeValues.runTimeMillis;
+							
+							currentTestPart++;
+							partReachedTime = 0;
+							partErrorTime = 0;
+							printf("wait, messurement is processing\n");
+						}
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 3){
+				setMotorRPM(50, &daemon_values);
+				HeatOn(&daemon_values);
+				currentCommandValues.press = adc_values.Press.valueByOffset;
+				currentCommandValues.temp = adc_values.Temp.valueByOffset;
+				
+				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
+					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
+					lastOutputTime = timeValues.runTimeMillis;
+					lastTemp = adc_values.Temp.valueByOffset;
+				}
+				if (adc_values.Temp.valueByOffset >= 40){
+					if (partReachedTime == 0){
+						partReachedTime = timeValues.runTimeMillis;
+					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
+						time40 = partReachedTime;
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("reached 40°C, messure time \n");
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 4){
+				setMotorRPM(50, &daemon_values);
+				HeatOn(&daemon_values);
+				currentCommandValues.press = adc_values.Press.valueByOffset;
+				currentCommandValues.temp = adc_values.Temp.valueByOffset;
+				
+				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
+					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
+					lastOutputTime = timeValues.runTimeMillis;
+					lastTemp = adc_values.Temp.valueByOffset;
+				} 
+				if (adc_values.Temp.valueByOffset >= 90){
+					if (partReachedTime == 0){
+						partReachedTime = timeValues.runTimeMillis;
+					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
+						time90 = partReachedTime;
+						
+						printf("reached 90°C\n");
+						double usedTime = (time90-time40)/1000;
+						double P = weight * 4.18 * 50 / usedTime; //P=m*cp*deltaT/deltaZeit
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("used %.0f seconds for heatup %d g water from 40°C to 90°C => %.2f\n", usedTime, weight, P);
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 5){
+				HeatOff(&daemon_values);
+				setMotorRPM(0, &daemon_values);
+				if (partReachedTime == 0){
+					partReachedTime = timeValues.runTimeMillis;
+				} else if (timeValues.runTimeMillis - partReachedTime > 6000){
+					state.running = false;
+				}
+			}
+			
+			SegmentDisplay();
+			delay(state.Delay);
+		}
+		pthread_join(threadReadADCValues, NULL);
+		HeatOff(&daemon_values);
+		pthread_join(threadHeaterLedReader, NULL);
+	} else if (runningMode.test_heating_press){
+		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
+		uint8_t currentTestPart = 0;
+		uint32_t partReachedTime = 0;
+		uint32_t partErrorTime = 0;
+		
+		uint32_t weight = 0;
+		//uint32_t startTime;
+		uint32_t timePress1 = 0;
+		uint32_t timePress80 = 0;
+		double startTemp = 0;
+		double lastTemp = 0;
+		double lastPress = 0;
+		uint32_t lastOutputTime = 0;
+		
+		Beep();
+		//time for initialize weight
+		currentCommandValues.mode = MODE_SCALE;
+		delay(2000);
+		currentCommandValues.mode = MODE_STANDBY;
+		
+		printf("Open lid (and remove stirrer if inserted)\n");
+		while (state.running){
+			timeValues.runTime = time(NULL);
+			timeValues.runTimeMillis = millis();
+			if (settings.debug_enabled || settings.debug3_enabled){printf("time: %9d\tWeight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", timeValues.runTimeMillis,  adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}
+			if (currentTestPart == 0){
+				if (state.lidOpen){
+					if (partReachedTime == 0){
+						partReachedTime = timeValues.runTimeMillis;
+					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
+						currentCommandValues.mode = MODE_SCALE;
+						delay(1000); //to be sure current walue is good referenceForce
+						state.referenceForce = -adc_values.Weight.value;
+						state.scaleReady = true;
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("insert 0.5 Liter of water\n");
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 1){
+				printf("time: %5.3f\tWeight: %.0fg\n", (double)timeValues.runTimeMillis / 1000, adc_values.Weight.valueByOffset);
+				if (adc_values.Weight.valueByOffset >= 500){
+					if (partReachedTime == 0){
+						timeValues.beepEndTime = timeValues.runTime+1;
+						Beep();
+						partReachedTime = timeValues.runTimeMillis;
+					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
+						weight = adc_values.Weight.valueByOffset;
+						currentCommandValues.mode = MODE_STANDBY;
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("insert stirrer, close lid, add and lock pusher\n");
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 2){
+				if (!state.lidOpen){
+					if (adc_values.Weight.valueByOffset - weight < 400){
+						if (partErrorTime == 0){
+							partErrorTime = timeValues.runTimeMillis;
+							printf("you need to add stirrer before close lid!\n");
+						} else if (timeValues.runTimeMillis - partErrorTime > 4000){
+							partErrorTime = 0;
+						}
+					} else {
+						if (partReachedTime == 0){
+							partReachedTime = timeValues.runTimeMillis;
+						} else if (timeValues.runTimeMillis - partReachedTime > 5000){
+							//startTime = timeValues.runTimeMillis;
+							
+							currentTestPart++;
+							partReachedTime = 0;
+							partErrorTime = 0;
+							printf("wait, messurement is processing\n");
+						}
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 3){
+				setMotorRPM(50, &daemon_values);
+				HeatOn(&daemon_values);
+				currentCommandValues.press = adc_values.Press.valueByOffset;
+				currentCommandValues.temp = adc_values.Temp.valueByOffset;
+				
+				if (lastTemp != adc_values.Temp.valueByOffset || lastPress != adc_values.Press.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
+					printf("time: %5.3f\tcurrent temp: %.0f, current Press: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset, adc_values.Press.valueByOffset);
+					lastOutputTime = timeValues.runTimeMillis;
+					lastTemp = adc_values.Temp.valueByOffset;
+					lastPress = adc_values.Press.valueByOffset;
+				}
+				if (adc_values.Press.valueByOffset >= 1){
+					if (partReachedTime == 0){
+						partReachedTime = timeValues.runTimeMillis;
+						startTemp = adc_values.Temp.valueByOffset;
+					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
+						timePress1 = partReachedTime;
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("reached 1kPa, messure time \n");
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 4){
+				setMotorRPM(50, &daemon_values);
+				HeatOn(&daemon_values);
+				currentCommandValues.press = adc_values.Press.valueByOffset;
+				currentCommandValues.temp = adc_values.Temp.valueByOffset;
+				
+				if (lastTemp != adc_values.Temp.valueByOffset || lastPress != adc_values.Press.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
+					printf("time: %5.3f\tcurrent temp: %.0f, current Press: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset, adc_values.Press.valueByOffset);
+					lastOutputTime = timeValues.runTimeMillis;
+					lastTemp = adc_values.Temp.valueByOffset;
+					lastPress = adc_values.Press.valueByOffset;
+				}
+				if (adc_values.Press.valueByOffset >= 80){
+					if (partReachedTime == 0){
+						partReachedTime = timeValues.runTimeMillis;
+					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
+						timePress80 = partReachedTime;
+						
+						printf("reached 80kPa\n");
+						double usedTime = (timePress80-timePress1)/1000;
+						double P = 79 / usedTime;
+						
+						currentTestPart++;
+						partReachedTime = 0;
+						partErrorTime = 0;
+						printf("used %.0f seconds for pressup from 1kPa(with %.0f°C) to 80kPa(with %.0f°C) => %.2fkPa/sec\n", usedTime, startTemp, adc_values.Temp.valueByOffset, P);
+						
+						currentCommandValues.mode=MODE_PRESSVENT;
+						printf("pressvent!\n");
+					}
+				} else {
+					partReachedTime = 0;
+				}
+			} else if (currentTestPart == 5){
+				HeatOff(&daemon_values);
+				setMotorRPM(0, &daemon_values);
+				setServoOpen(100, 10, 1000, &daemon_values);
+				currentCommandValues.press = adc_values.Press.valueByOffset;
+				currentCommandValues.temp = adc_values.Temp.valueByOffset;
+				if (currentCommandValues.press < settings.LowPress) {
+					if (timeValues.servoStayEndTime == 0){
+						timeValues.servoStayEndTime = timeValues.runTime + i2c_servo_values.i2c_servo_stay_open;
+					}
+					if (timeValues.servoStayEndTime < timeValues.runTime){
+						currentCommandValues.mode=MODE_PRESSURELESS;
+						timeValues.servoStayEndTime = 0;
+						
+						setServoOpen(0, 1, 0, &daemon_values);
+						delay(500);
+						state.running = false;
+					}
+				} else {
+					timeValues.servoStayEndTime = 0;
+				}
+				/*
+				if (partReachedTime == 0){
+					partReachedTime = timeValues.runTimeMillis;
+				} else if (timeValues.runTimeMillis - partReachedTime > 15000){
+					setServoOpen(0, 1, 0, &daemon_values);
+					delay(500);
+					state.running = false;
+				}
+				*/
+			}
+			
+			SegmentDisplay();
+			delay(state.Delay);
+		}
+		pthread_join(threadReadADCValues, NULL);
+		HeatOff(&daemon_values);
+		pthread_join(threadHeaterLedReader, NULL);
 	}
 	
 	SegmentDisplaySimple('S', &state, &i2c_config);
@@ -869,6 +1211,8 @@ void printUsage(){
 	printf("  -ta, --test-adc [updateRate [offset [fullScale]]\r\n");
 	printf("                                test adc, set update rate setting to submitted value, use %d if ommited.\r\n", settings.test_ADC_update_rate);
 	printf("                                offset/fullScale calibration values i or s, if omittet no calibration.\r\n");
+	printf("  -tp, --test-heating-power     test the power/efficiency of heating\r\n");
+	printf("  -tr, --test-heating-press     test the power/efficiency of heating on pressup\r\n");
 	printf("  -?,  --help                   show this help\r\n");
 }
 
@@ -957,6 +1301,13 @@ int parseParams(int argc, const char* argv[]){
 				}
 			}
 			printf("test adc\n");
+			
+		} else if(strcmp(argv[i], "--test-heating-power") == 0 || strcmp(argv[i], "-tp") == 0){
+			runningMode.test_heating_power = true;
+			runningMode.normalMode = false;
+		} else if(strcmp(argv[i], "--test-heating-press") == 0 || strcmp(argv[i], "-tr") == 0){
+			runningMode.test_heating_press = true;
+			runningMode.normalMode = false;
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
 			settings.useMiddleware = false;
 			settings.useFile = true;
@@ -1175,7 +1526,7 @@ bool checkForInput(){
 void doOutput(){
 	prepareState(state.TotalUpdate);
 	if (state.dataChanged || timeValues.lastStatusTime+MIN_STATUS_INTERVAL<timeValues.runTime){// || state.timeChanged){
-		if (settings.debug_enabled){printf("dataChanged=true\n");}
+		if (settings.debug_enabled){printf("dataChanged=%d\n",state.dataChanged);}
 		if (settings.useMiddleware && state.sockfd>=0){
 			if (!sendToSock(state.sockfd, state.TotalUpdate, dataType)){
 				fprintf(stderr, "ERROR writing to socket\n");
@@ -1185,6 +1536,7 @@ void doOutput(){
 		if (settings.useFile) {
 			writeStatus(state.TotalUpdate);
 		}
+		if (settings.debug_enabled || settings.debug3_enabled){printf("%s\n",state.TotalUpdate);}
 		state.dataChanged = false;
 		state.timeChanged = false;
 		timeValues.lastStatusTime=timeValues.runTime;
@@ -1213,6 +1565,14 @@ void ProcessCommand(void){
 		timeValues.stepStartTime = timeValues.runTime;
 		state.dataChanged = true;
 		timeValues.stepEndTime = timeValues.stepStartTime + newCommandValues.time;
+		
+		state.scaleReady = false;
+		if (state.Delay == settings.ShortDelay || (oldCommandValues.mode == MODE_SCALE && currentCommandValues.mode == MODE_SCALE)) {
+			if(settings.debug3_enabled){printf("new and old step is scale mode, reset values\n");}
+			state.referenceForce=0;
+			state.Delay=settings.LongDelay;
+			currentCommandValues.weight = 0.0;
+		}
 		
 		if (settings.debug_enabled){printf("stepId changed, new mode is: %d\n", currentCommandValues.mode);}
 		if (settings.debug_enabled || runningMode.simulationMode || settings.debug3_enabled){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
@@ -1452,7 +1812,7 @@ void ScaleFunction(){
 					if(settings.BeepWeightReached > 0){
 						timeValues.beepEndTime=timeValues.runTime+settings.BeepWeightReached;
 					}
-					if (settings.debug_enabled){printf("\tweight reached!\n");}
+					if (settings.debug_enabled || settings.debug3_enabled){printf("\tweight reached!\n");}
 				} else {
 					if (settings.debug_enabled){printf("\tweight reached...\n");}
 				}
@@ -1462,7 +1822,7 @@ void ScaleFunction(){
 				}
 				timeValues.remainTime=0;
 			}
-			if (settings.debug_enabled){printf("\t\tweight: %f / old: %f\n", currentCommandValues.weight, oldCommandValues.weight);}
+			if (settings.debug_enabled || settings.debug3_enabled){printf("\t\tweight: %f / old: %f\n", currentCommandValues.weight, oldCommandValues.weight);}
 		}
 	} else if (state.Delay == settings.ShortDelay || state.scaleReady){
 		state.scaleReady=false;
@@ -1554,8 +1914,13 @@ void Beep(){
 
 void prepareState(char* TotalUpdate){
 	StringClean(TotalUpdate, 512);
-	
-	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidOpen\":%d}",	currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidOpen);
+	uint32_t press; //remove negative values for output;
+	if (currentCommandValues.press>0){
+		press = currentCommandValues.press;
+	} else {
+		press = 0;
+	}
+	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidOpen\":%d}",	currentCommandValues.temp, 						press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidOpen);
 	if (settings.debug_enabled){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidOpen:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidOpen);}
 }
 
@@ -2247,7 +2612,7 @@ void *heaterLedEvaluation(void *ptr){
 				if (!heaterStatus.isOn){
 					heaterStatus.isOn = true;
 				}
-			} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 3 < timeValues.runTime){
+			} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 4 < timeValues.runTime){
 				heaterStatus.isOn = false;
 			}
 			
@@ -2646,7 +3011,7 @@ void *readADCValues(void *ptr){
 				
 				double diff = front - back;
 				state.lidOpen = diff < -1000;
-				if (settings.debug3_enabled) {printf("lidopen front: %2.f, back: %2.f, diff: %2.f\n", front, back, diff);}
+				if (settings.debug3_enabled) {printf("lidopen front: %2.f, back: %2.f, diff: %2.f, isOpen: %d\n", front, back, diff, state.lidOpen);}
 			}
 			
 			if (runningMode.measure_noise){
