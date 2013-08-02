@@ -38,8 +38,7 @@ See GPLv3.htm in the main folder for details.
 #include "convertFunctions.h"
 #include "middlewareSocket.h"
 #include "daemon.h"
-
-#include "virtualspi.h"
+#include "ad7794_interface.h"
 
 
 #include "daemon_structs.h"
@@ -673,11 +672,13 @@ int main(int argc, const char* argv[]){
 		state.Delay = 5;
 		printf("test_adc\n");
 		
-		SPIReset();	
+		struct adc_private adc;
+		ad7794_reset(&adc);
 		delay(30);
-		SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_update_rate & 0x000F);
+		
+		ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
 		uint8_t adcChannel = 0;
-		SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+		ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 		delay(50);
 		uint32_t lastTime = millis();
 		uint32_t amount = 0;
@@ -688,10 +689,10 @@ int main(int argc, const char* argv[]){
 		if (settings.test_ADC_offsetCalibration != 0 || settings.test_ADC_fullScaleCalibration != 0){
 			printf("before calibration\n");
 			for (;adcChannel<8;adcChannel++) {
-				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 				delay(50);
-				uint32_t fullscale = SPIRead3Bytes(READ_FULLSCALE_REG);
-				uint32_t offset = SPIRead3Bytes(READ_SHIFT_REG);
+				uint32_t fullscale = ad7794_read_data_reg(&adc, AD7794_FULLSC);
+				uint32_t offset = ad7794_read_data_reg(&adc, AD7794_OFFSET);
 				delay(50);
 				printf("ADC(%d) fullscale: %d, offset: %d\n", adcChannel, fullscale, offset);
 			}
@@ -699,17 +700,18 @@ int main(int argc, const char* argv[]){
 			if (settings.test_ADC_offsetCalibration != 0){
 				//Offset Calibration
 				adcChannel = 0;
-				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
-				SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_offsetCalibration | (settings.test_ADC_update_rate & 0x000F));
-				while (state.running){
-					uint8_t adcState = SPIReadByte(READ_STATUS_REG);
+				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+				ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_offsetCalibration | (settings.test_ADC_update_rate & 0x000F));
+				while (state.running){	
+					uint8_t adcState=0;
+					ad7794_communicate(&adc, AD7794_STATUS, AD7794_DIRECTION_READ, 1, &adcState);
 					if (settings.debug_enabled){ printf("%d: state %d / %8s\n", millis(), adcState, my_itoa(adcState, 2)); }
 					if ((adcState & 0x80) == 0){
 						//Set ADC Channel & Gain to use
-						SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+						ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 						delay(150);
 						//System Full-Scale Calibration.
-						SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_offsetCalibration | (settings.test_ADC_update_rate & 0x000F));
+						ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_offsetCalibration | (settings.test_ADC_update_rate & 0x000F));
 						if (adcChannel < 5){
 							++adcChannel;
 						} else {
@@ -721,17 +723,18 @@ int main(int argc, const char* argv[]){
 			if (settings.test_ADC_fullScaleCalibration != 0){
 				//fullScale Calibration
 				adcChannel = 0;
-				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
-				SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_fullScaleCalibration | (settings.test_ADC_update_rate & 0x000F));
+				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+				ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_fullScaleCalibration | (settings.test_ADC_update_rate & 0x000F));
 				while (state.running){
-					uint8_t adcState = SPIReadByte(READ_STATUS_REG);
+					uint8_t adcState=0;
+					ad7794_communicate(&adc, AD7794_STATUS, AD7794_DIRECTION_READ, 1, &adcState);
 					if (settings.debug_enabled){ printf("%d: state %d / %8s\n", millis(), adcState, my_itoa(adcState, 2)); }
 					if ((adcState & 0x80) == 0){
 						//Set ADC Channel & Gain to use
-						SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+						ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 						delay(150);
 						//System Full-Scale Calibration.
-						SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_fullScaleCalibration | (settings.test_ADC_update_rate & 0x000F));
+						ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_fullScaleCalibration | (settings.test_ADC_update_rate & 0x000F));
 						if (adcChannel < 5){
 							++adcChannel;
 						} else {
@@ -744,10 +747,10 @@ int main(int argc, const char* argv[]){
 			printf("after calibration\n");
 			adcChannel = 0;
 			for (;adcChannel<6;adcChannel++) {
-				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 				delay(50);
-				uint32_t fullscale = SPIRead3Bytes(READ_FULLSCALE_REG);
-				uint32_t offset = SPIRead3Bytes(READ_SHIFT_REG);
+				uint32_t fullscale = ad7794_read_data_reg(&adc, AD7794_FULLSC);
+				uint32_t offset = ad7794_read_data_reg(&adc, AD7794_OFFSET);
 				delay(50);
 				printf("ADC(%d) fullscale: %d, offset: %d\n", adcChannel, fullscale, offset);
 			}
@@ -763,14 +766,15 @@ int main(int argc, const char* argv[]){
 			}
 		}
 		
-		SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_update_rate & 0x000F);
+		ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
 		adcChannel = 0;
-		SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+		ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 		while (state.running){
-			uint8_t adcState = SPIReadByte(READ_STATUS_REG);
+			uint8_t adcState=0;
+			ad7794_communicate(&adc, AD7794_STATUS, AD7794_DIRECTION_READ, 1, &adcState);
 			if (settings.debug_enabled){ printf("%d: state %d / %8s\n", millis(), adcState, my_itoa(adcState, 2)); }
-			if ((adcState & 0x80) == 0){
-				uint32_t data = SPIRead3Bytes(READ_DATA_REG);
+			if ((adcState & AD7794_STATUS_NOTREADY_MASK) == 0){
+				uint32_t data = ad7794_read_data(&adc);
 				//printf("readADC(%d): %d / %06X, loops: %d, time: %d\n", adcChannel, data, data, amount, millis() - lastTime);
 				if (adc_config.inverse[adcChannel]){
 					data = 0x00FFFFFF - data;
@@ -814,7 +818,7 @@ int main(int argc, const char* argv[]){
 				lastTime = millis();
 				amount = 0;
 				//Set ADC Channel & Gain to use
-				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 			} else {
 				++amount;
 			}
@@ -949,8 +953,14 @@ int main(int argc, const char* argv[]){
 						time90 = partReachedTime;
 						
 						printf("reached 90°C\n");
+						
+						//Add standard heatUp time for pan 1700g metal: 0.48 J / g*K
+						double cp_pan = 0.48;
+						double m_pan = 1700;
+						double cp_water = 4.18;
+						double m_water = weight;
 						double usedTime = (time90-time40)/1000;
-						double P = weight * 4.18 * 50 / usedTime; //P=m*cp*deltaT/deltaZeit
+						double P = (cp_water*m_water+m_pan*cp_pan) * 50 / usedTime; //P=m*cp*deltaT/deltaZeit
 						
 						currentTestPart++;
 						partReachedTime = 0;

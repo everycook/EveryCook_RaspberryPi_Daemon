@@ -21,8 +21,8 @@ See GPLv3.htm in the main folder for details.
 #include <softPwm.h>
 #include <wiringPi.h>
 
-#include "virtualspi.h"
 #include "virtuali2c.h"
+#include "ad7794_interface.h"
 #include "basic_functions.h"
 
 uint32_t ConfigurationReg[] = {0x390, 0x391, 0x392, 0x393, 0x914, 0x295};//For AD7794 conf-reg
@@ -42,6 +42,8 @@ uint8_t PinButtons_v2[] = {17, 27, 22};
 
 uint8_t Data[10];
 
+struct adc_private adc;
+
 bool debug_enabled2 = false;
 
 void setDebugEnabled(bool value){
@@ -60,7 +62,6 @@ void initHardware(uint32_t shieldVersion){
 		PinHeaterControllButtons = &PinHeaterControllButtons_v2[0];
 		PinButtons = &PinButtons_v2[0];
 	}
-	VirtualSPIInit();
 	VirtualI2CInit();
 	GPIOInit();
 	
@@ -86,12 +87,14 @@ void setADCModeReg(uint16_t newModeReg){
 void GPIOInit(void){
 	if (debug_enabled2){printf("GPIOInit\n");}
 	//heater led pins
+	if (debug_enabled2){printf("init heater leds\n");}
 	uint8_t heaterLedCount = sizeof(PinHeaterLeds);
 	uint8_t i=0;
 	for(;i<heaterLedCount;++i){
 		pinMode(PinHeaterLeds[i], INPUT);
 	}
 	//heater button pins
+	if (debug_enabled2){printf("init heater buttons\n");}
 	uint8_t heaterButtonCount = sizeof(PinHeaterControllButtons);
 	i=0;
 	for(;i<heaterButtonCount;++i){
@@ -99,11 +102,12 @@ void GPIOInit(void){
 		writeRaspberryPin(PinHeaterControllButtons[i],1);
 	}
 	//button pins
+	if (debug_enabled2){printf("init buttons\n");}
 	uint8_t buttonCount = sizeof(PinButtons);
 	i=0;
 	for(;i<buttonCount;++i){
 		pinMode(PinButtons[i], INPUT);
-	}
+	}if (debug_enabled2){printf("done\n");}
 }
 void PCA9685Init(void){
 	if (debug_enabled2){printf("PCA9685Init\n");}
@@ -124,9 +128,16 @@ void PCA9685Init(void){
 }
 void AD7794Init(void){
 	if (debug_enabled2){printf("AD7794Init\n");}
-	SPIReset();	
-	delay(30);
-	SPIWrite2Bytes(WRITE_MODE_REG, ModeReg);
+	int r;
+	if ((r=ad7794_init(&adc, 0, 0))){
+		printf("Could not init AD7794... errno=%d\n",r);
+		exit(r);
+	}
+	
+	uint8_t value[2];
+	value[0] = ModeReg & 0x000000FF;
+	value[1] = (ModeReg & 0x0000FF00) >> 8;
+	ad7794_communicate(&adc, AD7794_MODE, AD7794_DIRECTION_WRITE, 2, &value[0]);
 }
 
 
@@ -135,17 +146,17 @@ void AD7794Init(void){
 //read/write functions
 uint32_t readADC(uint8_t i){
 	uint32_t data;
-	SPIWrite2Bytes(WRITE_CONFIG_REG, ConfigurationReg[i]);
+	ad7794_select_channel2(&adc, i, ConfigurationReg[i]);
+	
 	bool readyToRead = false;
 	while (!readyToRead){
-		uint8_t adcState = SPIReadByte(READ_STATUS_REG);
-		if ((adcState & 0x80) == 0){
+		if (ad7794_check_if_ready(&adc)){
 			readyToRead = true;
 		} else {
 			delay(5);
 		}
 	}
-	data = SPIRead3Bytes(READ_DATA_REG);
+	data = ad7794_read_data(&adc);
 	if (debug_enabled2){printf("readADC(%d): %06X\n", i, data);}
 	return data;
 }
