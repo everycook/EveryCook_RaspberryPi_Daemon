@@ -2369,7 +2369,7 @@ void ReadConfigurationFile(void){
 	
 	fclose(fp);
 	
-	if (settings.shieldVersion != 1){
+	if (settings.shieldVersion != 1 && settings.shieldVersion != 2){
 		printf("Shield version %d unknown stop daemon.\n", settings.shieldVersion);
 		exit(1);
 	}
