@@ -21,20 +21,20 @@ TempValue2=98.2
 
 
 #ADC channels
-ADC_LoadCellFrontLeft=0
-ADC_LoadCellFrontRight=2
-ADC_LoadCellBackLeft=1
+ADC_LoadCellFrontLeft=1
+ADC_LoadCellFrontRight=3
+ADC_LoadCellBackLeft=0
 ADC_LoadCellBackRight=4
-ADC_Press=3
+ADC_Press=2
 ADC_Temp=5
 
 #AD7794 ADC programmable gain configuration
-Gain_LoadCellFrontLeft=8
-Gain_LoadCellFrontRight=8
-Gain_LoadCellBackLeft=8
-Gain_LoadCellBackRight=8
-Gain_Press=8
-Gain_Temp=2
+Gain_LoadCellFrontLeft=64
+Gain_LoadCellFrontRight=64
+Gain_LoadCellBackLeft=64
+Gain_LoadCellBackRight=64
+Gain_Press=16
+Gain_Temp=4
 
 #ADC inverse
 inverse_LoadCellFrontLeft=0
@@ -48,21 +48,21 @@ inverse_Temp=0
 i2c_motor=0
 i2c_servo=1
 #DisplaySegA
-i2c_7seg_top=4
+i2c_7seg_top=9
 #DisplaySegB
-i2c_7seg_top_left=3
+i2c_7seg_top_left=2
 #DisplaySegF
-i2c_7seg_top_right=5
+i2c_7seg_top_right=8
 #DisplaySegG
-i2c_7seg_center=2
+i2c_7seg_center=3
 #DisplaySegE
 i2c_7seg_bottom_left=6
 #DisplaySegC
-i2c_7seg_bottom_right=8
+i2c_7seg_bottom_right=4
 #DisplaySegD
-i2c_7seg_bottom=7
+i2c_7seg_bottom=5
 #DisplaySegDP
-i2c_7seg_period=9
+i2c_7seg_period=7
 
 #servo values
 i2c_servo_open=210
