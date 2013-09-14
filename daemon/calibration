@@ -2,22 +2,22 @@
 #lines starting with a # are comments
 
 #the conversion factor between ADC values and grams 8714000 0 8720000 100
-ForceADC1=9545120
-ForceADC2=9595180
+ForceADC1=8686962
+ForceADC2=8735328
 ForceValue1=0
-ForceValue2=1000
+ForceValue2=1895
 
 #two calibrations points between adc values and pressure in kpa
-PressADC1=4815000
+PressADC1=8625217
 PressValue1=0
-PressADC2=2600000
-PressValue2=100.0
+PressADC2=8870923
+PressValue2=80.0
 
 #two calibrations points between ADC values and temperature in °C
-TempADC1=6750000
-TempValue1=22
-TempADC2=6300000
-TempValue2=98.2
+TempADC1=9250417
+TempValue1=1.8
+TempADC2=9612843
+TempValue2=99.1
 
 
 #ADC channels
