@@ -682,7 +682,7 @@ class EveryCookApplication extends Application
         foreach ($clientList as $sendto) {
 			try {
 				$sendto->send($data);
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				if ($sendto != null){
 					$sendto->log('Exception on send data: ' . $e, 'error');
 				}
