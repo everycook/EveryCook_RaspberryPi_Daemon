@@ -127,8 +127,8 @@ return array(
 		'verificationBCCEmail'=>''/*'wiasmitinow@gmail.com'*/,
 		'verificationRegardsName'=>'Alexis',
 		'SMTPMailHost'=>'smtp.gmail.com',
-		'SMTPMailUser'=>'support@everycook.org',
-		'SMTPMailPW'=>'5upp0r77e4m',
+		'SMTPMailUser'=>'',
+		'SMTPMailPW'=>'',
 		'POPHost'=>'pop.gmail.com',
 		'PageType'=>'device',
 		'isDevice'=>true,
@@ -143,5 +143,6 @@ return array(
 		'cacheMethode'=>'memcached', //'session','apc','memcached',
 		'stepMinTime'=>10,
 		'runSyncCommand'=>'/opt/EveryCook/installSettings everycook_sync_wait',
+		'lastSyncDateFile'=>'/opt/EveryCook/sync/lastRecipeSyncDate.txt',
 	),
 );

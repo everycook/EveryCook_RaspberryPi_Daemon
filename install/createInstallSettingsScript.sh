@@ -39,14 +39,14 @@ int main(int argc, const char* argv[])
 			printf("Usage is: add_wlan ssid passphrase\r\n");
 			return 1;
 		}
-		sprintf(command, "$installDir/add_wlan.sh \"%s\" \"%s\"", argv[2], argv[3]);
+		sprintf(command, "$installDir/add_wlan.sh \"%s\" \"%s\" 2>&1", argv[2], argv[3]);
 		found=1;
 	} else if (strcmp(argv[1], "restartDaemonAndMiddleware") == 0){
 		if (argc != 2){
 			printf("Usage is: restartDeemonAndMiddleware\r\n");
 			return 1;
 		}
-		sprintf(command, "$installDir/restartDaemonAndMiddleware.sh");
+		sprintf(command, "$installDir/restartDaemonAndMiddleware.sh 2>&1");
 		found=1;
 	} else if (strcmp(argv[1], "change_wlanmode") == 0){
 		if (argc > 3){
@@ -54,9 +54,9 @@ int main(int argc, const char* argv[])
 			return 1;
 		}
 		if (argc == 3){
-			sprintf(command, "$installDir/change_wlanmode.sh \"%s\"", argv[2]);
+			sprintf(command, "$installDir/change_wlanmode.sh \"%s\" 2>&1", argv[2]);
 		} else {
-			sprintf(command, "$installDir/change_wlanmode.sh");
+			sprintf(command, "$installDir/change_wlanmode.sh 2>&1");
 		}
 		found=1;
 	} else if (strcmp(argv[1], "get_configured_wlans") == 0){
@@ -64,21 +64,21 @@ int main(int argc, const char* argv[])
 			printf("Usage is: get_configured_wlans\r\n");
 			return 1;
 		}
-		sprintf(command, "$installDir/get_configured_wlans.sh");
+		sprintf(command, "$installDir/get_configured_wlans.sh 2>&1");
 		found=1;
 	} else if (strcmp(argv[1], "reconnect_wlan") == 0){
 		if (argc != 2){
 			printf("Usage is: reconnect_wlan\r\n");
 			return 1;
 		}
-		sprintf(command, "$installDir/reconnect_wlan.sh");
+		sprintf(command, "$installDir/reconnect_wlan.sh 2>&1");
 		found=1;
 	} else if (strcmp(argv[1], "everycook_sync_wait") == 0){
 		if (argc != 2){
 			printf("Usage is: everycook_sync_wait\r\n");
 			return 1;
 		}
-		sprintf(command, "$installDir/everycook_sync_wait.sh");
+		sprintf(command, "$installDir/everycook_sync_wait.sh 2>&1");
 		found=1;
 	} else if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "usage") == 0 || strcmp(argv[1], "-?") == 0){
 		printf("Usage: %s command [params]\r\n", argv[0]);

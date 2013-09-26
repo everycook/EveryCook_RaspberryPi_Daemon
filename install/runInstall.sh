@@ -118,8 +118,12 @@ echo "####################################################"
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-echo -e "\nrestart wlan(as accesspoint)"
-$installDir/restartNetwork.sh
+if [ "$1" != "norestart" ] && [ "$2" != "norestart" ]; then
+	echo -e "\nrestart wlan(as accesspoint)"
+	$installDir/restartNetwork.sh
+fi
+
+
 
 #@@@@@@@@@@@@@@@
 

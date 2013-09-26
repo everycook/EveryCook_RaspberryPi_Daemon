@@ -95,6 +95,21 @@ if [ -e /etc/dhcp/dhcpd.conf ]; then
 		cp /etc/dhcp/dhcpd.conf /etc/dhcp/dhcpd.conf_orig
 	fi
 	
+	#comment out not needed lines
+	sed 's/^option domain-name "example.org";/#option domain-name "example.org";/' /etc/dhcp/dhcpd.conf> /etc/dhcp/dhcpd.conf_temp
+	sed 's/^option domain-name-servers ns1.example.org, ns2.example.org;/#option domain-name-servers ns1.example.org, ns2.example.org;/' /etc/dhcp/dhcpd.conf_temp> /etc/dhcp/dhcpd.conf
+	
+	
+	
+	grep "subnet 10.10.0.0 netmask 255.255.255.224 {" /etc/dhcp/dhcpd.conf > /dev/null
+	if [ "$?" != "0" ]; then
+		echo "" >> /etc/dhcp/dhcpd.conf
+		echo "subnet 10.0.0.0 netmask 255.255.255.224 {" >> /etc/dhcp/dhcpd.conf
+		echo "  range 10.0.0.10 10.0.0.20;" >> /etc/dhcp/dhcpd.conf
+		echo "  option domain-name \"everycook-lan.local\";" >> /etc/dhcp/dhcpd.conf
+		echo "}" >> /etc/dhcp/dhcpd.conf
+	fi
+	
 	grep "option domain-name \"everycook-lan.local\";" /etc/dhcp/dhcpd.conf > /dev/null
 	if [ "$?" != "0" ]; then
 		sed '/^  range 10.0.0.10/i  option domain-name "everycook-lan.local";' /etc/dhcp/dhcpd.conf> /etc/dhcp/dhcpd.conf_temp
@@ -110,7 +125,7 @@ if [ -e /etc/dhcp/dhcpd.conf ]; then
 		echo "" >> /etc/dhcp/dhcpd.conf
 		echo "subnet 10.10.0.0 netmask 255.255.255.224 {" >> /etc/dhcp/dhcpd.conf
 		echo "  range 10.10.0.10 10.10.0.30;" >> /etc/dhcp/dhcpd.conf
-		echo "  option domain-name "everycook-wlan.local";" >> /etc/dhcp/dhcpd.conf
+		echo "  option domain-name \"everycook-wlan.local\";" >> /etc/dhcp/dhcpd.conf
 		echo "}" >> /etc/dhcp/dhcpd.conf
 	fi
 else
@@ -126,13 +141,56 @@ if [ -e /etc/network/interfaces_wlan_ap ]; then
 	#nothing
 	echo "/etc/network/interfaces_wlan_ap already exist"
 else
-	grep -v -E "(wlan0.*dhcp)|(wpa-conf)" /etc/network/interfaces > /etc/network/interfaces_wlan_ap
+	mv /etc/network/interfaces /etc/network/interfaces_orig
+
+	echo "create /etc/network/interfaces"
+	cat << EOF > /etc/network/interfaces
+auto lo eth0 wlan0
+allow-hotplug wlan0
+
+iface lo inet loopback
+
+#iface eth0 inet dhcp
+
+iface eth0 inet static
+address 10.0.0.1
+netmask 255.255.255.0
+
+#wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf
+#iface default inet dhcp
+
+EOF
+	chown root:root /etc/network/interfaces
+	chmod 0644 /etc/network/interfaces
+
+#	grep -v -E "(wlan0.*dhcp)|(wpa-conf)" /etc/network/interfaces > /etc/network/interfaces_temp
+#	mv /etc/network/interfaces_temp /etc/network/interfaces
+#	
+#	#comment out not needed line
+#	grep "wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf" /etc/network/interfaces > /dev/null
+#	if [ "$?" != "0" ]; then
+#		sed '/^wpa-roam \/etc\/wpa_supplicant\/wpa_supplicant.conf/i#wpa-roam /etc/wpa_supplicant/wpa_supplicant.conf' /etc/network/interfaces> /etc/network/interfaces_temp
+#		mv /etc/network/interfaces_temp /etc/network/interfaces
+#	fi
+#	#comment out not needed line
+#	grep "iface default inet dhcp" /etc/network/interfaces_wlan_ap > /dev/null
+#	if [ "$?" != "0" ]; then
+#		sed '/^iface default inet dhcp/i#iface default inet dhcp' /etc/network/interfaces> /etc/network/interfaces_temp
+#		mv /etc/network/interfaces_temp /etc/network/interfaces
+#	fi
+
+	
+	cp /etc/network/interfaces /etc/network/interfaces_wlan_ap
 	echo "" >> /etc/network/interfaces_wlan_ap
 	echo "iface wlan0 inet static" >> /etc/network/interfaces_wlan_ap
 	echo "address 10.10.0.1" >> /etc/network/interfaces_wlan_ap
 	echo "netmask 255.255.255.0" >> /etc/network/interfaces_wlan_ap
 	
 	mv /etc/network/interfaces /etc/network/interfaces_wlan_wpa
+	echo "" >> /etc/network/interfaces_wlan_wpa
+	echo "iface wlan0 inet dhcp" >> /etc/network/interfaces_wlan_wpa
+	echo "wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf" >> /etc/network/interfaces_wlan_wpa
+	
 	pushd . > /dev/null
 	cd /etc/network/
 	ln -s interfaces_wlan_ap interfaces
@@ -143,15 +201,21 @@ fi
 echo "configure dhcp /etc/default/isc-dhcp-server"
 #create dhcp config vor normal an ap mode
 
-#grep -v "INTERFACES=" /etc/default/isc-dhcp-server > /etc/default/isc-dhcp-server_wlan_ap
-#echo "INTERFACES=\"eth0 wlan0\"" >> /etc/default/isc-dhcp-server_wlan_ap
-sed '/^INTERFACES=/cINTERFACES="eth0 wlan0"' /etc/default/isc-dhcp-server > /etc/default/isc-dhcp-server_wlan_ap
 
-mv /etc/default/isc-dhcp-server /etc/default/isc-dhcp-server_wlan_wpa
-pushd . > /dev/null
-cd /etc/default/
-ln -s isc-dhcp-server_wlan_ap isc-dhcp-server
-popd > /dev/null
+if [ -e /etc/default/isc-dhcp-server_wlan_ap ]; then
+	#nothing
+	echo "/etc/default/isc-dhcp-server_wlan_ap already exist"
+else
+	#grep -v "INTERFACES=" /etc/default/isc-dhcp-server > /etc/default/isc-dhcp-server_wlan_ap
+	#echo "INTERFACES=\"eth0 wlan0\"" >> /etc/default/isc-dhcp-server_wlan_ap
+	sed '/^INTERFACES=/cINTERFACES="eth0 wlan0"' /etc/default/isc-dhcp-server > /etc/default/isc-dhcp-server_wlan_ap
+	sed '/^INTERFACES=/cINTERFACES="eth0"' /etc/default/isc-dhcp-server > /etc/default/isc-dhcp-server_wlan_wpa
+	
+	pushd . > /dev/null
+	cd /etc/default/
+	ln -s isc-dhcp-server_wlan_ap isc-dhcp-server
+	popd > /dev/null
+fi
 
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
@@ -377,9 +441,10 @@ ping -c 1 www.everycook.org
 if [ "\$?" == "0" ]; then
 	pushd . > /dev/null
 	cd $installDir/sync/
-	./sync_php.sh &
-	./sync_recipes.sh &
-	./sync_privdata.sh &
+	echo \`date +"%F %R:%S"\` > everycook_sync.log
+	./sync_php.sh 2>&1 >> everycook_sync.log &
+	./sync_recipes.sh 2>&1 >> everycook_sync.log &
+	./sync_privdata.sh 2>&1 >> everycook_sync.log &
 	popd > /dev/null
 fi
 EOF

@@ -144,23 +144,52 @@ else
 
 	mv $installDir/sync/lastRecipeSyncDate.txt $installDir/sync/recipeSyncDate.txt
 	echo \`date +"%F %R:%S"\` > $installDir/sync/lastRecipeSyncDate.txt
+	
+	if [ "\$1" == "force" ]; then
+		mysqlparams=-f
+	else
+		unset mysqlparams
+	fi
 	#TODO check if there is a newer EC_INITIAL_ file!
 	
 	if [ -r $installDir/sync/recipeSyncDate.txt ];
 	then
-	        echo "import changes";
-	        mysqlbinlog --short-form --start-datetime="\`cat $installDir/sync/recipeSyncDate.txt\`" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec
+		echo "import changes";
+		mysqlbinlog --short-form --start-datetime="\`cat $installDir/sync/recipeSyncDate.txt\`" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec \$mysqlparams 2>&1
+		if [ "\$?" != "0" ]; then
+			if [ "\$1" != "force" ]; then
+				mv /opt/EveryCook/sync/recipeSyncDate.txt /opt/EveryCook/sync/lastRecipeSyncDate.txt
+			fi
+		fi
 	else
-	        echo "import full mysqldump";
-		gzip -d -c $installDir/sync/recipes/EC_INITIAL_\`cat $installDir/sync/recipes/EC_INITIAL_DATE.txt\`.sql.gz | mysql -h localhost -uec --database=ec
-	        echo "import changes since mysqldump";
-	        mysqlbinlog --short-form --start-datetime="\`cat $installDir/sync/recipes/EC_INITIAL_DATE.txt\` 00:00:00" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec
+		echo "import full mysqldump";
+		gzip -d -c $installDir/sync/recipes/EC_INITIAL_\`cat $installDir/sync/recipes/EC_INITIAL_DATE.txt\`.sql.gz | mysql -h localhost -uec --database=ec \$mysqlparams 2>&1
+		echo "import changes since mysqldump";
+		mysqlbinlog --short-form --start-datetime="\`cat $installDir/sync/recipes/EC_INITIAL_DATE.txt\` 00:00:00" $installDir/sync/recipes/mysql-bin.[0-9]* | mysql -h localhost -uec \$mysqlparams 2>&1
+		if [ "\$?" != "0" ]; then
+			if [ "\$1" != "force" ]; then
+				echo `cat /opt/EveryCook/sync/recipes/EC_INITIAL_DATE.txt` 00:00:00 > /opt/EveryCook/sync/lastRecipeSyncDate.txt
+			fi
+		fi
 	fi
 fi
 EOF
 chmod 0775 sync_recipes.sh
 
+
+cat << EOF > time.php
+<?php
+echo  date('Y-m-d H:i:s',\$argv[1]) . "\n";
+?>
+EOF
+chmod 0664 time.php
+
+cat << EOF > timestampToTime.sh
+#!/bin/bash
+php -f $installDir/sync/time.php \$1
+EOF
+chmod 0775 timestampToTime.sh
+
 chown $userToUse:$userToUse $installDir/sync/*
 chown $userToUse:$webuser $installDir/sync/login_cred
 popd > /dev/null
-
