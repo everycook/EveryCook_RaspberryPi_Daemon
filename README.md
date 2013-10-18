@@ -35,7 +35,7 @@ mkdir codes
 cd codes**
 
 checkout daemon git repository
-**git clone git://github.com/everycook/EveryCook_RaspberryPi_Daemon.git**
+**git clone git://github.com/everycook/EveryCook_RaspberryPi_Daemon.git /home/pi/codes**
 
 checkout wiringPi library from original author
 **git clone git://git.drogon.net/wiringPi /home/pi/wiringPi**
@@ -123,9 +123,9 @@ blacklist i2c-bcm2708  **
 **/etc/modprobe.d/raspi-blacklist.conf**
 
 add the lines  
-**i2c-dev
-w1-gpio
-w1-therm**
+**i2c-dev  
+w1-gpio  
+w1-therm**  
 to
 **/etc/modules**
 
