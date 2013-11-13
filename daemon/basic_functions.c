@@ -21,6 +21,7 @@ See GPLv3.htm in the main folder for details.
 #include <softPwm.h>
 #include <wiringPi.h>
 
+#include "virtualspi.h"
 #include "virtuali2c.h"
 #include "ad7794_interface.h"
 #include "basic_functions.h"
@@ -46,6 +47,8 @@ struct adc_private adc;
 
 bool debug_enabled2 = false;
 
+bool use_spi_dev = false;
+
 void setDebugEnabled(bool value){
 	debug_enabled2 = value;
 }
@@ -61,6 +64,9 @@ void initHardware(uint32_t shieldVersion){
 		PinHeaterLeds = &PinHeaterLeds_v2[0];
 		PinHeaterControllButtons = &PinHeaterControllButtons_v2[0];
 		PinButtons = &PinButtons_v2[0];
+	}
+	if (!use_spi_dev){
+		VirtualSPIInit();
 	}
 	VirtualI2CInit();
 	GPIOInit();
@@ -107,7 +113,8 @@ void GPIOInit(void){
 	i=0;
 	for(;i<buttonCount;++i){
 		pinMode(PinButtons[i], INPUT);
-	}if (debug_enabled2){printf("done\n");}
+	}
+	if (debug_enabled2){printf("done\n");}
 }
 void PCA9685Init(void){
 	if (debug_enabled2){printf("PCA9685Init\n");}
@@ -128,16 +135,22 @@ void PCA9685Init(void){
 }
 void AD7794Init(void){
 	if (debug_enabled2){printf("AD7794Init\n");}
-	int r;
-	if ((r=ad7794_init(&adc, 0, 0))){
-		printf("Could not init AD7794... errno=%d\n",r);
-		exit(r);
-	}
+	if (use_spi_dev){
+		int r;
+		if ((r=ad7794_init(&adc, 0, 0))){
+			printf("Could not init AD7794... errno=%d\n",r);
+			exit(r);
+		}
 	
-	uint8_t value[2];
-	value[0] = ModeReg & 0x000000FF;
-	value[1] = (ModeReg & 0x0000FF00) >> 8;
-	ad7794_communicate(&adc, AD7794_MODE, AD7794_DIRECTION_WRITE, 2, &value[0]);
+		uint8_t value[2];
+		value[0] = ModeReg & 0x000000FF;
+		value[1] = (ModeReg & 0x0000FF00) >> 8;
+		ad7794_communicate(&adc, AD7794_MODE, AD7794_DIRECTION_WRITE, 2, &value[0]);
+	} else {
+		SPIReset();	
+		delay(30);
+		SPIWrite2Bytes(WRITE_MODE_REG, ModeReg);
+	}
 }
 
 
@@ -146,17 +159,33 @@ void AD7794Init(void){
 //read/write functions
 uint32_t readADC(uint8_t i){
 	uint32_t data;
-	ad7794_select_channel2(&adc, i, ConfigurationReg[i]);
+	if (use_spi_dev){
+		ad7794_select_channel2(&adc, i, ConfigurationReg[i]);
+	} else {
+		SPIWrite2Bytes(WRITE_CONFIG_REG, ConfigurationReg[i]);
+	}
 	
 	bool readyToRead = false;
-	while (!readyToRead){
-		if (ad7794_check_if_ready(&adc)){
-			readyToRead = true;
-		} else {
-			delay(5);
+	if (use_spi_dev){
+		while (!readyToRead){
+			if (ad7794_check_if_ready(&adc)){
+				readyToRead = true;
+			} else {
+				delay(5);
+			}
 		}
+		data = ad7794_read_data(&adc);
+	} else {
+		while (!readyToRead){
+			uint8_t adcState = SPIReadByte(READ_STATUS_REG);
+			if ((adcState & 0x80) == 0){
+				readyToRead = true;
+			} else {
+				delay(5);
+			}
+		}
+		data = SPIRead3Bytes(READ_DATA_REG);
 	}
-	data = ad7794_read_data(&adc);
 	if (debug_enabled2){printf("readADC(%d): %06X\n", i, data);}
 	return data;
 }

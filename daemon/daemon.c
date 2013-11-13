@@ -38,6 +38,8 @@ See GPLv3.htm in the main folder for details.
 #include "convertFunctions.h"
 #include "middlewareSocket.h"
 #include "daemon.h"
+
+#include "virtualspi.h"
 #include "ad7794_interface.h"
 
 
@@ -76,7 +78,7 @@ struct Time_Values timeValues = {};
 
 struct Running_Mode runningMode = {true, false, false, false, false, false, false, false, false,  false, false};
 
-struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false, 100,800, 8,0x0000,0x0000, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter"};
+struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false,false, 100,800, 8,0x0000,0x0000, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter"};
 
 struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, ' ',false, -1,"", 0};
 
@@ -673,12 +675,19 @@ int main(int argc, const char* argv[]){
 		printf("test_adc\n");
 		
 		struct adc_private adc;
-		ad7794_reset(&adc);
-		delay(30);
-		
-		ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
 		uint8_t adcChannel = 0;
-		ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+		if (settings.use_spi_dev){
+			ad7794_reset(&adc);
+			delay(30);
+		
+			ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
+			ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+		} else {
+			SPIReset();	
+			delay(30);
+			SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_update_rate & 0x000F);
+			SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+		}
 		delay(50);
 		uint32_t lastTime = millis();
 		uint32_t amount = 0;
@@ -687,6 +696,7 @@ int main(int argc, const char* argv[]){
 		uint32_t adcLoops[8] = {0,0,0,0,0,0};
 		
 		if (settings.test_ADC_offsetCalibration != 0 || settings.test_ADC_fullScaleCalibration != 0){
+		  if (settings.use_spi_dev){
 			printf("before calibration\n");
 			for (;adcChannel<8;adcChannel++) {
 				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
@@ -754,6 +764,73 @@ int main(int argc, const char* argv[]){
 				delay(50);
 				printf("ADC(%d) fullscale: %d, offset: %d\n", adcChannel, fullscale, offset);
 			}
+		  } else {
+			printf("before calibration\n");
+			for (;adcChannel<8;adcChannel++) {
+				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				delay(50);
+				uint32_t fullscale = SPIRead3Bytes(READ_FULLSCALE_REG);
+				uint32_t offset = SPIRead3Bytes(READ_SHIFT_REG);
+				delay(50);
+				printf("ADC(%d) fullscale: %d, offset: %d\n", adcChannel, fullscale, offset);
+			}
+			
+			if (settings.test_ADC_offsetCalibration != 0){
+				//Offset Calibration
+				adcChannel = 0;
+				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_offsetCalibration | (settings.test_ADC_update_rate & 0x000F));
+				while (state.running){
+					uint8_t adcState = SPIReadByte(READ_STATUS_REG);
+					if (settings.debug_enabled){ printf("%d: state %d / %8s\n", millis(), adcState, my_itoa(adcState, 2)); }
+					if ((adcState & 0x80) == 0){
+						//Set ADC Channel & Gain to use
+						SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+						delay(150);
+						//System Full-Scale Calibration.
+						SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_offsetCalibration | (settings.test_ADC_update_rate & 0x000F));
+						if (adcChannel < 5){
+							++adcChannel;
+						} else {
+							break;
+						}
+					}
+				}
+			}
+			if (settings.test_ADC_fullScaleCalibration != 0){
+				//fullScale Calibration
+				adcChannel = 0;
+				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_fullScaleCalibration | (settings.test_ADC_update_rate & 0x000F));
+				while (state.running){
+					uint8_t adcState = SPIReadByte(READ_STATUS_REG);
+					if (settings.debug_enabled){ printf("%d: state %d / %8s\n", millis(), adcState, my_itoa(adcState, 2)); }
+					if ((adcState & 0x80) == 0){
+						//Set ADC Channel & Gain to use
+						SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+						delay(150);
+						//System Full-Scale Calibration.
+						SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_fullScaleCalibration | (settings.test_ADC_update_rate & 0x000F));
+						if (adcChannel < 5){
+							++adcChannel;
+						} else {
+							break;
+						}
+					}
+				}
+			}
+			
+			printf("after calibration\n");
+			adcChannel = 0;
+			for (;adcChannel<6;adcChannel++) {
+				SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				delay(50);
+				uint32_t fullscale = SPIRead3Bytes(READ_FULLSCALE_REG);
+				uint32_t offset = SPIRead3Bytes(READ_SHIFT_REG);
+				delay(50);
+				printf("ADC(%d) fullscale: %d, offset: %d\n", adcChannel, fullscale, offset);
+			}
+		  }
 			uint16_t systemOffset = systemZeroScaleCalibration; //needed because its a "DEFINE" value...
 			if (settings.test_ADC_offsetCalibration == systemOffset){
 				//forceCalibration.offset=forceCalibration.Value1 - forceCalibration.ADC1*forceCalibration.scaleFactor ;  //offset in g //for default reference force in calibration mode only
@@ -766,15 +843,30 @@ int main(int argc, const char* argv[]){
 			}
 		}
 		
-		ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
-		adcChannel = 0;
-		ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+		if (settings.use_spi_dev){
+			ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
+			adcChannel = 0;
+			ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+		} else {
+			SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_update_rate & 0x000F);
+			adcChannel = 0;
+			SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+		}
 		while (state.running){
 			uint8_t adcState=0;
-			ad7794_communicate(&adc, AD7794_STATUS, AD7794_DIRECTION_READ, 1, &adcState);
+			if (settings.use_spi_dev){
+				ad7794_communicate(&adc, AD7794_STATUS, AD7794_DIRECTION_READ, 1, &adcState);
+			} else {
+				adcState = SPIReadByte(READ_STATUS_REG);
+			}
 			if (settings.debug_enabled){ printf("%d: state %d / %8s\n", millis(), adcState, my_itoa(adcState, 2)); }
 			if ((adcState & AD7794_STATUS_NOTREADY_MASK) == 0){
-				uint32_t data = ad7794_read_data(&adc);
+				uint32_t data;
+				if (settings.use_spi_dev){
+					data = ad7794_read_data(&adc);
+				} else {
+					data = SPIRead3Bytes(READ_DATA_REG);
+				}
 				//printf("readADC(%d): %d / %06X, loops: %d, time: %d\n", adcChannel, data, data, amount, millis() - lastTime);
 				if (adc_config.inverse[adcChannel]){
 					data = 0x00FFFFFF - data;
@@ -818,7 +910,11 @@ int main(int argc, const char* argv[]){
 				lastTime = millis();
 				amount = 0;
 				//Set ADC Channel & Gain to use
-				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+				if (settings.use_spi_dev){
+					ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
+				} else {
+					SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
+				}
 			} else {
 				++amount;
 			}

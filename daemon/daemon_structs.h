@@ -218,6 +218,7 @@ struct Settings {
 	
 	bool debug_enabled;
 	bool debug3_enabled;
+	bool use_spi_dev;
 
 	uint16_t test_servo_min;
 	uint16_t test_servo_max;
