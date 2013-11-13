@@ -1596,10 +1596,14 @@ bool checkForInput(){
 				if (settings.debug_enabled || settings.debug3_enabled){printf("recived Value(with type %d): %s\n", recivedDataType, state.middlewareBuffer);}
 				if (recivedDataType != dataType){
 					fprintf(stderr, "ERROR recived dataType unknown\n");
+					close(state.sockfd);
+					state.sockfd = -15;
+				} else {
+					parseSockInput(state.middlewareBuffer);
 				}
-				parseSockInput(state.middlewareBuffer);
 			} else {
 				fprintf(stderr, "ERROR reading from socket\n");
+				close(state.sockfd);
 				state.sockfd = -14;
 			}
 		}
