@@ -29,7 +29,7 @@ const float MOTOR_RPM_TO_PWM = 4095.0/200.0;
 /******************* functions to evaluate **********************/
 
 double readTemp(struct Daemon_Values *dv){
-		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Temp %d dig %.0f °C | ", dv->adc_values->Temp.adc_value, dv->adc_values->Temp.valueByOffset);}
+		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Temp %d dig %.0f ï¿½C | ", dv->adc_values->Temp.adc_value, dv->adc_values->Temp.valueByOffset);}
 		return dv->adc_values->Temp.valueByOffset;
 }
 
@@ -180,6 +180,9 @@ void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct 
 		if (steps<=0){
 			steps=1;
 		}
+		//hack by alexis: open valve immediately for solenoid. to be changed to only when ShieldVersion == 3
+		steps=1;
+		//end alexis hack
 		if (dv->i2c_servo_values->steps != steps || dv->i2c_servo_values->destOpenPercent != openPercent){
 			dv->i2c_servo_values->steps = steps;
 			dv->i2c_servo_values->destOpenPercent = openPercent;
