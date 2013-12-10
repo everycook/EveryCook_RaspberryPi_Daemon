@@ -82,6 +82,11 @@ class EveryCookApplication extends Application
 	protected $_lastStateTime;
 	protected $_lastUpdateTime;
 	
+	protected $_fluctuatungMin;
+	protected $_fluctuatungMax;
+	protected $_reachingMin;
+	protected $_reachingMax;
+	
 	protected function getMemcached(){
 		if ($this->_memcached == null){
 			$this->_memcached = new \Memcached();
@@ -140,7 +145,13 @@ class EveryCookApplication extends Application
 			'memcachedPort'=>11211,
 			'cacheMethode'=>'memcached',
 			'stateValidTimeout'=>10000, //=10 sec
+			'weightFluctuatingPercentDiff'=>10,
+			'weightReachingPercentDiff'=>5,
         ), $options);
+		$this->_fluctuatungMin = 1 - ($this->_options['weightFluctuatingPercentDiff'])/100.0;
+		$this->_fluctuatungMax = 1 + ($this->_options['weightFluctuatingPercentDiff'])/100.0;
+		$this->_reachingMin = 1 - ($this->_options['weightReachingPercentDiff'])/100.0;
+		$this->_reachingMax = 1 + ($this->_options['weightReachingPercentDiff'])/100.0;
 	}
 	
 	private function readFromFirmware($info, $recipeNr){
@@ -305,48 +316,52 @@ class EveryCookApplication extends Application
 			if ($state->SMODE >= 30 && $state->SMODE <= 39){
 				//Auto Next:
 				if ($state->SMODE == self::WEIGHT_REACHED){
+					/*
 					//weight value are to "jummpy", so goto next if reached weight immedialy for now
 					if ($percent>=0.95 && $percent<=1.05){
 						$additional.=', gotoNext: true';
 					} else {
 						$mealStep->weightReachedTime = 0;
 					}
-					/* alernative logic
-					//TODO: Get and save weightReachedTime, to separate cache so no problems occure
+					*/
+					
+					// alernative logic
+					//Get and save weightReachedTime, to separate cache so no problems occure
 					$weightReachedTime = $this->getFromCache('weightReachedTime_' . $recipeNr);
-					$this->saveToCache('weightReachedTime_' . $recipeNr, $weightReachedTime, 10*60); //only valid vor max. 10 min
 					
 					//Wait 5 Sec with only small changes (between 90% and 110%)
-					if ($percent>=0.90 && $percent<=1.10 && $mealStep->weightReachedTime != 0){
-						if ($currentTime - $mealStep->weightReachedTime >=5){
+					if ($percent>=$this->_fluctuatingMin && $percent<=$this->_fluctuatungMax && $weightReachedTime != 0){
+						if ($currentTime - $weightReachedTime >=5){
 							$additional.=', gotoNext: true';
 						} else {
-							$additional.=', gotoNextTime: ' . ($currentTime - $mealStep->weightReachedTime);
+							$additional.=', gotoNextTime: ' . ($currentTime - $weightReachedTime);
 						}
-					} else if ($percent>=0.95 && $percent<=1.05){
-						$mealStep->weightReachedTime = $currentTime;
+					} else if ($percent>=$this->_reachingMin && $percent<=$this->_reachingMax){
+						$weightReachedTime = $currentTime;
 						$additional.=', gotoNextTime: 5';
 					} else {
-						$mealStep->weightReachedTime = 0;
+						$weightReachedTime = 0;
 					}
-					*/
+					
 					/* old "exact" logic
 					if ($percent>=0.95 && $percent<=1.05){
 						//Wait 5 Sec with no change
-						if ($mealStep->percent == $percent && $mealStep->weightReachedTime != 0){
-							if ($currentTime - $mealStep->weightReachedTime >=5){
+						if ($percent == $percent && $weightReachedTime != 0){
+							if ($currentTime - $weightReachedTime >=5){
 								$additional.=', gotoNext: true';
 							} else {
-								$additional.=', gotoNextTime: ' . ($currentTime - $mealStep->weightReachedTime);
+								$additional.=', gotoNextTime: ' . ($currentTime - $weightReachedTime);
 							}
 						} else {
-							$mealStep->weightReachedTime = $currentTime;
+							$weightReachedTime = $currentTime;
 							$additional.=', gotoNextTime: 5';
 						}
 					} else {
-						$mealStep->weightReachedTime = 0;
+						$weightReachedTime = 0;
 					}
 					*/
+					
+					$this->saveToCache('weightReachedTime_' . $recipeNr, $weightReachedTime, 10*60); //only valid vor max. 10 min
 				} else {
 					$additional.=', gotoNext: true';
 				}

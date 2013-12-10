@@ -114,6 +114,8 @@ $application = new \EveryCook\Application\EveryCookApplication(array(
 	'deviceWriteUrl'=>'/hw/sendcommand.php?command=',
 	'deviceReadUrl'=>'/hw/status',
 	'cacheMethode'=>'memcached',
+	'weightFluctuatingPercentDiff'=>10,
+	'weightReachingPercentDiff'=>5
 ));
 $server->registerApplication('everycook', $application);
 
