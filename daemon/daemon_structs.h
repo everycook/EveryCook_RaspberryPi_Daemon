@@ -110,6 +110,15 @@ struct I2C_Servo_Values {
 	uint8_t i2c_servo_stay_open;
 };
 
+struct I2C_solenoid_Values {
+	uint16_t i2c_solenoid_open;
+	uint16_t i2c_solenoid_closed;
+	
+	float currentValue;
+	uint16_t i2c_solenoid_value;
+	uint8_t solenoidOpen;
+};
+
 struct I2C_Motor_Values {
 	uint16_t i2c_motor_speed_min;
 	uint16_t i2c_motor_speed_ramp;
@@ -129,6 +138,7 @@ struct Button_Values {
 	uint32_t buttonPressedTime[3];
 	uint32_t buttonOnTime[3];
 	uint32_t buttonOffTime[3];
+	uint32_t actionStartedTime[3];
 };
 
 struct Command_Values {
@@ -218,6 +228,7 @@ struct Settings {
 	
 	bool debug_enabled;
 	bool debug3_enabled;
+	bool debug4_enabled;
 	bool use_spi_dev;
 
 	uint16_t test_servo_min;
@@ -233,6 +244,7 @@ struct Settings {
 	char *statusFile;
 	char *logFile;
 	char *hourCounterFile;
+	char *installPath;
 };
 
 struct State {
@@ -261,6 +273,9 @@ struct State {
 	char TotalUpdate[512];
 	uint32_t value[15];
 	char names[15][10];
+	char actionText[255];
+	char *language;
+	bool alwaysReadMode;
 	
 	FILE *logFilePointer;
 	char** logLines;
@@ -316,6 +331,7 @@ struct Daemon_Values {
 	struct I2C_Config *i2c_config;
 
 	struct I2C_Servo_Values *i2c_servo_values;
+	struct I2C_solenoid_Values *i2c_solenoid_values;
 	struct I2C_Motor_Values *i2c_motor_values;
 
 	struct Command_Values *newCommandValues;

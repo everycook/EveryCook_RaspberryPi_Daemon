@@ -50,7 +50,7 @@ int main(int argc, const char* argv[])
 		found=1;
 	} else if (strcmp(argv[1], "change_wlanmode") == 0){
 		if (argc > 3){
-			printf("Usage is: change_wlanmode [mode(ap|wpa=default)]\r\n");
+			printf("Usage is: change_wlanmode [mode(toggle|ap|wpa=default)]\r\n");
 			return 1;
 		}
 		if (argc == 3){
@@ -80,14 +80,22 @@ int main(int argc, const char* argv[])
 		}
 		sprintf(command, "$installDir/everycook_sync_wait.sh 2>&1");
 		found=1;
+	} else if (strcmp(argv[1], "restartNetwork") == 0){
+		if (argc != 2){
+			printf("Usage is: restartNetwork\r\n");
+			return 1;
+		}
+		sprintf(command, "$installDir/restartNetwork.sh 2>&1");
+		found=1;
 	} else if (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "usage") == 0 || strcmp(argv[1], "-?") == 0){
 		printf("Usage: %s command [params]\r\n", argv[0]);
 		printf("commands are:");
 		printf("\tadd_wlan ssid passphrase\r\n");
 		printf("\trestartDaemonAndMiddleware\r\n");
-		printf("\tchange_wlanmode [mode(ap|wpa=default)]\r\n");
+		printf("\tchange_wlanmode [mode(toggle|ap|wpa=default)]\r\n");
 		printf("\tget_configured_wlans\r\n");
 		printf("\treconnect_wlan\r\n");
+		printf("\trestartNetwork\r\n");
 		return 0;
 	}
 	
@@ -171,15 +179,20 @@ echo "create $installDir/change_wlanmode.sh"
 cat << EOF > $installDir/change_wlanmode.sh
 #!/bin/bash
 pushd .
-if [ "\$1" == "ap" ]; then
+curLanType=`ls -l /etc/network/interfaces | sed -n '/->/s/.* -> interfaces\(.*\)/\1/p'`
+if [ "\$1" == "toggle" ]; then
+	if [ "\$curLanType" == "_wlan_ap" ]; then
+		lanType="_wlan_wpa"
+	else
+		lanType="_wlan_ap"
+	fi
+elseif [ "\$1" == "ap" ]; then
 	lanType="_wlan_ap"
 else
 	lanType="_wlan_wpa"
 fi
 
-
-curLanType=`ls -l /etc/network/interfaces | sed -n '/->/s/.* -> interfaces\(.*\)/\1/p'`
-if [ "\$curLanType" != "lanType" ]; then
+if [ "\$curLanType" != "\$lanType" ]; then
 	pushd . > /dev/null
 	cd /etc/network/
 	rm interfaces

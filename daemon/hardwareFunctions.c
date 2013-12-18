@@ -174,15 +174,30 @@ void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 	}
 }
 
+void setSolenoidOpen(bool open, struct Daemon_Values *dv){
+	if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("setSolenoidOpen, open: %d\n", open);}
+	if (dv->i2c_solenoid_values->solenoidOpen != open){
+		if (open){
+			dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_open;
+		} else {
+			dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_closed;
+		}
+		dv->i2c_solenoid_values->i2c_solenoid_value = (int)(dv->i2c_solenoid_values->currentValue);
+		
+		if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setSolonoidOpen: value:%.2f, solonoid_value:%d\n", dv->i2c_solenoid_values->currentValue, dv->i2c_solenoid_values->i2c_solenoid_value);}
+		if (!dv->runningMode->simulationMode){
+			writeI2CPin(dv->i2c_config->i2c_servo, dv->i2c_solenoid_values->i2c_solenoid_value);
+		}
+		dv->i2c_solenoid_values->solenoidOpen = open;
+	}
+}
+
 void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct Daemon_Values *dv){
 	if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("setServoOpen, open: %d\n", openPercent);}
 	if (dv->i2c_servo_values->servoOpen != openPercent){
 		if (steps<=0){
 			steps=1;
 		}
-		//hack by alexis: open valve immediately for solenoid. to be changed to only when ShieldVersion == 3
-		steps=1;
-		//end alexis hack
 		if (dv->i2c_servo_values->steps != steps || dv->i2c_servo_values->destOpenPercent != openPercent){
 			dv->i2c_servo_values->steps = steps;
 			dv->i2c_servo_values->destOpenPercent = openPercent;

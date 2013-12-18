@@ -22,8 +22,8 @@ logSaveInterval=5
 logLines=60
 
 #motor values
-i2c_motor_speed_min=10
-i2c_motor_speed_ramp=10
+i2c_motor_speed_min=50
+i2c_motor_speed_ramp=50
 
 #servo stay open after pressure less in seconds
 i2c_servo_stay_open=8
@@ -37,6 +37,8 @@ CommandFile=/run/shm/command
 StatusFile=/run/shm/status
 calibrationFile=/opt/EveryCook/daemon/calibration
 hourCounterFile=/opt/EveryCook/daemon/hourCounter
+installPath=/opt/EveryCook/
+speakLanguage=english
 
 middlewareHostname=127.0.0.1
 middlewarePortno=8000

@@ -10,7 +10,7 @@ the Free Software Foundation, either version 3 of the License, or (at your optio
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-See GPLv3.htm in the main folder for details.
+// See GPLv3.htm in the main folder for details.
 */
 
 #include <stdio.h>
@@ -67,6 +67,7 @@ struct ADC_Calibration tempCalibration = {};
 struct I2C_Config i2c_config = {I2C_MOTOR, I2C_SERVO, I2C_7SEG_TOP, I2C_7SEG_TOP_LEFT, I2C_7SEG_TOP_RIGHT, I2C_7SEG_CENTER, I2C_7SEG_BOTTOM_LEFT, I2C_7SEG_BOTTOM_RIGHT, I2C_7SEG_BOTTOM, I2C_7SEG_PERIOD};
 
 struct I2C_Servo_Values i2c_servo_values = {I2C_VALVE_OPEN_VALUE, I2C_VALVE_CLOSED_VALUE, 0, 0, 0, 0, 0, I2C_VALVE_CLOSED_VALUE, 0};
+struct I2C_solenoid_Values i2c_solenoid_values = {I2C_VALVE_OPEN_VALUE, I2C_VALVE_CLOSED_VALUE, I2C_VALVE_CLOSED_VALUE, 0, 0};
 struct I2C_Motor_Values i2c_motor_values = {10,10, 0,0,0.0, 0,0,0,10}; //last value (motorRpm) set to 10 so it will be reset to 0 on startup
 
 
@@ -78,7 +79,7 @@ struct Time_Values timeValues = {};
 
 struct Running_Mode runningMode = {true, false, false, false, false, false, false, false, false,  false, false};
 
-struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false,false, 100,800, 8,0x0000,0x0000, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter"};
+struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false,false,false, 100,800, 8,0x0000,0x0000, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter","/opt/EveryCook/"};
 
 struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, ' ',false, -1,"", 0};
 
@@ -93,6 +94,7 @@ struct Button_Values buttonValues;
 
 pthread_t threadHeaterLedReader;
 pthread_t threadReadADCValues;
+pthread_t threadHandleButtons;
 
 
 uint8_t HeaterErrorPattern[7][6] = {{0, 0, 0, 0, 0, 0},{0, 0, 1, 1, 1, 1},{1, 0, 1, 1, 1, 1},{0, 1, 1, 1, 1, 1},{1, 0, 0, 1, 1, 1},{0, 0, 0, 1, 1, 1}};
@@ -112,6 +114,9 @@ void updateHeaterTime();
 
 void *heaterLedEvaluation(void *ptr);
 void *readADCValues(void *ptr);
+void *handleButtons(void *ptr);
+void speak(char* text);
+void *speakThreadFunc(void *ptr);
 
 /*
 The Modes:
@@ -159,6 +164,7 @@ int main(int argc, const char* argv[]){
 		return result;
 	}
 	defineSignalHandler();
+	state.alwaysReadMode = false;
 	
 	StringClean(state.TotalUpdate, 512);
 	ReadConfigurationFile();
@@ -189,6 +195,7 @@ int main(int argc, const char* argv[]){
 	if (runningMode.normalMode){
 		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
+		pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);
 		while (state.running){
 			if (settings.debug_enabled){printf("main loop...\n");}
 			if (timeValues.lastRunTime != timeValues.runTime){
@@ -218,8 +225,13 @@ int main(int argc, const char* argv[]){
 		i2c_motor_values.motorRpm = i2c_motor_values.i2c_motor_speed_min;
 		i2c_motor_values.destRpm = i2c_motor_values.motorRpm;
 		setMotorRPM(0, &daemon_values);
-
-		setServoOpen(0, 1, 0, &daemon_values);
+		
+		if (settings.shieldVersion < 3){
+			setServoOpen(0, 1, 0, &daemon_values);
+		} else {
+			setSolenoidOpen(false, &daemon_values);
+		}
+		pthread_join(threadHandleButtons, NULL);
 		pthread_join(threadReadADCValues, NULL);
 		pthread_join(threadHeaterLedReader, NULL);
 	} else if (runningMode.calibration || runningMode.measure_noise){
@@ -1233,7 +1245,11 @@ int main(int argc, const char* argv[]){
 			} else if (currentTestPart == 5){
 				HeatOff(&daemon_values);
 				setMotorRPM(0, &daemon_values);
-				setServoOpen(100, 10, 1000, &daemon_values);
+				if (settings.shieldVersion < 3){
+					setServoOpen(100, 10, 1000, &daemon_values);
+				} else {
+					setSolenoidOpen(false, &daemon_values);
+				}
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				if (currentCommandValues.press < settings.LowPress) {
@@ -1244,7 +1260,11 @@ int main(int argc, const char* argv[]){
 						currentCommandValues.mode=MODE_PRESSURELESS;
 						timeValues.servoStayEndTime = 0;
 						
-						setServoOpen(0, 1, 0, &daemon_values);
+						if (settings.shieldVersion < 3){
+							setServoOpen(0, 1, 0, &daemon_values);
+						} else {
+							setSolenoidOpen(false, &daemon_values);
+						}
 						delay(500);
 						state.running = false;
 					}
@@ -1255,7 +1275,11 @@ int main(int argc, const char* argv[]){
 				if (partReachedTime == 0){
 					partReachedTime = timeValues.runTimeMillis;
 				} else if (timeValues.runTimeMillis - partReachedTime > 15000){
-					setServoOpen(0, 1, 0, &daemon_values);
+					if (settings.shieldVersion < 3){
+						setServoOpen(0, 1, 0, &daemon_values);
+					} else {
+						setSolenoidOpen(false, &daemon_values);
+					}
 					delay(500);
 					state.running = false;
 				}
@@ -1338,6 +1362,8 @@ int parseParams(int argc, const char* argv[]){
 			setDebugEnabled(true);
 		} else if(strcmp(argv[i], "--debug3") == 0 || strcmp(argv[i], "-d3") == 0){
 			settings.debug3_enabled = true;
+		} else if(strcmp(argv[i], "--debug4") == 0 || strcmp(argv[i], "-d4") == 0){
+			settings.debug4_enabled = true;
 		} else if(strcmp(argv[i], "--calibrate") == 0 || strcmp(argv[i], "-c") == 0){
 			runningMode.calibration = true;
 			runningMode.normalMode = false;
@@ -1691,6 +1717,9 @@ void ProcessCommand(void){
 		if (settings.debug_enabled || runningMode.simulationMode || settings.debug3_enabled){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 		
 		OptionControl();
+		if (state.alwaysReadMode){
+			speak(state.actionText);
+		}
 	}
 	TempControl();
 	PressControl();
@@ -1871,7 +1900,11 @@ void MotorControl(){
 void ValveControl(){
 	if (currentCommandValues.mode==MODE_PRESSVENT) {
 		HeatOff(&daemon_values);
-		setServoOpen(100, 10, 1000, &daemon_values);
+		if (settings.shieldVersion < 3){
+			setServoOpen(100, 10, 1000, &daemon_values);
+		} else {
+			setSolenoidOpen(true, &daemon_values);
+		}
 		timeValues.stepEndTime=timeValues.runTime+1;
 		if (currentCommandValues.press < settings.LowPress) {
 			if (timeValues.servoStayEndTime == 0){
@@ -1886,7 +1919,11 @@ void ValveControl(){
 			timeValues.servoStayEndTime = 0;
 		}
 	} else {
-		setServoOpen(0, 1, 0, &daemon_values);
+		if (settings.shieldVersion < 3){
+			setServoOpen(0, 1, 0, &daemon_values);
+		} else {
+			setSolenoidOpen(false, &daemon_values);
+		}
 	}
 }
 
@@ -2174,14 +2211,33 @@ void parseSockInput(char* input){
 				c = input[inputPos];
 				++inputPos;
 			}
-			while (c >= 48 && c <= 58){
-				tempValue[i] = c;
-				c = input[inputPos];
-				++inputPos;
-				i++;
+			if(strcmp(tempName, "TEXT") == 0){
+				if (c == '"'){
+					c = input[inputPos];
+					++inputPos;
+				}
+				while (c != '"' || (c == '"' && input[inputPos-2] == '\\')){
+					state.actionText[i] = c;
+					c = input[inputPos];
+					++inputPos;
+					i++;
+				}
+				state.actionText[i] = 0;
+				if (c == '"'){
+					c = input[inputPos];
+					++inputPos;
+				}
+				i = 0;
+			} else {
+				while (c >= 48 && c <= 58){
+					tempValue[i] = c;
+					c = input[inputPos];
+					++inputPos;
+					i++;
+				}
+				i = 0;
+				state.value[ptr] = StringConvertToNumber(tempValue);
 			}
-			i = 0;
-			state.value[ptr] = StringConvertToNumber(tempValue);
 			
 			//state.names[ptr] = tempName;
 			int32_t j = 0;
@@ -2231,13 +2287,32 @@ bool ReadFile(){
 			while (c == ' ' || c == 9){
 				c = fgetc(fp);
 			}
-			while (c >= 48 && c <= 58){
-				tempValue[i] = c;
-				c = fgetc(fp);
-				i++;
+			
+			if(strcmp(tempName, "TEXT") == 0){
+				if (c == '"'){
+					c = fgetc(fp);
+				}
+				char lastc = ' ';
+				while (c != '"' || (c == '"' && lastc == '\\')){
+					state.actionText[i] = c;
+					lastc = c;
+					c = fgetc(fp);
+					i++;
+				}
+				state.actionText[i] = 0;
+				if (c == '"'){
+					c = fgetc(fp);
+				}
+				i = 0;
+			} else {
+				while (c >= 48 && c <= 58){
+					tempValue[i] = c;
+					c = fgetc(fp);
+					i++;
+				}
+				i = 0;
+				state.value[ptr] = StringConvertToNumber(tempValue);
 			}
-			i = 0;
-			state.value[ptr] = StringConvertToNumber(tempValue);
 			
 			//state.names[ptr] = tempName;
 			int32_t j = 0;
@@ -2407,6 +2482,14 @@ void ReadConfigurationFile(void){
 				settings.hourCounterFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.hourCounterFile[0], valueString);
 				if (showReadedConfigs){printf("\thourCounterFile: %s\n", settings.hourCounterFile);}
+			} else if(strcmp(keyString, "installPath") == 0){
+				settings.installPath = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.installPath[0], valueString);
+				if (showReadedConfigs){printf("\tinstallPath %s\n", settings.installPath);} // (old: %s)
+			} else if(strcmp(keyString, "speakLanguage") == 0){
+				state.language = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&state.language[0], valueString);
+				if (showReadedConfigs){printf("\tspeakLanguage %s\n", state.language);} // (old: %s)
 				
 				
 			} else if(strcmp(keyString, "LowTemp") == 0){
@@ -2479,7 +2562,7 @@ void ReadConfigurationFile(void){
 	
 	fclose(fp);
 	
-	if (settings.shieldVersion != 1 && settings.shieldVersion != 2){
+	if (settings.shieldVersion < 1 && settings.shieldVersion > 3){
 		printf("Shield version %d unknown stop daemon.\n", settings.shieldVersion);
 		exit(1);
 	}
@@ -2659,6 +2742,13 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "i2c_servo_closed") == 0){
 				i2c_servo_values.i2c_servo_closed = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo_closed %d\n", i2c_servo_values.i2c_servo_closed);}
+				
+			} else if(strcmp(keyString, "i2c_solenoid_open") == 0){
+				i2c_solenoid_values.i2c_solenoid_open = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_solenoid_open: %d\n", i2c_solenoid_values.i2c_solenoid_open);}
+			} else if(strcmp(keyString, "i2c_solenoid_closed") == 0){
+				i2c_solenoid_values.i2c_solenoid_closed = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\ti2c_solenoid_closed %d\n", i2c_solenoid_values.i2c_solenoid_closed);}
 			} else {
 				if (settings.debug_enabled){printf("\tkey not Found\n");}
 			}
@@ -3213,3 +3303,198 @@ void *readADCValues(void *ptr){
 	return 0;
 }
 
+
+void *handleButtons(void *ptr){
+	int buttonDelay = 10;
+	printf("handleButtons\n");
+	uint32_t buttonCount = sizeof(buttonValues.button) / sizeof(buttonValues.button[0]);
+	printf("buttonCount: %d\n", buttonCount);
+	printf("-------------------> initial delay...\n");
+	delay(30000);
+	printf("-------------------> initial delay done!\n");
+	uint32_t but[buttonCount];
+	uint8_t i = 0;
+	uint32_t runTimeMillis = 0;
+	bool changed;
+	while (state.running){
+		runTimeMillis = millis();
+		i=0;
+		changed = false;
+		for(; i<buttonCount; ++i){
+			but[i] = readButton(i);
+			if (but[i]){
+				if (but[i] != buttonValues.button[i]){
+					buttonValues.buttonOnTime[i] = runTimeMillis;
+					changed = true;
+				}
+				buttonValues.buttonPressedTime[i] = runTimeMillis - buttonValues.buttonOnTime[i];
+			} else {
+				if (but[i] != buttonValues.button[i]){
+					buttonValues.buttonOffTime[i] = runTimeMillis;
+					changed = true;
+				}
+			}
+			buttonValues.button[i] = but[i];
+			if (changed){
+				printf("\t%d (pressed: %d, ontime: %d, offtime: %d)", but[i], buttonValues.buttonPressedTime[i], buttonValues.buttonOnTime[i], buttonValues.buttonOffTime[i]);
+			}
+		}
+		if (changed){
+			printf("\n");
+		}
+		
+		//Check button functions
+		uint8_t buttonNumber = 2;
+		if (buttonValues.button[buttonNumber]){
+			//if button is (still) pressed
+			if (buttonValues.buttonPressedTime[buttonNumber] > 60000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 10000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("no more commands");
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 50000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 10000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("release for shutdown");
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 40000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 10000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("release for ???");
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 30000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 10000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("release for read IP");
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 20000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 10000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("release for restart network");
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 10000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 5000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("release for restart deamon & middleware");
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 5000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 5000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("release for switch WLAN mode");
+				}
+			}
+		} else if (buttonValues.actionStartedTime[buttonNumber] > 0 && runTimeMillis - buttonValues.actionStartedTime[buttonNumber] < 60000) {
+			buttonValues.actionStartedTime[buttonNumber] = 0;
+			//if button is not pressed (any more) and release is less then 60 seconds ago
+			if (buttonValues.buttonPressedTime[buttonNumber] > 50000){
+				char command[400];
+				sprintf(command, "sudo halt");
+				if (settings.debug_enabled || settings.debug3_enabled || settings.debug4_enabled){printf(command);}
+				int result = system( command );
+				if (result != 0){
+					printf("ERROR: return code of command '%s' was %d", command, result);
+				} else {
+					exit(0);
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 40000){
+				speak("release for ???");
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 30000){
+				char command[400];
+				//sprintf(command, "%s/getServerIp.sh | espeak -a 200 -v %s 2>&1", settings.installPath, state.language);
+				sprintf(command, "%s/getServerIp.sh | espeak -a 200 2>&1 > /dev/nul", settings.installPath);
+				if (settings.debug_enabled || settings.debug3_enabled || settings.debug4_enabled){printf(command);}
+				int result = system( command );
+				if (result != 0){
+					printf("ERROR: return code of command '%s' was %d", command, result);
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 20000){
+				char command[400];
+				sprintf(command, "%s/installSettings restartNetwork", settings.installPath);
+				if (settings.debug_enabled || settings.debug3_enabled || settings.debug4_enabled){printf(command);}
+				int result = system( command );
+				if (result != 0){
+					printf("ERROR: return code of command '%s' was %d", command, result);
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 10000){
+				char command[400];
+				sprintf(command, "%s/installSettings restartDaemonAndMiddleware", settings.installPath);
+				if (settings.debug_enabled || settings.debug3_enabled || settings.debug4_enabled){printf(command);}
+				int result = system( command );
+				if (result != 0){
+					printf("ERROR: return code of command '%s' was %d", command, result);
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 5000){
+				char command[400];
+				sprintf(command, "%s/installSettings change_wlanmode toggle", settings.installPath);
+				if (settings.debug_enabled || settings.debug3_enabled || settings.debug4_enabled){printf(command);}
+				int result = system( command );
+				if (result != 0){
+					printf("ERROR: return code of command '%s' was %d", command, result);
+				}
+			}
+		}
+		
+		buttonNumber = 0;
+		if (buttonValues.button[buttonNumber]){
+			if (buttonValues.buttonPressedTime[buttonNumber] > 20000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 10000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("no more commands");
+				}
+			} else if (buttonValues.buttonPressedTime[buttonNumber] > 10000){
+				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 5000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak("release for switch always read mode");
+				}
+			} else {
+				if (buttonValues.buttonPressedTime[buttonNumber] < 500 && runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 5000){
+					buttonValues.actionStartedTime[buttonNumber] = runTimeMillis;
+					speak(state.actionText);
+				}
+			}
+		} else if (buttonValues.actionStartedTime[buttonNumber] > 0 && runTimeMillis - buttonValues.actionStartedTime[buttonNumber] < 20000) {
+			buttonValues.actionStartedTime[buttonNumber] = 0;
+			if (buttonValues.buttonPressedTime[buttonNumber] > 10000){
+				state.alwaysReadMode = !state.alwaysReadMode;
+				if (state.alwaysReadMode){
+					speak("always read mode is now on");
+				} else {
+					speak("always read mode is now off");
+				}
+			} else if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] <= 5000){
+				speak(state.actionText);
+			}
+		}
+		delay(buttonDelay);
+	}
+	return 0;
+}
+
+void speak(char* text){
+/*
+	if (fork() == 0){
+		char[400] command;
+		sprintf(command, "echo \"%s\" | espeak -a 200 -v %s 2>&1", text, state.language);
+		int result = system( command );	
+		exit(0);
+	}
+*/
+	if (settings.debug_enabled || settings.debug3_enabled || settings.debug4_enabled){printf("start speak thread\n");}
+	pthread_t threadSpeak;
+	//pthread_create(&threadSpeak, NULL, speakThreadFunc, NULL);
+	char* textpointer = &text[0];
+	pthread_create(&threadSpeak, NULL, speakThreadFunc, (void *) textpointer);
+	//pthread_join(threadSpeak, NULL);
+}
+
+void *speakThreadFunc(void *ptr){
+	char* text = (char *) ptr;
+	char command[400];
+	//sprintf(command, "echo \"%s\" | espeak -a 200 -v %s 2>&1", text, state.language);
+	sprintf(command, "echo \"%s\" | espeak -a 200 -v german 2>&1 > /dev/nul", text);
+	//sprintf(command, "echo \"%s\" | espeak -a 200 2>&1 > /dev/nul", text);
+	if (settings.debug_enabled || settings.debug3_enabled || settings.debug4_enabled){printf("%s\n", command);}
+	int result = system( command );
+	pthread_exit(0);
+	return (void *)result;
+}

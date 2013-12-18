@@ -60,7 +60,7 @@ void initHardware(uint32_t shieldVersion){
 		PinHeaterLeds = &PinHeaterLeds_v1[0];
 		PinHeaterControllButtons = &PinHeaterControllButtons_v1[0];
 		PinButtons = &PinButtons_v1[0];
-	} else if(shieldVersion == 2){
+	} else if(shieldVersion == 2 || shieldVersion == 3){
 		PinHeaterLeds = &PinHeaterLeds_v2[0];
 		PinHeaterControllButtons = &PinHeaterControllButtons_v2[0];
 		PinButtons = &PinButtons_v2[0];
