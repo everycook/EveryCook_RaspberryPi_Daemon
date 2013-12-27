@@ -67,3 +67,18 @@ i2c_7seg_period=7
 #servo values
 i2c_servo_open=210
 i2c_servo_closed=350
+
+#solonoid values
+i2c_solonoid_open=4095
+i2c_solonoid_closed=0
+
+
+#Buttons
+pin_button_0=22
+pin_button_1=17
+pin_button_2=27
+
+#Buttons inverse
+inverse_button_0=1
+inverse_button_1=0
+inverse_button_2=1

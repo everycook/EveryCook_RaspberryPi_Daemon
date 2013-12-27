@@ -133,6 +133,11 @@ struct I2C_Motor_Values {
 	uint16_t motorRpm;
 };
 
+struct Button_Config {
+	uint8_t button_pin[3];
+	uint8_t button_inverse[3];
+};
+
 struct Button_Values {
 	uint32_t button[3];
 	uint32_t buttonPressedTime[3];
@@ -346,6 +351,7 @@ struct Daemon_Values {
 	struct State *state;
 	struct Heater_Led_Values *heaterStatus;
 	struct HourCounter *hourCounter;
+	struct Button_Config *buttonConfig;
 	struct Button_Values *buttonValues;
 	struct ADC_Values *adc_values;
 };

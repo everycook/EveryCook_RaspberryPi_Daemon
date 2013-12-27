@@ -52,7 +52,7 @@ See GPLv3.htm in the main folder for details.
 #define I2C_VALVE_CLOSED_VALUE	350
 
 void setDebugEnabled(bool value);
-void initHardware(uint32_t shieldVersion);
+void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonInverse);
 void setADCConfigReg(uint32_t newConfig[]);
 void setADCModeReg(uint16_t newModeReg);
 

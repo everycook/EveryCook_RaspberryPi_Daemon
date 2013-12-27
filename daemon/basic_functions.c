@@ -39,9 +39,8 @@ uint8_t PinHeaterControllButtons_v2[] = {18, 23, 24, 25};
 
 uint8_t* PinButtons;
 uint8_t PinButtons_v1[] = {};
-uint8_t PinButtons_v2[] = {17, 27, 22};
-
 uint8_t Data[10];
+uint8_t* InverseButtons;
 
 struct adc_private adc;
 
@@ -53,17 +52,19 @@ void setDebugEnabled(bool value){
 	debug_enabled2 = value;
 }
 
-void initHardware(uint32_t shieldVersion){
+void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonInverse){
 	if (debug_enabled2){printf("initHardware\n");}
 	
 	if(shieldVersion == 1){
 		PinHeaterLeds = &PinHeaterLeds_v1[0];
 		PinHeaterControllButtons = &PinHeaterControllButtons_v1[0];
 		PinButtons = &PinButtons_v1[0];
+		InverseButtons = &PinButtons_v1[0];
 	} else if(shieldVersion == 2 || shieldVersion == 3){
 		PinHeaterLeds = &PinHeaterLeds_v2[0];
 		PinHeaterControllButtons = &PinHeaterControllButtons_v2[0];
-		PinButtons = &PinButtons_v2[0];
+		PinButtons = &buttonPins[0];
+		InverseButtons = &buttonInverse[0];
 	}
 	if (!use_spi_dev){
 		VirtualSPIInit();
@@ -216,6 +217,9 @@ void writeControllButtonPin(uint8_t i, uint8_t on){
 uint32_t readButton(uint8_t i){
 	uint32_t data;
 	data = digitalRead(PinButtons[i]);
+	if (InverseButtons[i]){
+		data = !data;
+	}
 	if (debug_enabled2){printf("readButton(%d): %06X\n", i, data);}
 	return data;
 }

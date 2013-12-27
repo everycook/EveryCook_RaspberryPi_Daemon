@@ -90,6 +90,7 @@ struct Daemon_Values daemon_values;
 //struct HourCounter hourCounter = {['H','C','V', HOUR_COUNTER_VERSION], 0.0, 0.0, 0.0};
 struct HourCounter hourCounter = {"HCV\0", 0.0, 0.0, 0.0};
 
+struct Button_Config buttonConfig = {{17,27,22},{0,0,0}};
 struct Button_Values buttonValues;
 
 pthread_t threadHeaterLedReader;
@@ -153,6 +154,7 @@ int main(int argc, const char* argv[]){
 	daemon_values.state = &state;
 	daemon_values.heaterStatus = &heaterStatus;
 	daemon_values.hourCounter = &hourCounter;
+	daemon_values.buttonConfig = &buttonConfig;
 	daemon_values.buttonValues = &buttonValues;
 	daemon_values.adc_values = &adc_values;
 	
@@ -170,7 +172,7 @@ int main(int argc, const char* argv[]){
 	ReadConfigurationFile();
 	ReadCalibrationFile();
 	
-	initHardware(settings.shieldVersion);
+	initHardware(settings.shieldVersion, buttonConfig.button_pin, buttonConfig.button_inverse);
 	delay(30);
 	
 	initOutputFile();
@@ -195,7 +197,9 @@ int main(int argc, const char* argv[]){
 	if (runningMode.normalMode){
 		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
-		pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);
+		if(settings.shieldVersion != 1){
+			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);
+		}
 		while (state.running){
 			if (settings.debug_enabled){printf("main loop...\n");}
 			if (timeValues.lastRunTime != timeValues.runTime){
@@ -231,7 +235,9 @@ int main(int argc, const char* argv[]){
 		} else {
 			setSolenoidOpen(false, &daemon_values);
 		}
-		pthread_join(threadHandleButtons, NULL);
+		if(settings.shieldVersion != 1){
+			pthread_join(threadHandleButtons, NULL);
+		}
 		pthread_join(threadReadADCValues, NULL);
 		pthread_join(threadHeaterLedReader, NULL);
 	} else if (runningMode.calibration || runningMode.measure_noise){
@@ -2735,20 +2741,45 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "i2c_servo") == 0){
 				i2c_config.i2c_servo = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo %d\n", i2c_config.i2c_servo);}
-				
+			
+			//Servo values
 			} else if(strcmp(keyString, "i2c_servo_open") == 0){
 				i2c_servo_values.i2c_servo_open = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo_open: %d\n", i2c_servo_values.i2c_servo_open);}
 			} else if(strcmp(keyString, "i2c_servo_closed") == 0){
 				i2c_servo_values.i2c_servo_closed = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo_closed %d\n", i2c_servo_values.i2c_servo_closed);}
-				
+			
+			//Solonoid values
 			} else if(strcmp(keyString, "i2c_solenoid_open") == 0){
 				i2c_solenoid_values.i2c_solenoid_open = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_solenoid_open: %d\n", i2c_solenoid_values.i2c_solenoid_open);}
 			} else if(strcmp(keyString, "i2c_solenoid_closed") == 0){
 				i2c_solenoid_values.i2c_solenoid_closed = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_solenoid_closed %d\n", i2c_solenoid_values.i2c_solenoid_closed);}
+				
+			//Button pins
+			} else if(strcmp(keyString, "pin_button_0") == 0){
+				buttonConfig.button_pin[0] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tbutton_pin_0 %d\n", buttonConfig.button_pin[0]);}
+			} else if(strcmp(keyString, "pin_button_1") == 0){
+				buttonConfig.button_pin[1] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tbutton_pin_1 %d\n", buttonConfig.button_pin[1]);}
+			} else if(strcmp(keyString, "pin_button_2") == 0){
+				buttonConfig.button_pin[2] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tbutton_pin_2 %d\n", buttonConfig.button_pin[2]);}
+			
+			//Button inverse
+			} else if(strcmp(keyString, "inverse_button_0") == 0){
+				buttonConfig.button_inverse[0] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tbutton_inverse_0 %d\n", buttonConfig.button_inverse[0]);}
+			} else if(strcmp(keyString, "inverse_button_1") == 0){
+				buttonConfig.button_inverse[1] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tbutton_inverse_1 %d\n", buttonConfig.button_inverse[1]);}
+			} else if(strcmp(keyString, "inverse_button_2") == 0){
+				buttonConfig.button_inverse[2] = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tbutton_inverse_2 %d\n", buttonConfig.button_inverse[2]);}
+				
 			} else {
 				if (settings.debug_enabled){printf("\tkey not Found\n");}
 			}
