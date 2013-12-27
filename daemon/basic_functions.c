@@ -123,13 +123,19 @@ void PCA9685Init(void){
 	Data[1] = 0x00;
 	Data[2] = 0x31; //0x11
 	I2CWriteBytes(Data, 3);
+	
+	//PWM frequency
+	//prescale value = round (osc_clock / 4096 × update_rate) – 1
+	//update_rate = osc_clock / (prescale value +1) * 4096
 	Data[1] = 0xfe;
-	//Data[2] = 0x04;
-	Data[2] = 0x79;
+	Data[2] = 0x05; 	//1000Hz (1017Hz)
+	//Data[2] = 0x79; 	//50Hz
 	I2CWriteBytes(Data, 3);
+	
 	Data[1] = 0x00;
 	Data[2] = 0xa1; // 0x01
 	I2CWriteBytes(Data, 3);
+	
 	Data[1] = 0x01;
 	Data[2] = 0x04;
 	I2CWriteBytes(Data, 3);
