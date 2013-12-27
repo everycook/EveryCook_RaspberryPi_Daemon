@@ -416,7 +416,7 @@ int main(int argc, const char* argv[]){
 				}
 				delay(state.Delay);
 			}
-		} else if (settings.shieldVersion == 2){
+		} else if (settings.shieldVersion == 2 || settings.shieldVersion == 3){
 			uint32_t lastHeatLedTime = millis();
 			uint32_t heatLedValuesSameCount = 0;
 			while(state.running){
@@ -658,6 +658,7 @@ int main(int argc, const char* argv[]){
 			}
 		}
 		delay(2000);
+		printf("set motor back to 0\n");
 		writeI2CPin(i2c_config.i2c_motor, 0);
 	} else if (runningMode.test_buttons){
 		state.Delay = 10;
@@ -2196,6 +2197,7 @@ void parseSockInput(char* input){
 	
 	StringClean(tempName, 10);
 	StringClean(tempValue, 10);
+	state.actionText[0] = 0;
 	c = input[inputPos];
 	++inputPos;
 	while (c != 0){
@@ -2272,6 +2274,7 @@ bool ReadFile(){
 	
 	StringClean(tempName, 10);
 	StringClean(tempValue, 10);
+	state.actionText[0] = 0;
 	fp = fopen(settings.commandFile, "r");
 	if (fp == NULL){
 		printf("could not open file %s\n", settings.commandFile);
@@ -2910,7 +2913,7 @@ void *heaterLedEvaluation(void *ptr){
 			//}
 			delay(10);
 		}
-	} else if (settings.shieldVersion == 2){
+	} else if (settings.shieldVersion == 2 || settings.shieldVersion == 3){
 		uint32_t led[6];
 		led[0] = 0;
 		led[1] = 0;

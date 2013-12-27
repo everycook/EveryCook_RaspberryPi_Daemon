@@ -72,7 +72,7 @@ void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonIn
 	VirtualI2CInit();
 	GPIOInit();
 	
-	PCA9685Init();
+	PCA9685Init(shieldVersion);
 	AD7794Init();
 }
 
@@ -117,7 +117,7 @@ void GPIOInit(void){
 	}
 	if (debug_enabled2){printf("done\n");}
 }
-void PCA9685Init(void){
+void PCA9685Init(uint32_t shieldVersion){
 	if (debug_enabled2){printf("PCA9685Init\n");}
 	Data[0] = 0x80;
 	Data[1] = 0x00;
@@ -128,8 +128,13 @@ void PCA9685Init(void){
 	//prescale value = round (osc_clock / 4096 × update_rate) – 1
 	//update_rate = osc_clock / (prescale value +1) * 4096
 	Data[1] = 0xfe;
-	Data[2] = 0x05; 	//1000Hz (1017Hz)
-	//Data[2] = 0x79; 	//50Hz
+	if (shieldVersion < 3){
+		Data[2] = 0x79; 	//50Hz
+	} else {
+		Data[2] = 0x05; 	//1000Hz (1017Hz)
+		//Data[2] = 0x0B; 	//500Hz (508Hz)
+		//Data[2] = 0x79; 	//50Hz
+	}
 	I2CWriteBytes(Data, 3);
 	
 	Data[1] = 0x00;

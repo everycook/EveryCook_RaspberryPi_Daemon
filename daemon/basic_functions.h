@@ -59,7 +59,7 @@ void setADCModeReg(uint16_t newModeReg);
 //GPIO PCA9685 initialization
 void GPIOInit(void);
 void AD7794Init(void);
-void PCA9685Init(void);
+void PCA9685Init(uint32_t shieldVersion);
 
 //read/write functions
 uint32_t readADC(uint8_t i);
