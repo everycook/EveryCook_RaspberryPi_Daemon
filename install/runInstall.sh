@@ -27,10 +27,9 @@ popd > /dev/null
 # sudo wpa_passphrase [wlan-ssid] [pw] >> /etc/wpa_supplicant/wpa_supplicant.conf
 
 if [ "$1" != "nopackages" ]; then
-	echo "install needed packages"
-	dpkg -iG apt_archives/*deb
-	#apt-get update
-	#apt-get install php-apc php5-mysql php5-memcached memcached libmemcached10 php5-gd libgd2-xpm php5-common libapache2-mod-php5filter php5-cli isc-dhcp-server isc-dhcp-common isc-dhcp-client hostapd
+	echo "install needed packages with apt-get"
+	apt-get update
+	apt-get install php-apc php5-mysql php5-memcached memcached libmemcached10 php5-gd libgd2-xpm php5-common libapache2-mod-php5filter php5-cli isc-dhcp-server isc-dhcp-common isc-dhcp-client hostapd
 fi
 
 
