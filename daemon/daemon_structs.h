@@ -198,6 +198,7 @@ struct Running_Mode {
 	bool test_adc;
 	bool test_heating_power;
 	bool test_heating_press;
+	bool test_serial;
 	
 	bool simulationMode;
 	bool simulationModeShow7Segment;
@@ -250,6 +251,7 @@ struct Settings {
 	char *logFile;
 	char *hourCounterFile;
 	char *installPath;
+	char *atmelDevicePath;
 };
 
 struct State {
@@ -286,7 +288,9 @@ struct State {
 	char** logLines;
 	
 	double weightValues[4];
+	uint8_t weightPercent;
 	bool lidOpen;
+	int atmelfd;
 };
 
 struct Heater_Led_Values {

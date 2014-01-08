@@ -1,4 +1,4 @@
-#EveryCook_RaspberryPi_Daemon
+﻿#EveryCook_RaspberryPi_Daemon
 
 A Daemon, written in C to read the EveryCook sensors and control the actors.
 
@@ -117,8 +117,8 @@ You can also start this script from the the EveryCook interface using "jump to" 
 The you need to activate the i2c and spi modules of your system:
 
 comment out the lines  
-**blacklist spi-bcm2708  
-blacklist i2c-bcm2708  **
+**blacklist spi-bcm2708
+blacklist i2c-bcm2708**
 
 **/etc/modprobe.d/raspi-blacklist.conf**
 
@@ -128,6 +128,28 @@ w1-gpio
 w1-therm**  
 to
 **/etc/modules**
+
+
+Prepare the Serial Interface for connecting Arduino/Atmel:
+Disable login screen:
+find this line in file /etc/inittab
+**T0:23:respawn:/sbin/getty -L ttyAMA0 115200 vt100**
+and comment it out.
+
+don't send boot mesage to serial:
+remove
+**console=ttyAMA0,115200 kgdboc=ttyAMA0,115200**
+from /boot/cmdline.txt
+
+
+install minicon:
+**sudo apt-get install minicon**
+
+add udev rule for map ttyAMA0 to ttyUSB9:
+add
+**KERNEL=="ttyAMA0",SYMLINK+="ttyUSB9" GROUP="dialout"**
+to
+/etc/udev/rules.d/99-input.rules
 
 reboot system
 

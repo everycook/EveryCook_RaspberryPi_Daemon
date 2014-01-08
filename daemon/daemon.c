@@ -45,6 +45,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 
 #include "daemon_structs.h"
 #include "hardwareFunctions.h"
+#include "atmel.h"
+#include <wiringSerial.h>
 
 
 const uint32_t MIN_STATUS_INTERVAL = 20;
@@ -79,7 +81,7 @@ struct Time_Values timeValues = {};
 
 struct Running_Mode runningMode = {true, false, false, false, false, false, false, false, false,  false, false};
 
-struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false,false,false, 100,800, 8,0x0000,0x0000, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter","/opt/EveryCook/"};
+struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1",8000,true,true, false,false,false,false, 100,800, 8,0x0000,0x0000, "config","/opt/EveryCook/daemon/calibration","/dev/shm/command","/dev/shm/status","/var/log/EveryCook_Daemon.log","/opt/EveryCook/daemon/hourCounter","/opt/EveryCook/","/dev/ttyUSB9"};
 
 struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, ' ',false, -1,"", 0};
 
@@ -200,6 +202,84 @@ int main(int argc, const char* argv[]){
 		if(settings.shieldVersion != 1){
 			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);
 		}
+		
+		int fd = atmelConnenct(settings.atmelDevicePath);
+		state.atmelfd = fd;
+		
+		//Show Smilly / startscreen
+		if (state.atmelfd != -1){
+									//00##############
+			uint16_t picture[9] = {	0b0000000111110000,
+									0b0000001000001000,
+									0b0000010000000100,
+									0b0000010100010100,
+									0b0000010000000100,
+									0b0000010100010100,
+									0b0000010011100100,
+									0b0000001000001000,
+									0b0000000111110000};
+			atmelShowPicture(state.atmelfd, &picture[0]);
+		}
+		/*
+		//Show Text
+		atmelShowText(fd, "1234567890");
+		delay(2000);
+		
+		printf("Show Smilly\n");
+		//Show Smilly
+								//00##############
+		uint16_t picture[9] = {	0b0000000111110000,
+								0b0000001000001000,
+								0b0000010000000100,
+								0b0000010100010100,
+								0b0000010000000100,
+								0b0000010100010100,
+								0b0000010011100100,
+								0b0000001000001000,
+								0b0000000111110000};
+		atmelShowPicture(fd, &picture[0]);
+		while(serialDataAvail(fd)){
+			int inChar = serialGetchar (fd);
+			printf("%c", inChar);
+		}
+		delay(1000);
+		
+		uint16_t picture2[9]  = {	0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010};
+		atmelShowPicture(fd, &picture2[0]);
+		while(serialDataAvail(fd)){
+			int inChar = serialGetchar (fd);
+			printf("%c", inChar);
+		}
+		delay(1000);
+		
+		printf("Show percent progress\n");
+		// show percent 0-140
+		uint8_t i=0;
+		for (; i<140; ++i) {
+		
+			if (state.atmelfd != -1){
+			atmelShowPercent(state.atmelfd, i);
+				while(serialDataAvail(fd)){
+					int inChar = serialGetchar (fd);
+					printf("%c", inChar);
+				}
+			}
+			delay(200);
+		}
+		
+		printf("Show text\n");
+		//Show Text
+		atmelShowText(fd, "Hallo Welt! Ich komme vom Raspi!");
+		delay(18400);
+		*/
 		while (state.running){
 			if (settings.debug_enabled){printf("main loop...\n");}
 			if (timeValues.lastRunTime != timeValues.runTime){
@@ -234,6 +314,10 @@ int main(int argc, const char* argv[]){
 			setServoOpen(0, 1, 0, &daemon_values);
 		} else {
 			setSolenoidOpen(false, &daemon_values);
+		}
+		if (state.atmelfd >= 0){
+			atmelClear(state.atmelfd);
+			atmelClose(state.atmelfd);
 		}
 		if(settings.shieldVersion != 1){
 			pthread_join(threadHandleButtons, NULL);
@@ -1299,6 +1383,71 @@ int main(int argc, const char* argv[]){
 		pthread_join(threadReadADCValues, NULL);
 		HeatOff(&daemon_values);
 		pthread_join(threadHeaterLedReader, NULL);
+	} else if (runningMode.test_serial){
+		printf("test serial\n");
+		int fd = atmelConnenct(settings.atmelDevicePath);
+		if (fd == -1){
+			return 1;
+		}
+		state.atmelfd = fd;
+		
+		//Show Text
+		atmelShowText(fd, "1234567890");
+		delay(2000);
+		
+		printf("Show Smilly\n");
+		//Show Smilly
+								//00##############
+		uint16_t picture[9] = {	0b0000000111110000,
+								0b0000001000001000,
+								0b0000010000000100,
+								0b0000010100010100,
+								0b0000010000000100,
+								0b0000010100010100,
+								0b0000010011100100,
+								0b0000001000001000,
+								0b0000000111110000};
+		atmelShowPicture(fd, &picture[0]);
+		while(serialDataAvail(fd)){
+			int inChar = serialGetchar (fd);
+			printf("%c", inChar);
+		}
+		delay(1000);
+		
+		uint16_t picture2[9]  = {	0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010,
+									0b0001010101010101,
+									0b0010101010101010};
+		atmelShowPicture(fd, &picture2[0]);
+		while(serialDataAvail(fd)){
+			int inChar = serialGetchar (fd);
+			printf("%c", inChar);
+		}
+		delay(1000);
+		
+		printf("Show percent progress\n");
+		// show percent 0-140
+		uint8_t i=0;
+		for (; i<140; ++i) {
+			atmelShowPercent(fd, i);
+			while(serialDataAvail(fd)){
+				int inChar = serialGetchar (fd);
+				printf("%c", inChar);
+			}
+			delay(200);
+		}
+		
+		printf("Show text\n");
+		//Show Text
+		atmelShowText(fd, "Hallo Welt! Ich komme vom Raspi!");
+		delay(18400);
+		atmelClear(fd);
+		atmelClose(fd);
 	}
 	
 	SegmentDisplaySimple('S', &state, &i2c_config);
@@ -1353,6 +1502,7 @@ void printUsage(){
 	printf("                                offset/fullScale calibration values i or s, if omittet no calibration.\r\n");
 	printf("  -tp, --test-heating-power     test the power/efficiency of heating\r\n");
 	printf("  -tr, --test-heating-press     test the power/efficiency of heating on pressup\r\n");
+	printf("  -te, --test-serial            test the serial interface to ATMEL/Arduino\r\n");
 	printf("  -?,  --help                   show this help\r\n");
 }
 
@@ -1449,6 +1599,9 @@ int parseParams(int argc, const char* argv[]){
 			runningMode.normalMode = false;
 		} else if(strcmp(argv[i], "--test-heating-press") == 0 || strcmp(argv[i], "-tr") == 0){
 			runningMode.test_heating_press = true;
+			runningMode.normalMode = false;
+		} else if(strcmp(argv[i], "--test-serial") == 0 || strcmp(argv[i], "-te") == 0){
+			runningMode.test_serial = true;
 			runningMode.normalMode = false;
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
 			settings.useMiddleware = false;
@@ -1724,6 +1877,142 @@ void ProcessCommand(void){
 		if (settings.debug_enabled || runningMode.simulationMode || settings.debug3_enabled){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 		
 		OptionControl();
+		
+		if (state.atmelfd != -1){
+			if (currentCommandValues.mode==MODE_STANDBY) {
+				//atmelClear(state.atmelfd);
+										//00##############
+				uint16_t picture[9] = {	0b0000000111110000,
+										0b0000001000001000,
+										0b0000010000000100,
+										0b0000010100010100,
+										0b0000010000000100,
+										0b0000010100010100,
+										0b0000010011100100,
+										0b0000001000001000,
+										0b0000000111110000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_CUT) {
+										//00##############
+				uint16_t picture[9] = {	0b0000000000000000,
+										0b0000000000000000,
+										0b0001111111111100,
+										0b0000100000111110,
+										0b0000011111111100,
+										0b0000000000000000,
+										0b0000000000000000,
+										0b0000000000000000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_SCALE) {
+										//00##############
+				uint16_t picture[9] = { 0b0000000000000000,
+										0b0000000000000000,
+										0b0001110000011100,
+										0b0000100000001000,
+										0b0000011000110000,
+										0b0000000111000000,
+										0b0000000010000000,
+										0b0000001111100000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_HEATUP) {
+										//00##############
+				uint16_t picture[9] = { 0b0000000000000000,
+										0b0000000000000000,
+										0b0000000010000000,
+										0b0000100111001000,
+										0b0000110111011000,
+										0b0001110111011100,
+										0b0001110111011100,
+										0b0000100010001000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_COOK) {
+										//00##############
+				uint16_t picture[9] = { 0b0000000000000000,
+										0b0000001010000000,
+										0b0000010001000000,
+										0b0000001010000000,
+										0b0000010001000000,
+										0b0000000000000000,
+										0b0000111111111110,
+										0b0000011111100000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_COOLDOWN) {
+										//00##############
+				uint16_t picture[9] = { 0b0000000000000000,
+										0b0000000000000000,
+										0b0000000000000000,
+										0b0000000000000000,
+										0b0000000000000000,
+										0b0000000000000000,
+										0b0000111111111110,
+										0b0000011111100000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_PRESSUP) {
+										//00##############
+				uint16_t picture[9] = { 0b0000000010000000,
+										0b0000000111000000,
+										0b0000000101000000,
+										0b0000000101000000,
+										0b0000000111000000,
+										0b0000000101000000,
+										0b0000001111100000,
+										0b0000001111100000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_PRESSHOLD) {
+										//00##############
+				uint16_t picture[9] = { 0b0000000000000000,
+										0b0000100010001000,
+										0b0001110001010000,
+										0b0001010010001000,
+										0b0001110001010000,
+										0b0001010000000000,
+										0b0001110111111110,
+										0b0001110011111000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_PRESSDOWN) {
+										//00##############
+				uint16_t picture[9] = { 0b0000000000000000,
+										0b0000000000000000,
+										0b0000000010000000,
+										0b0000000111000000,
+										0b0000000101000000,
+										0b0000000101000000,
+										0b0000001111100000,
+										0b0000001111100000,
+										0b0000000000000000};
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			} else if (currentCommandValues.mode==MODE_PRESSVENT) {
+										//00##############
+				uint16_t picture[9] = { 0b001000000000100,
+										0b000100000001000,
+										0b000010010010000,
+										0b000100111001000,
+										0b000010101010000,
+										0b000000101000000,
+										0b000001111100000,
+										0b000001111100000,
+										0b000000000000000};
+
+				atmelShowPicture(state.atmelfd, &picture[0]);
+			}
+			/*
+			MODE_HOT
+			MODE_PRESSURIZED
+			MODE_COLD
+			MODE_PRESSURELESS
+			MODE_WEIGHT_REACHED
+			MODE_COOK_TIMEEND
+			MODE_RECIPE_END
+			*/
+		}
+		
 		if (state.alwaysReadMode){
 			speak(state.actionText);
 		}
@@ -1736,6 +2025,13 @@ void ProcessCommand(void){
 	MotorControl();
 	ValveControl();
 	ScaleFunction();
+	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
+		if (state.dataChanged){
+			if (state.atmelfd != -1){
+				atmelShowPercent(state.atmelfd, state.weightPercent);
+			}
+		}
+	}
 	
 	if (timeValues.stepEndTime > timeValues.runTime) {
 		timeValues.remainTime=timeValues.stepEndTime-timeValues.runTime;
@@ -1953,6 +2249,7 @@ void ScaleFunction(){
 			state.referenceForce=sumOfForces;
 			oldCommandValues.weight=sumOfForces;
 			state.scaleReady=true;
+			state.weightPercent = 0;
 			if (state.Delay == settings.ShortDelay){
 				state.Delay=settings.LongDelay;
 			}
@@ -1963,6 +2260,12 @@ void ScaleFunction(){
 			
 			if (oldCommandValues.weight != currentCommandValues.weight){
 				state.dataChanged = true;
+				double percent = currentCommandValues.weight / newCommandValues.weight;
+				if (percent>255){
+					state.weightPercent = 255;
+				} else {
+					state.weightPercent = (uint8_t) percent;
+				}
 			}
 			if (currentCommandValues.weight>=(newCommandValues.weight*settings.weightReachedMultiplier)) {//If we have reached the required mass
 				if (currentCommandValues.mode != MODE_WEIGHT_REACHED){
@@ -2370,7 +2673,7 @@ void evaluateInput(){
 	if (settings.debug_enabled){printf("evaluateInput: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 	
 	if(newCommandValues.temp>200) {newCommandValues.temp=200;}
-	if(newCommandValues.press>200) {newCommandValues.press=200;}
+	if(newCommandValues.press>80) {newCommandValues.press=80;}
 	if (newCommandValues.motorOn>0 && newCommandValues.motorOn<2) newCommandValues.motorOn=2;
 	if (newCommandValues.motorOff>0 && newCommandValues.motorOff<2) newCommandValues.motorOff=2;
 }
@@ -2471,31 +2774,44 @@ void ReadConfigurationFile(void){
 			} else if(strcmp(keyString, "DeleteLogOnStart") == 0){
 				settings.DeleteLogOnStart = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tDeleteLogOnStart: %d\n", settings.DeleteLogOnStart);} // (old: %d)
+				
 			} else if(strcmp(keyString, "calibrationFile") == 0){
+//				free(settings.calibrationFile);
 				settings.calibrationFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.calibrationFile[0], valueString);
 				if (showReadedConfigs){printf("\tcalibrationFile: %s\n", settings.calibrationFile);} // (old: %s)
 			} else if(strcmp(keyString, "LogFile") == 0){
+//				free(settings.logFile);
 				settings.logFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.logFile[0], valueString);
 				if (showReadedConfigs){printf("\tLogFile: %s\n", settings.logFile);} // (old: %s)
 			} else if(strcmp(keyString, "CommandFile") == 0){
+//				free(settings.commandFile);
 				settings.commandFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.commandFile[0], valueString);
 				if (showReadedConfigs){printf("\tCommandFile: %s\n", settings.commandFile);} // (old: %s)
 			} else if(strcmp(keyString, "StatusFile") == 0){
+//				free(settings.statusFile);
 				settings.statusFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.statusFile[0], valueString);
 				if (showReadedConfigs){printf("\tStatusFile: %s\n", settings.statusFile);} // (old: %s)
 			} else if(strcmp(keyString, "hourCounterFile") == 0){
+//				free(settings.hourCounterFile);
 				settings.hourCounterFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.hourCounterFile[0], valueString);
 				if (showReadedConfigs){printf("\thourCounterFile: %s\n", settings.hourCounterFile);}
 			} else if(strcmp(keyString, "installPath") == 0){
+//				free(settings.installPath);
 				settings.installPath = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.installPath[0], valueString);
 				if (showReadedConfigs){printf("\tinstallPath %s\n", settings.installPath);} // (old: %s)
+			} else if(strcmp(keyString, "atmelDevicePath") == 0){
+//				free(settings.atmelDevicePath);
+				settings.atmelDevicePath = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
+				strcpy(&settings.atmelDevicePath[0], valueString);
+				if (showReadedConfigs){printf("\tatmelDevicePath %s\n", settings.atmelDevicePath);} // (old: %s)
 			} else if(strcmp(keyString, "speakLanguage") == 0){
+//				free(state.language);
 				state.language = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&state.language[0], valueString);
 				if (showReadedConfigs){printf("\tspeakLanguage %s\n", state.language);} // (old: %s)
@@ -2753,7 +3069,7 @@ void ReadCalibrationFile(void){
 				i2c_servo_values.i2c_servo_closed = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo_closed %d\n", i2c_servo_values.i2c_servo_closed);}
 			
-			//Solonoid values
+			//Solenoid values
 			} else if(strcmp(keyString, "i2c_solenoid_open") == 0){
 				i2c_solenoid_values.i2c_solenoid_open = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_solenoid_open: %d\n", i2c_solenoid_values.i2c_solenoid_open);}
