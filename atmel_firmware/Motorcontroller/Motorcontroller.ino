@@ -18,47 +18,46 @@ int setValue=0;
 
 void setup() {
   // initialize serial communications at 9600 bps:
-Serial.begin(9600); 
-pinMode(9,OUTPUT);  
-pinMode(10,OUTPUT);
-pinMode(11,OUTPUT);
-pinMode(13,OUTPUT);
-pinMode(analogInPin,INPUT);
-pinMode(sensorPin,INPUT_PULLUP);
+  Serial.begin(9600); 
+//  pinMode(9,OUTPUT);  
+//  pinMode(10,OUTPUT);
+  pinMode(outPin,OUTPUT);
+//  pinMode(13,OUTPUT);
+  pinMode(analogInPin,INPUT);
+  pinMode(sensorPin,INPUT_PULLUP);
 }
 
 void loop() {
   if (Serial.available() > 0) {
     inByte = Serial.read();
   
-  if (inByte==97){
-  Serial.println("ON" );
-  outputValue=255/1;
-  setValue=1;
-  }
-  else if (inByte=98){
-  Serial.println("OFF" );
-  outputValue=min(outputValue,255/6);
-  setValue=0;
-  }
+    if (inByte==97){
+      Serial.println("ON");
+      outputValue=255/1;
+      setValue=1;
+    }
+    else if (inByte=98){
+      Serial.println("OFF");
+      outputValue=min(outputValue,255/6);
+      setValue=0;
+    }
   }
 //  Serial.print("read = " );                       
 //  Serial.print(inByte);      
   
   sensorValue = digitalRead(sensorPin);
-  if (sensorValue==0 && LastSensorValue==1)
-  {  
-  rotationTime=millis()-LastSensorTrigger;
-  LastSensorTrigger=millis(); 
-  //outputValue=0;
-  if (setValue==0 && rotationTime>=slowRotationTime) {
-    outputValue=0;
-  }
+  if (sensorValue==0 && LastSensorValue==1) {
+    rotationTime=millis()-LastSensorTrigger;
+    LastSensorTrigger=millis(); 
+    //outputValue=0;
+    if (setValue==0 && rotationTime>=slowRotationTime) {
+      outputValue=0;
+    }
   }
   LastSensorValue=sensorValue;
 
   analogWrite(outPin, outputValue);           
-  analogWrite(13, outputValue);           
+//  analogWrite(13, outputValue);           
 
   unsigned long currentMillis = millis();
 
@@ -66,23 +65,22 @@ void loop() {
     // save the last time you blinked the LED 
     previousMillis = currentMillis;   
     analogValue=0;
-for (int i=0;i<AnalogAverage;i++)
-{
-  analogValue += analogRead(analogInPin);            
-  analogValue = analogValue/AnalogAverage;
-}
-  // print the results to the serial monitor:
-  Serial.print("setvalue = " );                       
-  Serial.print(analogValue);      
-  
-  Serial.print("\t sensorvalue = " );                       
-  Serial.print(sensorValue);      
-  int RPM=60000/rotationTime;
-  Serial.print("\t RPM = " );                       
-  Serial.print(RPM);      
-  Serial.print("\t rTime = " );                       
-  Serial.print(rotationTime);      
-  Serial.print("\t output = ");      
-  Serial.println(outputValue);   
-}
+    for (int i=0;i<AnalogAverage;i++) {
+      analogValue += analogRead(analogInPin);            
+      analogValue = analogValue/AnalogAverage;
+    }
+    // print the results to the serial monitor:
+    Serial.print("setvalue = " );                       
+    Serial.print(analogValue);      
+    
+    Serial.print("\t sensorvalue = " );                       
+    Serial.print(sensorValue);      
+    int RPM=60000/rotationTime;
+    Serial.print("\t RPM = " );                       
+    Serial.print(RPM);      
+    Serial.print("\t rTime = " );                       
+    Serial.print(rotationTime);      
+    Serial.print("\t output = ");      
+    Serial.println(outputValue);   
+  }
 }

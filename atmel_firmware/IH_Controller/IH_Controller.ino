@@ -33,10 +33,10 @@ void loop() {
   runRead=digitalRead(PowerFBPin);
   if(runRead==0)  {runValue =0; }
   if(runValue==1 && start==1){
-  outputValue+=Increment;
-  digitalWrite(IHStartPin,HIGH);
-  delay(20);
-  digitalWrite(IHStartPin,LOW);
+    outputValue+=Increment;
+    digitalWrite(IHStartPin,HIGH);
+    delay(20);
+    digitalWrite(IHStartPin,LOW);
   }  
   analogWrite(PWMPin, outputValue);
   // print the results to the serial monitor:

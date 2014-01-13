@@ -1,11 +1,13 @@
 #include <avr/wdt.h>
+#include <avr/interrupt.h>
+#include <avr/io.h>
 
 #include <Charliplexing.h> //Imports the library, which needs to be Initialized in setup.
 #include "FontHandler.h"
 #include "NormalFont.h"
 #include "SmallFont.h"
 
-
+boolean called=false;
 //if it was a watchdog reset, diesable watchdog in early startup (logic from avr/wdt.h)
 uint8_t mcusr_mirror __attribute__ ((section (".noinit")));
 
@@ -14,6 +16,7 @@ void get_mcusr(void) \
   __attribute__((section(".init3")));
 void get_mcusr(void)
 {
+  called = true;
   mcusr_mirror = MCUSR;
   MCUSR = 0;
   wdt_disable();
@@ -36,58 +39,6 @@ const uint8_t PIXEL_HALF = 2;
 const uint8_t PIXEL_OFF = 0;
 
 
-//### ### #  ## 
-//#    # # # # #
-//###  # # # ## 
-//  #  # # # #  
-//###  #  #  #  
-const uint8_t PERCENT_TEXT_STOP_POS[][2] = {
-//S
-{0,0},
-{1,0},
-{2,0},
-{0,1},
-{0,2},
-{1,2},
-{2,2},
-{2,3},
-{0,4},
-{1,4},
-{2,4},
-
-//T
-{4,0},
-{5,0},
-{6,0},
-{5,1},
-{5,2},
-{5,3},
-{5,4},
-
-//O
-{8,0},
-{7,1},
-{9,1},
-{7,2},
-{9,2},
-{7,3},
-{9,3},
-{8,4},
-
-//P
-{11,0},
-{12,0},
-{11,1},
-{13,1},
-{11,2},
-{12,2},
-{11,3},
-{11,4}
-};
-const uint8_t PERCENT_TEXT_STOP_POS_COUNT = 34;
-
-
-
 uint8_t inByte = 0;         // incoming serial byte
 
 char *textToShow = "EveryCook is starting";
@@ -105,6 +56,47 @@ uint16_t picture[9];
 
 uint8_t currentMode = 0;
 
+
+
+boolean motorStop = false;
+boolean motorStoped = false;
+uint8_t motorSpeed = 0;
+
+boolean heating = false;
+
+//IH vars
+const int PowerFBPin = 12;
+const int StartSeqPin = 8;
+const int PWMPin = 9;
+const int IHStartPin = 10;
+
+const int Increment = 5;
+const int pause=100;
+int runValue = 1;        
+int runRead = 0;        
+int outputValueIH = 50;        
+int start = 0;
+int startValue = 1;
+
+//Motor vars
+const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
+const int outPin = 11;
+const int sensorPin= A2;
+long LastSensorTrigger = 0;
+int LastSensorValue=1;
+int slowRotationTime=500;
+int AnalogAverage=20;
+
+long previousMillis = 0;
+long interval = 1000;   
+int rotationTime=0;
+
+int analogValue = 0;        // value read from the pot
+int sensorValue = 0;        
+int outputValueMotor = 0;        // value output to the PWM (analog out)
+int setValue=0;
+
+
 void setup();
 void loop();
 void clearPercentTextArea();
@@ -116,6 +108,23 @@ void displaySmallText(const char *textToShow);
 void displayText(const char *text);
 
 void setup() {
+  cli(); //Stop interals
+  //init IH Pins
+  pinMode(PowerFBPin,OUTPUT);
+  digitalWrite(PowerFBPin,HIGH);
+  pinMode(PowerFBPin,INPUT);
+  pinMode(StartSeqPin,OUTPUT);
+  digitalWrite(StartSeqPin,HIGH);
+  pinMode(StartSeqPin,INPUT);
+  pinMode(PWMPin,OUTPUT);
+  pinMode(IHStartPin,OUTPUT);
+  digitalWrite(IHStartPin,LOW);
+  
+  //init Motor
+  pinMode(outPin,OUTPUT);
+  pinMode(analogInPin,INPUT);
+  pinMode(sensorPin,INPUT_PULLUP);
+  
   // start serial port at 9600 bps:
   Serial.begin(9600);
   while (!Serial) {
@@ -123,8 +132,32 @@ void setup() {
   }
   LedSign::Init(DOUBLE_BUFFER | GRAYSCALE);  //Initializes the screen
   
-  wdt_enable(WDTO_2S); //15MS,30MS,60MS,120MS,250MS,500MS,1S,2S,4S,8S
+  Serial.print("mcusr_mirror:");
+  Serial.println(mcusr_mirror,BIN);
+  Serial.print("called:"); 
+  if (called){
+    Serial.println("true"); 
+  } else {
+    Serial.println("false"); 
+  }
+  /*
+    MCUSR – MCU Status Register
+  • Bit 3 – WDRF: Watchdog System Reset Flag
+  • Bit 2 – BORF: Brown-out Reset Flag
+  • Bit 1 – EXTRF: External Reset Flag
+  • Bit 0 – PORF: Power-on Reset Flag
+  */
+  
+  //Watchdog
+  // allow changes, disable reset
+  WDTCSR = _BV (_WD_CHANGE_BIT) | _BV (WDE);  //_WD_CHANGE_BIT(new) or WDCE
+  // set interrupt mode and an interval
+  //WDTCSR = _BV (WDIE) | _BV (WDP3) | _BV (WDP0);    // set WDIE(=interrupt mode), and 8 seconds delay
+  WDTCSR = _BV (WDIE) | _BV (WDP2) | _BV (WDP1) | _BV (WDP0);    // set WDIE(=interrupt mode), and 2 seconds delay
+  
+  //wdt_enable(WDTO_2S); //15MS,30MS,60MS,120MS,250MS,500MS,1S,2S,4S,8S
   wdt_reset();
+  sei(); //Start intervals
 }
 
 void loop() {
@@ -143,7 +176,7 @@ void loop() {
   currentMode = 0x03;
   DisplayBitMap();
   
-  delay(250);
+  delay(500);
   
   //Show starting text until daemon is ready, daemon will then show star screen/image.
   textXCord = DISPLAY_COLS;
@@ -241,6 +274,45 @@ void loop() {
         break;
         
         
+        case 0x05:
+        case 'H': //Heating on
+          heating = true;
+        break;
+        
+        
+        case 0x06:
+        case 'h': //Heating off
+          heating = false;
+        break;
+        
+        
+        case 0x07://Motor                               [07]<speed 1 byte>
+        case 'M':
+          Serial.println("Motor");
+          while (Serial.available() == 0) {
+            delay(10);
+          }
+          inByte = Serial.read();
+          Serial.println(inByte);
+          motorSpeed = inByte;
+          motorStop = (motorSpeed == 0);
+          
+          outputValueMotor=255/1;
+          setValue=1;
+        break;
+        
+        
+        case 0x08://Motor stop                          [08]
+        case 'm':
+          Serial.println("Motor stop");
+          motorSpeed = 0;
+          motorStop = true;
+          
+          outputValueMotor=min(outputValueMotor,255/6);
+          setValue=0;
+        break;
+        
+        
         case 'E': //Exit
           Serial.println("exit");
           run = false;
@@ -274,7 +346,7 @@ void loop() {
           break;
         case 0x04:
         case 't':
-          //if (textXCord == 13 && textCharPos == 0){ //2.text step also show progress, so not blinking because of doubble buffer
+          //if (textXCord == 13 && textCharPos == 0) //2.text step also show progress, so not blinking because of doubble buffer
           if (updatePercentAgain) {
             displayProgress(lastPercentValue, true);
             updatePercentAgain = false;
@@ -286,6 +358,79 @@ void loop() {
         break;
       }
     }
+    
+    if (heating){
+      startValue=digitalRead(StartSeqPin);
+      if (startValue==0) {start=1; runValue=1;}
+    //  else {start=0;}
+      runRead=digitalRead(PowerFBPin);
+      if(runRead==0)  {runValue=0;}
+      if(runValue==1 && start==1){
+        outputValueIH+=Increment;
+        digitalWrite(IHStartPin,HIGH);
+        delay(20);
+        digitalWrite(IHStartPin,LOW);
+      }
+      analogWrite(PWMPin, outputValueIH);
+      // print the results to the serial monitor:
+      Serial.print("start = " );                       
+      Serial.print(startValue);      
+      Serial.print("\t feedback = " );                       
+      Serial.print(runRead);      
+      Serial.print("\t output = ");      
+      Serial.println(outputValueIH);
+      delay(pause);   
+    } else if (runValue == 1){
+      /*
+      digitalWrite(IHStopPin,HIGH);
+      delay(20);
+      digitalWrite(IHStopPin,LOW);
+      */
+      analogWrite(PWMPin, 0);
+      outputValueIH = 50;
+      runValue = 0;
+    }
+    
+    if (outputValueMotor != 0){
+      sensorValue = digitalRead(sensorPin);
+      if (sensorValue==0 && LastSensorValue==1) {
+        rotationTime=millis()-LastSensorTrigger;
+        LastSensorTrigger=millis();
+        if (setValue==0 && rotationTime>=slowRotationTime) {
+          outputValueMotor=0;
+          motorStoped = true;
+        }
+      }
+      LastSensorValue=sensorValue;
+    
+      analogWrite(outPin, outputValueMotor);       
+    
+      unsigned long currentMillis = millis();
+    
+      if(currentMillis - previousMillis > interval) {
+        // save the last time you blinked the LED 
+        previousMillis = currentMillis;   
+        analogValue=0;
+        for (int i=0;i<AnalogAverage;i++) {
+          analogValue += analogRead(analogInPin);            
+          analogValue = analogValue/AnalogAverage;
+        }
+        // print the results to the serial monitor:
+        Serial.print("setvalue = " );                       
+        Serial.print(analogValue);      
+        
+        Serial.print("\t sensorvalue = " );                       
+        Serial.print(sensorValue);      
+        int RPM=60000/rotationTime;
+        Serial.print("\t RPM = " );                       
+        Serial.print(RPM);      
+        Serial.print("\t rTime = " );                       
+        Serial.print(rotationTime);      
+        Serial.print("\t output = ");      
+        Serial.println(outputValueMotor);   
+      }
+    }
+    
     delay(100);
   }
 }
@@ -382,9 +527,10 @@ void displayProgress(uint8_t percent, boolean noFlip){
       lastPercentText = PERCENT_TEXT_STOP;
       changed = true;
       clearPercentTextArea();
-      for(int i=0;i<PERCENT_TEXT_STOP_POS_COUNT;i++){
-        LedSign::Set(PERCENT_TEXT_STOP_POS[i][0], PERCENT_TEXT_STOP_POS[i][1], PIXEL_ON);
-      }
+      FontHandler::Draw(0, 0, SmallFont::getChar('S'), PIXEL_ON);
+      FontHandler::Draw(4, 0, SmallFont::getChar('T'), PIXEL_ON);
+      FontHandler::Draw(7, 0, SmallFont::getChar('O'), PIXEL_ON);
+      FontHandler::Draw(11, 0, SmallFont::getChar('P'), PIXEL_ON);
     }
     
   } else if (percent >= 105){
@@ -516,27 +662,7 @@ boolean readText(){
 //  }
   return sucess;
 }
-/*
-void displayTextWait(const char *textToShow){
-  Serial.println("displayTextWait:");
-  for(int i=0;i<strlen(textToShow);i++){
-    Serial.write(textToShow[i]);
-  }
-  Serial.println();
-  for (int8_t x=DISPLAY_COLS, i=0;; x--) {
-    LedSign::Clear();
-    for (int8_t x2=x, i2=i; x2<DISPLAY_COLS;) {
-      int8_t w = Font::Draw(textToShow[i2], x2, 0);
-      x2 += w, i2 = (i2+1)%strlen(textToShow);
-      if (x2 <= 0)	// off the display completely?
-        x = x2, i = i2;
-    }
-    LedSign::Flip(true);
-    delay(80);
-  }
-  Serial.println("displaySmallText end reached");
-}
-*/
+
 void displaySmallText(const char *text){
   int8_t x=textXCord;
   int8_t i=textCharPos;
@@ -566,44 +692,28 @@ void displaySmallText(const char *text){
     currentMode = 0;
   }
 }
+
 void displayText(const char *text){
-/*
-  Serial.println("displayText:");
-  for(int i=0;i<strlen(text);i++){
-    Serial.write(text[i]);
-  }
-  Serial.println();
-*/
   int8_t x=textXCord;
   int8_t i=textCharPos;
-//  for (int8_t x=DISPLAY_COLS, i=0;; x--) {
-    LedSign::Clear();
-    for (int8_t x2=x, i2=i; x2<DISPLAY_COLS;) {
-      if (i2 < strlen(text)){
-//        int8_t w = Font::Draw(text[i2], x2, textYCord);
-        const uint8_t *character = NormalFont::getChar(text[i2]);
-        int8_t w = FontHandler::Draw(x2, textYCord, character);
-        x2 += w;
-        i2 = (i2+1);
-      } else {
-        //add a "space"
-        x2 += 5;
-        i2 = (i2+1);
-      }
-      if (x2 <= 0){ // the currently drawn character was completely out of screen
-        //adjust looping values for next loop
-        x = x2, i = i2;
-      }
+  LedSign::Clear();
+  for (int8_t x2=x, i2=i; x2<DISPLAY_COLS;) {
+    if (i2 < strlen(text)){
+      const uint8_t *character = NormalFont::getChar(text[i2]);
+      int8_t w = FontHandler::Draw(x2, textYCord, character);
+      x2 += w;
+      i2 = (i2+1);
+    } else {
+      //add a "space"
+      x2 += 5;
+      i2 = (i2+1);
     }
-    LedSign::Flip(true);
-/*
-    delay(200);
-    if (i == strlen(text) && x <= 0){
-      break;
+    if (x2 <= 0){ // the currently drawn character was completely out of screen
+      //adjust looping values for next loop
+      x = x2, i = i2;
     }
   }
-  Serial.println("displayText end reached");
-*/
+  LedSign::Flip(true);
   x--;
   textXCord=x;
   textCharPos=i;
@@ -617,11 +727,41 @@ void displayText(const char *text){
 
 //Watchdog timeout exeded
 ISR(WDT_vect){
+  cli();
+  wdt_reset();
+  
+  mcusr_mirror = MCUSR;
+  MCUSR = 0;
+  wdt_disable();
+  Serial.println("ISR(WDT_vect)");
+  
+
+  /* Clear WDRF in MCUSR */
+  MCUSR &= ~_BV (WDRF);
+  /* Write logical one to WDCE and WDE */
+  /* Keep old prescaler setting to prevent unintentional time-out */
+  WDTCSR |= _BV (_WD_CHANGE_BIT) | _BV (WDE); 
+  /* Turn off WDT */
+  WDTCSR = 0x00;
+  
+  /*
+  //reenable wdt to do systemreset use following lines of code for it:
+  // allow changes, disable reset
+  WDTCSR = _BV (_WD_CHANGE_BIT) | _BV (WDE);
+  // set interrupt AND reset mode and an interval
+  WDTCSR = _BV (WDIE) | _BV (WDE) | _BV (WDP2) | _BV (WDP1) | _BV (WDP0);    // set WDIE(=interrupt mode), and 2 seconds delay
+//  // set reset mode and an interval
+//  WDTCSR = _BV (WDE) | _BV (WDP2) | _BV (WDP1) | _BV (WDP0);    // set WDIE(=interrupt mode), and 2 seconds delay
+  */
+
+
+  
   //what to do?
   //stop heating
   //stop motor
-  //try restart atmel
-  //try restart deamon
-  //if demaon restart don't work, restart raspi
+  //try restart atmel -> System reset
+  //try restart deamon -> send command/ set pin to high to do so
+  //if demaon restart don't work, restart raspi -> set pin to remove power?
+  sei();
 }
 
