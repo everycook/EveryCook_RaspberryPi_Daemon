@@ -30,6 +30,9 @@ struct ADC_Config {
 	
 	uint32_t ADC_ConfigReg[6];
 	bool inverse[6];
+	uint8_t PressHystereis;
+	uint8_t TempHystereis;
+	bool restarting_adc;
 };
 
 struct ADC_Noise_Values {

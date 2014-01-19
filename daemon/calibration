@@ -12,13 +12,14 @@ PressADC1=8625217
 PressValue1=0
 PressADC2=8870923
 PressValue2=80.0
+PressHystereis=2
 
 #two calibrations points between ADC values and temperature in °C
 TempADC1=9250417
 TempValue1=1.8
 TempADC2=9612843
 TempValue2=99.1
-
+TempHystereis=2
 
 #ADC channels
 ADC_LoadCellFrontLeft=1

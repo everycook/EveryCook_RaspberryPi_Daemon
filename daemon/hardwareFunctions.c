@@ -47,6 +47,9 @@ bool HeatOn(struct Daemon_Values *dv){
 			dv->state->heatPowerStatus = false;
 		}
 	}
+	if (dv->adc_config->restarting_adc){
+		return false;
+	}
 	
 	if (!dv->state->heatPowerStatus) { //if its off
 		if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
@@ -73,6 +76,9 @@ bool HeatOff(struct Daemon_Values *dv){
 		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) < 3000){
 			dv->state->heatPowerStatus = true;
 		}
+	}
+	if (dv->adc_config->restarting_adc){
+		return false;
 	}
 	
 	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}

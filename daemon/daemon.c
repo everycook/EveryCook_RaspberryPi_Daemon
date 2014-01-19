@@ -59,7 +59,7 @@ const double SECONDS_PER_HOUR = 3600; //60*60
 
 const uint8_t HOUR_COUNTER_VERSION = 0;
 
-struct ADC_Config adc_config = {0,1,2,3,4,5, 0,8, {0x710, 0x711, 0x712, 0x713, 0x714, 0x115}, {0,0,0,0,0,0}};
+struct ADC_Config adc_config = {0,1,2,3,4,5, 0,8, {0x710, 0x711, 0x712, 0x713, 0x714, 0x115}, {0,0,0,0,0,0}, 2, 2, false};
 struct ADC_Noise_Values adc_noise = {0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0, 0,1000000000,0};
 struct ADC_Values adc_values;
 
@@ -2096,7 +2096,7 @@ void TempControl(){
 					state.dataChanged=true;
 				}
 			}
-			else if (deltaT>=5) {HeatOn(&daemon_values);} 
+			else if (deltaT>=adc_config.TempHystereis) {HeatOn(&daemon_values);}
 		} else {
 			HeatOff(&daemon_values);
 		}
@@ -2142,7 +2142,7 @@ void PressControl(){
 					state.dataChanged=true;
 				}
 			}
-			else if (deltaP>=5) {HeatOn(&daemon_values);}
+			else if (deltaP>=adc_config.PressHystereis) {HeatOn(&daemon_values);}
 		} else {
 			HeatOff(&daemon_values);
 		}
@@ -2303,12 +2303,14 @@ void SegmentDisplay(){
 		curSegmentDisplay = '0';
 	}
 	if (curSegmentDisplay != state.oldSegmentDisplay){
-		if (settings.debug_enabled || runningMode.simulationMode){printf("SegmentDisplay: '%c'\n", curSegmentDisplay);}
-		if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
-			SegmentDisplaySimple(curSegmentDisplay, &state, &i2c_config);
-			//SegmentDisplayOptimized(curSegmentDisplay, &state, &i2c_config);
-		} else {
-			state.oldSegmentDisplay = curSegmentDisplay;
+		if(!adc_config.restarting_adc){
+			if (settings.debug_enabled || runningMode.simulationMode){printf("SegmentDisplay: '%c'\n", curSegmentDisplay);}
+			if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
+				SegmentDisplaySimple(curSegmentDisplay, &state, &i2c_config);
+				//SegmentDisplayOptimized(curSegmentDisplay, &state, &i2c_config);
+			} else {
+				state.oldSegmentDisplay = curSegmentDisplay;
+			}
 		}
 	}
 	if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
@@ -3028,6 +3030,14 @@ void ReadCalibrationFile(void){
 				adc_config.inverse[adc_config.ADC_Temp] = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tinverse_Temp: %d\n", adc_config.inverse[adc_config.ADC_Temp]);}
 			
+			//Hystereis
+			} else if(strcmp(keyString, "PressHystereis") == 0){
+				adc_config.PressHystereis = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tPressHystereis: %d\n", adc_config.PressHystereis);}
+			} else if(strcmp(keyString, "TempHystereis") == 0){
+				adc_config.TempHystereis = StringConvertToNumber(valueString);
+				if (showReadedConfigs){printf("\tTempHystereis: %d\n", adc_config.TempHystereis);}
+			
 			//7seg pins
 			} else if(strcmp(keyString, "i2c_7seg_top") == 0){
 				i2c_config.i2c_7seg_top = StringConvertToNumber(valueString);
@@ -3645,6 +3655,17 @@ void *readADCValues(void *ptr){
 				if (adc_values.Press.adc_value > adc_noise.MaxPress) adc_noise.MaxPress = adc_values.Press.adc_value;
 				if (adc_values.Press.adc_value < adc_noise.MinPress) adc_noise.MinPress = adc_values.Press.adc_value;
 				adc_noise.DeltaPress = adc_noise.MaxPress - adc_noise.MinPress;
+			}
+			
+			//Validate Temp/press is valid value
+			if (!runningMode.calibration && !runningMode.measure_noise && (adc_values.Temp.valueByOffset < 0 || adc_values.Temp.valueByOffset > 300 || adc_values.Press.valueByOffset < -10 || adc_values.Press.valueByOffset > 100)){
+				adc_config.restarting_adc = true;
+				SegmentDisplaySimple('E', &state, &i2c_config);
+				//adc_values.Temp.valueByOffset = 0;
+				//adc_values.Press.valueByOffset = 0;
+				HeatOff(&daemon_values);
+				AD7794Init();
+				adc_config.restarting_adc = false;
 			}
 			
 			delay(delayTempPess);
