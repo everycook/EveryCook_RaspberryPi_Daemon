@@ -146,6 +146,7 @@ int main(int argc, const char* argv[]){
 	daemon_values.tempCalibration = &tempCalibration;
 	daemon_values.i2c_config = &i2c_config;
 	daemon_values.i2c_servo_values = &i2c_servo_values;
+	daemon_values.i2c_solenoid_values = &i2c_solenoid_values;
 	daemon_values.i2c_motor_values = &i2c_motor_values;
 	daemon_values.newCommandValues = &newCommandValues;
 	daemon_values.currentCommandValues = &currentCommandValues;
@@ -2024,6 +2025,10 @@ void ProcessCommand(void){
 	}
 	MotorControl();
 	ValveControl();
+	
+	if (settings.debug3_enabled){
+		printf("after ValveControl\n");
+	}
 	ScaleFunction();
 	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
 		if (state.dataChanged){
