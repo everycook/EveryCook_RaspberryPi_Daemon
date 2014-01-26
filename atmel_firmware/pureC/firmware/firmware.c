@@ -3,9 +3,11 @@
 #include <util/delay.h>
 #include <avr/wdt.h>
 
+#include "mytypes.h"
 #include "firmware.h"
 #include "input.h"
 #include "time.h"
+#include "Charliplexing.h"
 
 /*
 To compile for atmega644p
@@ -19,15 +21,6 @@ upload over Raspi GPIO to 644p:
 avrdude -F -V -c gpio -p m644p -P gpio -b 57600 -U flash:w:input.hex 
 */ 
 
-#define true 1
-#define false 0
-
-
-
-
-void controlIHTemp();
-void initWatchDog();
-ISR(WDT_vect);
 
 
 
@@ -40,11 +33,26 @@ struct pinInfo PusherLocked = PA_5; //in
 struct pinInfo LidLocked = PA_6; //in
 struct pinInfo LidClosed = PA_7; //in
 
-//pb0-pb4	display
+//pb0-pb3	display
+struct pinInfo Display_8 = PB_0;
+struct pinInfo Display_9 = PB_1;
+struct pinInfo Display_10 = PB_2;
+struct pinInfo Display_11 = PB_3;
+struct pinInfo SimulateButton0 = PB_4; //out
 //pb5-7		mosi miso clk
 
-struct pinInfo SimulateButton0 = PC_0; //out
-//pc1-pc7	display
+
+//pc0-pc7	display
+struct pinInfo Display_0 = PC_0;
+struct pinInfo Display_1 = PC_1;
+struct pinInfo Display_2 = PC_2;
+struct pinInfo Display_3 = PC_3;
+struct pinInfo Display_4 = PC_4;
+struct pinInfo Display_5 = PC_5;
+struct pinInfo Display_6 = PC_6;
+struct pinInfo Display_7 = PC_7;
+
+struct pinInfo DisplayX = PC_0;
 
 //pd0-pd1	rx/tx
 
@@ -63,8 +71,14 @@ uint8_t lastIHFanPWM = 0;
 
 uint16_t ihTemp = 0;
 uint8_t ihTemp8bit;
-void controlIHTemp(){
 
+
+
+#define PIXEL_ON 7
+#define PIXEL_HALF 2
+#define PIXEL_OFF 0
+
+void controlIHTemp(){
 	//controll IHTemp
 	ihTemp = analogRead(IHTempSensor);
 	ihTemp8bit = ihTemp >> 2;
@@ -105,6 +119,7 @@ int main (void)
 	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
 	pinMode(IHFanPWM, OUTPUT/*_PWM*/);
 	
+	
 	cli();
 	//Enable ADC (for IHTempSensor)
 	ADCSRA |= _BV(ADEN);		//ATmega_644.pdf, Page 249
@@ -122,12 +137,16 @@ int main (void)
 	//Set prescaling 64, this enable the timer
 	TCCR2B |= _BV(CS21);
 	
+	
+	//Disable JTAG Interface to use them (PC2-PC5) as normal Pins
+	MCUCR |= _BV(JTD);
+	MCUCR |= _BV(JTD); //must write this twice to disaple it!
+	
 	sei();
 	
 	
 	//initialice time messurement
 	initTime();
-	
 	
 	//Enable Power for Motor / IH
 	digitalWrite(SafetyChain, HIGH);
@@ -137,22 +156,67 @@ int main (void)
 	digitalWrite(RaspiReset, LOW);
 	
 	
+	//Init LoL-Shield
+	LedSign_Init(DOUBLE_BUFFER | GRAYSCALE);  //Initializes the screen
+	LedSign_Clear(3);
+	LedSign_Horizontal(5,PIXEL_ON);
+	LedSign_Vertical(3,PIXEL_ON);
+	LedSign_Flip(false);
+	
+	
 	digitalWrite(Ventil, wdtRestart);
 	_delay_ms(1000);
 	wdtRestart = false;
 	digitalWrite(Ventil, wdtRestart);
 	
-	initWatchDog();
+	
+	//initWatchDog();
 	
 	uint16_t ihTemp = 0;
 	uint8_t ihTemp8bit;
 	boolean pingFromDaemon = false;
+	//uint8_t led_pin = 0;
+	//uint8_t x=0, y=0;
 	while(1){
 		//TODO read input
-		triggerWatchDog(pingFromDaemon);
+		//triggerWatchDog(pingFromDaemon);
 		controlIHTemp();
 		
 		digitalWrite(Ventil, digitalRead(isIHOn));
+		/*
+		LedSign_Set(x, y, PIXEL_ON);
+		LedSign_Flip(false);
+		_delay_ms(1000);
+		LedSign_Set(x, y, PIXEL_OFF);
+		LedSign_Flip(false);
+		x++;
+		if (x>DISPLAY_COLS){
+			x=0;
+			y++;
+			if (y>DISPLAY_ROWS){
+				y=0;
+			}
+		}
+		*/
+		
+		/*
+		pinMode(DisplayX, OUTPUT);
+		digitalWrite(DisplayX, HIGH);
+		digitalRead(DisplayX);
+		_delay_ms(1000);
+		digitalWrite(DisplayX, LOW);
+		pinMode(DisplayX, INPUT);
+		led_pin++;
+		DisplayX.port_pin++;
+		if (led_pin>11){
+			DisplayX.port = PC;
+			DisplayX.port_pin = 0;
+			led_pin=0;
+		} else if (led_pin>7){
+			DisplayX.port = PB;
+			DisplayX.port_pin = 0;
+		}
+		*/
 	}
 	
 	return 0;

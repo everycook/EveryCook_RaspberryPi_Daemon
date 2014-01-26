@@ -1,7 +1,7 @@
 #ifndef firmware_h
 #define firmware_h
 
-typedef uint8_t boolean;
+#include "mytypes.h"
 
 void controlIHTemp();
 int main (void);
