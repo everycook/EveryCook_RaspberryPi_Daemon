@@ -1,11 +1,12 @@
 /*
-  Charliplexing.cpp - Using timer2 with 1ms resolution
+  Charliplexing.cpp - Using timer0 with 1ms resolution
   
   Alex Wenger <a.wenger@gmx.de> http://arduinobuch.wordpress.com/
   Matt Mets <mahto@cibomahto.com> http://cibomahto.com/
   
   Timer init code from MsTimer2 - Javier Valencia <javiervalencia80@gmail.com>
   Misc functions from Benjamin Sonnatg <benjamin@sonntag.fr>
+  EveryCook ATmega644p optimizing from Samuel Werder <samuel@everycook.org>
   
   History:
     2009-12-30 - V0.0 wrote the first version at 26C3/Berlin
@@ -13,6 +14,7 @@
       (Clear, Vertical,  Horizontal) comment are Doxygen complaints now
     2010-05-27 - V0.2 add double-buffer mode
     2010-08-18 - V0.9 Merge brightness and grayscale
+	2014-01-26 - V0.91 Changed for use with ATmega644p in EveryCook Project
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public

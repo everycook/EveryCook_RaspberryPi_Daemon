@@ -7,6 +7,9 @@
 #include "firmware.h"
 #include "input.h"
 #include "time.h"
+#include "motor.h"
+#include "heating.h"
+#include "DisplayHandler.h"
 #include "Charliplexing.h"
 
 /*
@@ -25,78 +28,50 @@ avrdude -F -V -c gpio -p m644p -P gpio -b 57600 -U flash:w:input.hex
 
 
 struct pinInfo RaspiReset = PA_0; //out 1 to remove power
-struct pinInfo IHTempSensor = PA_1; //Analog
-struct pinInfo MotorPosSensor = PA_2; //in
+//struct pinInfo IHTempSensor = PA_1; //Analog
+//struct pinInfo MotorPosSensor = PA_2; //in		//Status Bit 6
 struct pinInfo Ventil = PA_3; //out
 struct pinInfo SafetyChain = PA_4; //out 1 to power
-struct pinInfo PusherLocked = PA_5; //in
-struct pinInfo LidLocked = PA_6; //in
-struct pinInfo LidClosed = PA_7; //in
+struct pinInfo PusherLocked = PA_5; //in		//Status Bit 3
+struct pinInfo LidLocked = PA_6; //in			//Status Bit 2
+struct pinInfo LidClosed = PA_7; //in			//Status Bit 1
 
 //pb0-pb3	display
-struct pinInfo Display_8 = PB_0;
-struct pinInfo Display_9 = PB_1;
-struct pinInfo Display_10 = PB_2;
-struct pinInfo Display_11 = PB_3;
-struct pinInfo SimulateButton0 = PB_4; //out
-//pb5-7		mosi miso clk
-
-
+//struct pinInfo IHOff = PB_4; //out //deactivated -> not needed
+//struct pinInfo CS = PB_4; //in  //chip select
+//pb5-7		mosi miso sclk
+/*struct pinInfo MOSI = PB_5; //out
+struct pinInfo MISO = PB_6; //in
+struct pinInfo SCK = PB_7; //out
+*/
 //pc0-pc7	display
-struct pinInfo Display_0 = PC_0;
-struct pinInfo Display_1 = PC_1;
-struct pinInfo Display_2 = PC_2;
-struct pinInfo Display_3 = PC_3;
-struct pinInfo Display_4 = PC_4;
-struct pinInfo Display_5 = PC_5;
-struct pinInfo Display_6 = PC_6;
-struct pinInfo Display_7 = PC_7;
-
-struct pinInfo DisplayX = PC_0;
-
 //pd0-pd1	rx/tx
 
-struct pinInfo IHOff = PD_2; //out
-struct pinInfo isIHOn = PD_3; //in
-struct pinInfo IHOn = PD_4; //out
-struct pinInfo MotorPWM = PD_5; //pwm	//OC1B
-struct pinInfo IHPowerPWM = PD_6; //pwm	//OC2B
-struct pinInfo IHFanPWM = PD_7; //pwm	//OC2A
+struct pinInfo SimulateButton0 = PD_2; //out
+//struct pinInfo isIHOn = PD_3; //in				//Status Bit 4
+//struct pinInfo IHOn = PD_4; //out
+//struct pinInfo MotorPWM = PD_5; //pwm	//OC1B
+//struct pinInfo IHPowerPWM = PD_6; //pwm	//OC2B
+//struct pinInfo IHFanPWM = PD_7; //pwm	//OC2A	//Status Bit 5
 
-uint8_t MotorPWM_TIMER = TIMER1B;
-uint8_t IHPowerPWM_TIMER = TIMER2B;
-uint8_t IHFanPWM_TIMER = TIMER2A;
-
-uint8_t lastIHFanPWM = 0;
-
-uint16_t ihTemp = 0;
-uint8_t ihTemp8bit;
+//uint8_t MotorPWM_TIMER = TIMER1B;
+//uint8_t IHPowerPWM_TIMER = TIMER2B;
+//uint8_t IHFanPWM_TIMER = TIMER2A;
 
 
+//Status Byte Bit possition
+#define SB_CommandOK		0
+#define SB_LidClosed		1
+#define SB_LidLocked		2
+#define SB_PusherLocked		3
+#define SB_isIHOn			4
+#define SB_IHFanPWM			5
+#define SB_MotorPosSensor	6
+#define SB_CommandError		7
 
-#define PIXEL_ON 7
-#define PIXEL_HALF 2
-#define PIXEL_OFF 0
+#define SPI_CommandOK 0x01;
 
-void controlIHTemp(){
-	//controll IHTemp
-	ihTemp = analogRead(IHTempSensor);
-	ihTemp8bit = ihTemp >> 2;
-	uint8_t IHFanPWM = 0;
-	if (ihTemp8bit > 200){
-		IHFanPWM = 255;
-	} else if (ihTemp8bit > 150){
-		IHFanPWM = 200;
-	} else if (ihTemp8bit > 100){
-		IHFanPWM = 150;
-	} else if (ihTemp8bit > 64){
-		IHFanPWM = 100;
-	}
-	if (lastIHFanPWM != IHFanPWM){
-		analogWrite(IHFanPWM_TIMER, IHFanPWM);
-		lastIHFanPWM = IHFanPWM;
-	}
-}
+uint8_t StatusByte = SPI_CommandOK;
 
 boolean wdtRestart __attribute__ ((section (".noinit")));
 
@@ -104,53 +79,31 @@ int main (void)
 {
 	//Set Pin Modes
 	pinMode(RaspiReset, OUTPUT);
-	pinMode(IHTempSensor, INPUT/*_ANALOG*/);
-	pinMode(MotorPosSensor, INPUT_PULLUP);
+//	pinMode(IHTempSensor, INPUT/*_ANALOG*/);
+//	pinMode(MotorPosSensor, INPUT_PULLUP);
 	pinMode(Ventil, OUTPUT);
 	pinMode(SafetyChain, OUTPUT);
 	pinMode(PusherLocked, INPUT_PULLUP);
 	pinMode(LidLocked, INPUT_PULLUP);
 	pinMode(LidClosed, INPUT_PULLUP);
 	pinMode(SimulateButton0, OUTPUT);
-	pinMode(IHOff, OUTPUT);
-	pinMode(isIHOn, INPUT_PULLUP);
-	pinMode(IHOn, OUTPUT);
-	pinMode(MotorPWM, OUTPUT/*_PWM*/);
-	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
-	pinMode(IHFanPWM, OUTPUT/*_PWM*/);
-	
-	
-	cli();
-	//Enable ADC (for IHTempSensor)
-	ADCSRA |= _BV(ADEN);		//ATmega_644.pdf, Page 249
-	
-	
-	//OC0A / OC0B is used for LoL-Shield and will be initialized there
-	
-	//Set Phase-Correct PWM mode for OC1A / OC1B 8bit mode 		//ATmega_644.pdf, Page 127
-	TCCR1A |= _BV(WGM10);
-	//Set prescaling 64, this enable the timer //Set it to 64 because of time messurement in time.c (other values are also possible, you must call "initTime();" after change this)
-	TCCR1B |= _BV(CS11) | _BV(CS10);
-	
-	//Set Phase-Correct PWM mode for OC2A / OC2B 		//ATmega_644.pdf, Page 148
-	TCCR2A |= _BV(WGM20);
-	//Set prescaling 64, this enable the timer
-	TCCR2B |= _BV(CS21);
-	
-	
-	//Disable JTAG Interface to use them (PC2-PC5) as normal Pins
-	MCUCR |= _BV(JTD);
-	MCUCR |= _BV(JTD); //must write this twice to disaple it!
-	
-	sei();
-	
-	
+//	pinMode(IHOff, OUTPUT);
+//	pinMode(isIHOn, INPUT_PULLUP);
+//	pinMode(IHOn, OUTPUT);
+//	pinMode(MotorPWM, OUTPUT/*_PWM*/);
+//	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
+//	pinMode(IHFanPWM, OUTPUT/*_PWM*/);
+
+	Motor_init();
+	Heating_init();
+		
 	//initialice time messurement
 	initTime();
 	
+	
 	//Enable Power for Motor / IH
 	digitalWrite(SafetyChain, HIGH);
-	digitalWrite(IHOff, LOW);
+	//digitalWrite(IHOff, LOW);
 	
 	//Verify RaspiHas has Power
 	digitalWrite(RaspiReset, LOW);
@@ -163,66 +116,100 @@ int main (void)
 	LedSign_Vertical(3,PIXEL_ON);
 	LedSign_Flip(false);
 	
-	
+	//TODO remove, test was WTD reset
 	digitalWrite(Ventil, wdtRestart);
 	_delay_ms(1000);
 	wdtRestart = false;
 	digitalWrite(Ventil, wdtRestart);
 	
+	//init SPI as Master
+	//initSPI();
 	
 	//initWatchDog();
 	
 	uint16_t ihTemp = 0;
 	uint8_t ihTemp8bit;
 	boolean pingFromDaemon = false;
-	//uint8_t led_pin = 0;
-	//uint8_t x=0, y=0;
 	while(1){
+		Motor_motorControl();
+		Heating_heatControl();
+		Heating_controlIHTemp();
+
+
+
+
 		//TODO read input
 		//triggerWatchDog(pingFromDaemon);
-		controlIHTemp();
 		
-		digitalWrite(Ventil, digitalRead(isIHOn));
-		/*
-		LedSign_Set(x, y, PIXEL_ON);
-		LedSign_Flip(false);
-		_delay_ms(1000);
-		LedSign_Set(x, y, PIXEL_OFF);
-		LedSign_Flip(false);
-		x++;
-		if (x>DISPLAY_COLS){
-			x=0;
-			y++;
-			if (y>DISPLAY_ROWS){
-				y=0;
-			}
-		}
-		*/
 		
-		/*
-		pinMode(DisplayX, OUTPUT);
-		digitalWrite(DisplayX, HIGH);
-		digitalRead(DisplayX);
-		_delay_ms(1000);
-		digitalWrite(DisplayX, LOW);
-		pinMode(DisplayX, INPUT);
-		led_pin++;
-		DisplayX.port_pin++;
-		if (led_pin>11){
-			DisplayX.port = PC;
-			DisplayX.port_pin = 0;
-			led_pin=0;
-		} else if (led_pin>7){
-			DisplayX.port = PB;
-			DisplayX.port_pin = 0;
-		}
-		*/
+//		digitalWrite(Ventil, digitalRead(isIHOn));
+		//SPI_MasterTransmit(0xAB);
 	}
 	
 	return 0;
 }
 
+#define SPI_MODE_GET_STATUS					1
+#define SPI_MODE_MOTOR						2
+#define SPI_MODE_HEATING					3
+#define SPI_MODE_DISPLAY_TEXT				4
+#define SPI_MODE_DISPLAY_TEXT_SMALL			5
+#define SPI_MODE_DISPLAY_PERCENT			6
+#define SPI_MODE_DISPLAY_PERCENT_TEXT		7
+#define SPI_MODE_DISPLAY_CLEAR				8
+#define SPI_MODE_DISPLAY_PICTURE			9
 
+uint8_t currentMode = 0;
+ISR(SPI_STC_vect){
+	uint8_t data = SPDR;
+	uint8_t response = 0xFF;
+	switch(currentMode){
+		case 0: //no mode check new mode
+			switch(data){
+				case SPI_MODE_GET_STATUS:
+					response = StatusByte;
+				break;
+				case SPI_MODE_DISPLAY_CLEAR:
+					LedSign_Clear(0);
+					LedSign_Flip(true);
+					response = SPI_CommandOK;
+				break;
+				case SPI_MODE_MOTOR:
+				case SPI_MODE_HEATING:
+				case SPI_MODE_DISPLAY_TEXT:
+				case SPI_MODE_DISPLAY_TEXT_SMALL:
+				case SPI_MODE_DISPLAY_PERCENT:
+				case SPI_MODE_DISPLAY_PERCENT_TEXT:
+				case SPI_MODE_DISPLAY_PICTURE:
+					currentMode = data;
+					response = SPI_CommandOK;
+				break;
+			}
+		break;
+		
+		case SPI_MODE_GET_STATUS:
+			response = StatusByte;
+		break;
+		case SPI_MODE_MOTOR:
+			Motor_setMotor(data);
+			currentMode = 0;
+			response = SPI_CommandOK;
+		break;
+		case SPI_MODE_HEATING:
+			Heating_setHeating(data);
+			currentMode = 0;
+			response = SPI_CommandOK;
+		break;
+		case SPI_MODE_DISPLAY_TEXT:
+		case SPI_MODE_DISPLAY_TEXT_SMALL:
+			//response = Display_addText(data);
+			if (response != 0xFF){
+				currentMode = 0;
+			}
+		break;
+	}
+	SPDR = response;
+}
 
 /*
 
@@ -353,10 +340,10 @@ ISR(WDT_vect){
 	//Disable safety chain
 	digitalWrite(SafetyChain, LOW);
 	//stop heating
-	digitalWrite(IHOff, HIGH);
-	analogWrite(IHPowerPWM_TIMER, 0);
+	//digitalWrite(IHOff, HIGH);
+	//TODO analogWrite(IHPowerPWM_TIMER, 0);
 	//stop motor
-	analogWrite(MotorPWM_TIMER, 0);
+	//TODO analogWrite(MotorPWM_TIMER, 0);
 	
 	//try restart atmel -> System reset
 	if (resetAtmelTime == 0) {
