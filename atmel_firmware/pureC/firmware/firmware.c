@@ -7,10 +7,15 @@
 #include "firmware.h"
 #include "input.h"
 #include "time.h"
+#include "communication.h"
 #include "motor.h"
 #include "heating.h"
+#include "status.h"
 #include "DisplayHandler.h"
 #include "Charliplexing.h"
+
+
+#include <stdio.h>
 
 /*
 To compile for atmega644p
@@ -24,131 +29,7 @@ upload over Raspi GPIO to 644p:
 avrdude -F -V -c gpio -p m644p -P gpio -b 57600 -U flash:w:input.hex 
 */ 
 
-
-
-
-struct pinInfo RaspiReset = PA_0; //out 1 to remove power
-//struct pinInfo IHTempSensor = PA_1; //Analog
-//struct pinInfo MotorPosSensor = PA_2; //in		//Status Bit 6
-struct pinInfo Ventil = PA_3; //out
-struct pinInfo SafetyChain = PA_4; //out 1 to power
-struct pinInfo PusherLocked = PA_5; //in		//Status Bit 3
-struct pinInfo LidLocked = PA_6; //in			//Status Bit 2
-struct pinInfo LidClosed = PA_7; //in			//Status Bit 1
-
-//pb0-pb3	display
-//struct pinInfo IHOff = PB_4; //out //deactivated -> not needed
-//struct pinInfo CS = PB_4; //in  //chip select
-//pb5-7		mosi miso sclk
-/*struct pinInfo MOSI = PB_5; //out
-struct pinInfo MISO = PB_6; //in
-struct pinInfo SCK = PB_7; //out
-*/
-//pc0-pc7	display
-//pd0-pd1	rx/tx
-
-struct pinInfo SimulateButton0 = PD_2; //out
-//struct pinInfo isIHOn = PD_3; //in				//Status Bit 4
-//struct pinInfo IHOn = PD_4; //out
-//struct pinInfo MotorPWM = PD_5; //pwm	//OC1B
-//struct pinInfo IHPowerPWM = PD_6; //pwm	//OC2B
-//struct pinInfo IHFanPWM = PD_7; //pwm	//OC2A	//Status Bit 5
-
-//uint8_t MotorPWM_TIMER = TIMER1B;
-//uint8_t IHPowerPWM_TIMER = TIMER2B;
-//uint8_t IHFanPWM_TIMER = TIMER2A;
-
-
-//Status Byte Bit possition
-#define SB_CommandOK		0
-#define SB_LidClosed		1
-#define SB_LidLocked		2
-#define SB_PusherLocked		3
-#define SB_isIHOn			4
-#define SB_IHFanPWM			5
-#define SB_MotorPosSensor	6
-#define SB_CommandError		7
-
-#define SPI_CommandOK 0x01;
-
-uint8_t StatusByte = SPI_CommandOK;
-
-boolean wdtRestart __attribute__ ((section (".noinit")));
-
-int main (void)
-{
-	//Set Pin Modes
-	pinMode(RaspiReset, OUTPUT);
-//	pinMode(IHTempSensor, INPUT/*_ANALOG*/);
-//	pinMode(MotorPosSensor, INPUT_PULLUP);
-	pinMode(Ventil, OUTPUT);
-	pinMode(SafetyChain, OUTPUT);
-	pinMode(PusherLocked, INPUT_PULLUP);
-	pinMode(LidLocked, INPUT_PULLUP);
-	pinMode(LidClosed, INPUT_PULLUP);
-	pinMode(SimulateButton0, OUTPUT);
-//	pinMode(IHOff, OUTPUT);
-//	pinMode(isIHOn, INPUT_PULLUP);
-//	pinMode(IHOn, OUTPUT);
-//	pinMode(MotorPWM, OUTPUT/*_PWM*/);
-//	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
-//	pinMode(IHFanPWM, OUTPUT/*_PWM*/);
-
-	Motor_init();
-	Heating_init();
-		
-	//initialice time messurement
-	initTime();
-	
-	
-	//Enable Power for Motor / IH
-	digitalWrite(SafetyChain, HIGH);
-	//digitalWrite(IHOff, LOW);
-	
-	//Verify RaspiHas has Power
-	digitalWrite(RaspiReset, LOW);
-	
-	
-	//Init LoL-Shield
-	LedSign_Init(DOUBLE_BUFFER | GRAYSCALE);  //Initializes the screen
-	LedSign_Clear(3);
-	LedSign_Horizontal(5,PIXEL_ON);
-	LedSign_Vertical(3,PIXEL_ON);
-	LedSign_Flip(false);
-	
-	//TODO remove, test was WTD reset
-	digitalWrite(Ventil, wdtRestart);
-	_delay_ms(1000);
-	wdtRestart = false;
-	digitalWrite(Ventil, wdtRestart);
-	
-	//init SPI as Master
-	//initSPI();
-	
-	//initWatchDog();
-	
-	uint16_t ihTemp = 0;
-	uint8_t ihTemp8bit;
-	boolean pingFromDaemon = false;
-	while(1){
-		Motor_motorControl();
-		Heating_heatControl();
-		Heating_controlIHTemp();
-
-
-
-
-		//TODO read input
-		//triggerWatchDog(pingFromDaemon);
-		
-		
-//		digitalWrite(Ventil, digitalRead(isIHOn));
-		//SPI_MasterTransmit(0xAB);
-	}
-	
-	return 0;
-}
-
+#define SPI_MODE_IDLE						0
 #define SPI_MODE_GET_STATUS					1
 #define SPI_MODE_MOTOR						2
 #define SPI_MODE_HEATING					3
@@ -158,58 +39,396 @@ int main (void)
 #define SPI_MODE_DISPLAY_PERCENT_TEXT		7
 #define SPI_MODE_DISPLAY_CLEAR				8
 #define SPI_MODE_DISPLAY_PICTURE			9
+#define SPI_MODE_VENTIL						10
+
+
+
+struct pinInfo PIN_RaspiReset = PA_0; //out 1 to remove power
+//struct pinInfo PIN_IHTempSensor = PA_1; //Analog
+//struct pinInfo PIN_MotorPosSensor = PA_2; //in		//Status Bit 6
+struct pinInfo PIN_Ventil = PA_3; //out
+struct pinInfo PIN_SafetyChain = PA_4; //out 1 to power
+struct pinInfo PIN_PusherLocked = PA_5; //in		//Status Bit 3
+struct pinInfo PIN_LidLocked = PA_6; //in			//Status Bit 2
+struct pinInfo PIN_LidClosed = PA_7; //in			//Status Bit 1
+
+//pb0-pb3	display
+//struct pinInfo PIN_IHOff = PB_4; //out //deactivated -> not needed
+//struct pinInfo PIN_CS = PB_4; //in  //chip select
+//pb5-7		mosi miso sclk
+//struct pinInfo PIN_MOSI = PB_5; //Master: out  //Slave:in
+//struct pinInfo PIN_MISO = PB_6; //Master: in  //Slave:Out
+//struct pinInfo PIN_SCK = PB_7; //Master: out  //Slave:in
+
+//pc0-pc7	display
+//pd0-pd1	rx/tx
+
+struct pinInfo PIN_SimulateButton0 = PD_2; //out
+//struct pinInfo PIN_isIHOn = PD_3; //in				//Status Bit 4
+//struct pinInfo PIN_IHOn = PD_4; //out
+//struct pinInfo PIN_MotorPWM = PD_5; //pwm	//OC1B
+//struct pinInfo PIN_IHPowerPWM = PD_6; //pwm	//OC2B
+//struct pinInfo PIN_IHFanPWM = PD_7; //pwm	//OC2A	//Status Bit 5
+
+//uint8_t MotorPWM_TIMER = TIMER1B;
+//uint8_t IHPowerPWM_TIMER = TIMER2B;
+//uint8_t IHFanPWM_TIMER = TIMER2A;
+
+
+uint8_t PusherLocked = 0;
+uint8_t LidLocked = 0;
+uint8_t LidClosed = 0;
+uint8_t VentilState = 0;
 
 uint8_t currentMode = 0;
-ISR(SPI_STC_vect){
-	uint8_t data = SPDR;
-	uint8_t response = 0xFF;
-	switch(currentMode){
-		case 0: //no mode check new mode
-			switch(data){
+uint8_t lastPercentValue = 0;
+boolean updatePercentAgain = false;
+uint16_t picture[9];
+unsigned long lastTextUpdate = 0;
+#define TEXT_UPDATE_TIMEOUT 100
+
+uint16_t picture_hi[9];
+uint16_t picture_bye[9];
+
+
+
+boolean called __attribute__ ((section (".noinit")));
+
+//if it was a watchdog reset, diesable watchdog in early startup (logic from avr/wdt.h)
+uint8_t mcusr_mirror __attribute__ ((section (".noinit")));
+
+
+boolean wdtRestart __attribute__ ((section (".noinit")));
+boolean wdtRestartLast __attribute__ ((section (".noinit")));
+
+int main (void)
+{
+	//Set Pin Modes
+	pinMode(PIN_RaspiReset, OUTPUT);
+//	pinMode(PIN_IHTempSensor, INPUT/*_ANALOG*/);
+//	pinMode(PIN_MotorPosSensor, INPUT_PULLUP);
+	pinMode(PIN_Ventil, OUTPUT);
+	pinMode(PIN_SafetyChain, OUTPUT);
+	pinMode(PIN_PusherLocked, INPUT_PULLUP);
+	pinMode(PIN_LidLocked, INPUT_PULLUP);
+	pinMode(PIN_LidClosed, INPUT_PULLUP);
+////	pinMode(PIN_SimulateButton0, OUTPUT);
+//	pinMode(PIN_IHOff, OUTPUT);
+//	pinMode(PIN_isIHOn, INPUT_PULLUP);
+//	pinMode(PIN_IHOn, OUTPUT);
+//	pinMode(PIN_MotorPWM, OUTPUT/*_PWM*/);
+//	pinMode(PIN_IHPowerPWM, OUTPUT/*_PWM*/);
+//	pinMode(PIN_IHFanPWM, OUTPUT/*_PWM*/);
+	
+	Motor_init();
+	Heating_init();
+		
+	//initialice time messurement
+	initTime();
+	
+	//Init LoL-Shield
+	LedSign_Init(DOUBLE_BUFFER | GRAYSCALE);  //Initializes the screen
+	LedSign_Clear(0);
+	LedSign_Flip(false);
+	/*
+	LedSign_Clear(3);
+	LedSign_Horizontal(5,PIXEL_ON);
+	LedSign_Vertical(3,PIXEL_ON);
+	LedSign_Flip(false);
+	*/
+	
+	//Init SPI
+	SPI_init(wdtRestart);
+	
+	//Disable JTAG interface
+	MCUCR = _BV(JTD);
+	MCUCR = _BV(JTD); //Need to write twice to disable it (Atmega_644.pdf, page 267, 23.8.1)
+	
+	
+	//Enable Power for Motor / IH
+	digitalWrite(PIN_SafetyChain, HIGH);
+	//digitalWrite(IHOff, LOW);
+	
+	//Verify Raspi has Power
+	digitalWrite(PIN_RaspiReset, LOW);
+	
+	
+	
+	//TODO remove, test was WTD reset
+	if (wdtRestart && wdtRestartLast){
+		wdtRestart = false;
+	}
+	wdtRestartLast = wdtRestart;
+	digitalWrite(PIN_Ventil, wdtRestart);
+	wdtRestart = false;
+	
+	/*
+	picture_hi[0] = 0b00000000000000;
+	picture_hi[1] = 0b00110110011000;
+	picture_hi[2] = 0b00110110011000;
+	picture_hi[3] = 0b00110110000000;
+	picture_hi[4] = 0b00111110011000;
+	picture_hi[5] = 0b00110110011000;
+	picture_hi[6] = 0b00110110011000;
+	picture_hi[7] = 0b00110110011000;
+	picture_hi[8] = 0b00000000000000;
+	
+	picture_bye[0] = 0b00000000000000;
+	picture_bye[1] = 0b01110010101110;
+	picture_bye[2] = 0b01001010101000;
+	picture_bye[3] = 0b01001010101000;
+	picture_bye[4] = 0b01110001001110;
+	picture_bye[5] = 0b01001001001000;
+	picture_bye[6] = 0b01001001001000;
+	picture_bye[7] = 0b01110001001110;
+	picture_bye[8] = 0b00000000000000;
+
+	DisplayHandler_displayProgress(80, false);
+	_delay_ms(2000);
+	LedSign_Clear(3);
+	LedSign_Flip(true);
+	_delay_ms(2000);
+	
+	uint16_t picture2[9]  = {	0b0010101010101010,
+								0b0001010101010101,
+								0b0010101010101010,
+								0b0001010101010101,
+								0b0010101010101010,
+								0b0001010101010101,
+								0b0010101010101010,
+								0b0001010101010101,
+								0b0010101010101010};
+	DisplayHandler_setPicture(&picture2[0]);
+	DisplayHandler_DisplayBitMap();
+	_delay_ms(2000);
+	
+	DisplayHandler_setText("EveryCook is starting");
+	currentMode = SPI_MODE_DISPLAY_TEXT_SMALL;
+	
+	
+	
+        //Hi
+			DisplayHandler_setPicture(&picture_hi[0]);
+			DisplayHandler_DisplayBitMap();
+        
+        //Bye
+					DisplayHandler_setPicture(&picture_bye[0]);
+					DisplayHandler_DisplayBitMap();
+        break;
+	*/
+	
+	if (mcusr_mirror & _BV(PORF)){
+		//Was power On reset
+		DisplayHandler_setText("EveryCook is starting");
+		currentMode = SPI_MODE_DISPLAY_TEXT;	
+	} else {
+		//TODO Remove
+		DisplayHandler_setPicture(&picture_hi[0]);
+		DisplayHandler_DisplayBitMap();
+	}
+
+	LedSign_Clear(3);
+	LedSign_Flip(true);
+	_delay_ms(100);
+	LedSign_Clear(0);
+	LedSign_Flip(true);
+	
+	boolean lastVentil = HIGH;
+	//initWatchDog();
+	boolean pingFromDaemon;
+	while(1){
+		wdt_reset();
+		/*
+		Motor_motorControl();
+		Heating_heatControl();
+		Heating_controlIHTemp();
+		checkLocks();
+		*/
+		pingFromDaemon=raspiRecived;
+		raspiRecived=false;
+		
+		digitalWrite(PIN_Ventil, lastVentil);
+		
+		if (availableSPI()){
+			if (lastVentil == HIGH){
+				lastVentil = LOW;
+			} else {
+				lastVentil = HIGH;
+			}
+			//digitalWrite(PIN_Ventil, HIGH);
+			//uint8_t data = peakSPI();
+			uint8_t data = readSPI(false); //true
+			char valueAsString[10];
+			sprintf(valueAsString, "%X", data); //HEX
+			//sprintf(valueAsString, "%d", data);  //DEC
+			DisplayHandler_setText2(valueAsString);
+			DisplayHandler_displayText(false);
+			//digitalWrite(PIN_Ventil, LOW);
+			nextResponse = SPI_CommandOK;
+			//_delay_ms(100);
+		}
+		/*
+		if (availableSPI() > 1) {
+			uint8_t data;
+			uint8_t newMode = readSPI(true);
+			char* newText;
+			uint8_t readAmount = 0;
+			switch(newMode){
+				case SPI_MODE_IDLE:
+				break;
 				case SPI_MODE_GET_STATUS:
-					response = StatusByte;
+					nextResponse = StatusByte;
 				break;
 				case SPI_MODE_DISPLAY_CLEAR:
 					LedSign_Clear(0);
 					LedSign_Flip(true);
-					response = SPI_CommandOK;
+					currentMode = 0;
+					nextResponse = SPI_CommandOK;
 				break;
 				case SPI_MODE_MOTOR:
+					data = readSPI(true);
+					wdt_reset();
+					Motor_setMotor(data);
+					nextResponse = SPI_CommandOK;
+				break;
 				case SPI_MODE_HEATING:
-				case SPI_MODE_DISPLAY_TEXT:
-				case SPI_MODE_DISPLAY_TEXT_SMALL:
+					data = readSPI(true);
+					wdt_reset();
+					Heating_setHeating(data);
+					nextResponse = SPI_CommandOK;
+				break;
+				case SPI_MODE_VENTIL:
+					VentilState = readSPI(true);
+					wdt_reset();
+					digitalWrite(PIN_Ventil, VentilState);
+					nextResponse = SPI_CommandOK;
+				break;
+
 				case SPI_MODE_DISPLAY_PERCENT:
 				case SPI_MODE_DISPLAY_PERCENT_TEXT:
+					data = readSPI(true);
+					wdt_reset();
+					DisplayHandler_displayProgress(data, false);
+					lastPercentValue = data;
+					if (newMode != SPI_MODE_DISPLAY_PERCENT_TEXT){
+						nextResponse = SPI_CommandOK;
+						currentMode = newMode;
+						break;
+					}
+				case SPI_MODE_DISPLAY_TEXT:
+				case SPI_MODE_DISPLAY_TEXT_SMALL:
+					DisplayHandler_readText(); //[01]<textlen 1 Byte><text>[00<control byte>]
+					if (newMode == SPI_MODE_DISPLAY_TEXT){
+						DisplayHandler_displayText(false);
+					} else {
+						DisplayHandler_displayText(true);
+					}
+					lastTextUpdate = millis();
+					if (newMode == SPI_MODE_DISPLAY_PERCENT_TEXT){
+						updatePercentAgain = true;
+					}
+					nextResponse = SPI_CommandOK;
+					currentMode = newMode;
+				break;
+				
 				case SPI_MODE_DISPLAY_PICTURE:
-					currentMode = data;
-					response = SPI_CommandOK;
+					uint8_t readAmount = 0;
+					while (readAmount < 9){
+						if (availableSPI() >= 2) {
+							data = readSPI(true);
+							picture[readAmount] = data << 8;
+							data = readSPI(true);
+							picture[readAmount] |= data;
+							readAmount++;
+							wdt_reset();
+//						} else {
+//							_delay_ms(10);
+						}
+					}
+					DisplayHandler_setPicture(&picture[0]);
+					DisplayHandler_DisplayBitMap();
+					nextResponse = SPI_CommandOK;
 				break;
 			}
-		break;
-		
-		case SPI_MODE_GET_STATUS:
-			response = StatusByte;
-		break;
-		case SPI_MODE_MOTOR:
-			Motor_setMotor(data);
-			currentMode = 0;
-			response = SPI_CommandOK;
-		break;
-		case SPI_MODE_HEATING:
-			Heating_setHeating(data);
-			currentMode = 0;
-			response = SPI_CommandOK;
-		break;
-		case SPI_MODE_DISPLAY_TEXT:
-		case SPI_MODE_DISPLAY_TEXT_SMALL:
-			//response = Display_addText(data);
-			if (response != 0xFF){
-				currentMode = 0;
+		} else {
+			switch(currentMode){
+				case SPI_MODE_IDLE:
+				break;
+				case SPI_MODE_DISPLAY_PERCENT_TEXT:
+					if (updatePercentAgain) {
+						DisplayHandler_displayProgress(lastPercentValue, true);
+						updatePercentAgain = false;
+					}
+				case SPI_MODE_DISPLAY_TEXT:
+				case SPI_MODE_DISPLAY_TEXT_SMALL:
+					if ((millis() - lastTextUpdate) > TEXT_UPDATE_TIMEOUT){
+						lastTextUpdate = millis();
+						if(!DisplayHandler_displayText(true)){
+							currentMode = 0;
+						}
+					}
+				break;
 			}
-		break;
+		}
+		*/
+		
+		/*
+		if (pingFromDaemon){
+			LedSign_Clear(PIXEL_OFF);
+			uint8_t i, x, y=5;
+			for (i=0;i<8;i++){
+				if ((recivedCounter>>i) & 0x01){
+					LedSign_Set(x,y,PIXEL_ON);
+				}
+			}
+			y=6;
+			for (i=0;i<8;i++){
+				if ((recivedData>>i) & 0x01){
+					LedSign_Set(x,y,PIXEL_ON);
+				}
+			}
+			LedSign_Flip(false);
+		}*/
+
+		//triggerWatchDog(pingFromDaemon);
+		
+		
+//		digitalWrite(PIN_Ventil, digitalRead(PIN_isIHOn));
+		//if (StatusByte & _BV(StatusByte)){
+		/*
+		if (pingFromDaemon){
+			digitalWrite(PIN_Ventil, HIGH);
+		} else {
+			digitalWrite(PIN_Ventil, LOW);
+		}*/
 	}
-	SPDR = response;
+	
+	return 0;
 }
+
+void checkLocks(){
+	PusherLocked = digitalRead(PIN_PusherLocked);
+	LidLocked = digitalRead(PIN_LidLocked);
+	LidClosed = digitalRead(PIN_LidClosed);
+
+	if (PusherLocked){
+		StatusByte |= _BV(SB_PusherLocked);
+	}else{
+		StatusByte &= ~_BV(SB_PusherLocked);
+	}
+
+	if (LidLocked){
+		StatusByte |= _BV(SB_LidLocked);
+	}else{
+		StatusByte &= ~_BV(SB_LidLocked);
+	}
+	if (LidClosed){
+		StatusByte |= _BV(SB_LidClosed);
+	}else{
+		StatusByte &= ~_BV(SB_LidClosed);
+	}
+}
+
 
 /*
 
@@ -221,11 +440,6 @@ Und erst nachher reseten wir den Raspi auf die harte tour.
 */
 
 
-
-boolean called __attribute__ ((section (".noinit")));
-
-//if it was a watchdog reset, diesable watchdog in early startup (logic from avr/wdt.h)
-uint8_t mcusr_mirror __attribute__ ((section (".noinit")));
 
 void get_mcusr(void) \
   __attribute__((naked)) \
@@ -318,7 +532,7 @@ void triggerWatchDog(boolean pingFromDaemon){
 	}
 }
 
-//Watchdog timeout exeded
+//############################ Watchdog timeout exeded ############################
 ISR(WDT_vect){
 	cli();
 	
@@ -338,15 +552,15 @@ ISR(WDT_vect){
 	
 	//--- what to do? ---
 	//Disable safety chain
-	digitalWrite(SafetyChain, LOW);
+	digitalWrite(PIN_SafetyChain, LOW);
 	//stop heating
-	//digitalWrite(IHOff, HIGH);
+	//digitalWrite(PIN_IHOff, HIGH);
 	//TODO analogWrite(IHPowerPWM_TIMER, 0);
 	//stop motor
 	//TODO analogWrite(MotorPWM_TIMER, 0);
 	
 	//try restart atmel -> System reset
-	if (resetAtmelTime == 0) {
+//	if (resetAtmelTime == 0) {
 		//reenable wdt to do systemreset use following lines of code for it:
 		// allow changes, disable reset
 		WDTCSR = _BV (_WD_CHANGE_BIT) | _BV (WDE);
@@ -354,15 +568,18 @@ ISR(WDT_vect){
 		WDTCSR = _BV (WDE);    // set WDE(=restart mode), and delay to default 16ms
 		
 		resetAtmelTime = millis();
+/*		
 		sei();
 		return;
 	}
+	*/
 	
+	/*
 	//try restart deamon -> send command/ set pin to high to do so
 	if (resetDaemonTime == 0) {
-		digitalWrite(SimulateButton0, HIGH);
+		digitalWrite(PIN_SimulateButton0, HIGH);
 		_delay_ms(DAEMON_RESET_BUTTON_TIME);
-		digitalWrite(SimulateButton0, LOW);
+		digitalWrite(PIN_SimulateButton0, LOW);
 		resetDaemonTime = millis();
 		sei();
 		return;
@@ -370,15 +587,16 @@ ISR(WDT_vect){
 	
 	//if demaon restart don't work, restart raspi
 	if (resetRaspiTime == 0) {
-		digitalWrite(RaspiReset, HIGH);
+		digitalWrite(PIN_RaspiReset, HIGH);
 		_delay_ms(RASPI_RESET_TIME);
-		digitalWrite(RaspiReset, LOW);
+		digitalWrite(PIN_RaspiReset, LOW);
 		resetRaspiTime = millis();
 		//resetRaspiTime = 1;
 		resetAtmelTime = 0;
 		sei();
 		return;
 	}
+	*/
 	
 	sei();
 }

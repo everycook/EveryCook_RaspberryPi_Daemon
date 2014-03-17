@@ -4,6 +4,7 @@
 #include "input.h"
 #include "time.h"
 #include "mytypes.h"
+#include "status.h"
 
 struct pinInfo MotorPosSensor = PA_2; //in
 struct pinInfo MotorPWM = PD_5; //pwm	//OC1B
@@ -77,6 +78,11 @@ void Motor_motorControl() {
           motorStoped = true;
         }
       }
+	if (outputValueMotor == 0){
+		StatusByte |= _BV(SB_MotorStoped);
+	}else{
+		StatusByte&= ~_BV(SB_MotorStoped);
+	}
       LastSensorValue=sensorValue;
 
       analogWrite(MotorPWM_TIMER, outputValueMotor);       

@@ -3,6 +3,7 @@
 
 #include "heating.h"
 #include "input.h"
+#include "status.h"
 
 struct pinInfo IHTempSensor = PA_1; //Analog
 
@@ -32,7 +33,15 @@ void Heating_controlIHTemp(){
 		IHFanPWM = 150;
 	} else if (ihTemp8bit > 64){
 		IHFanPWM = 100;
+	} else if (ihTemp8bit < 32){
+		IHFanPWM = 0;
+}
+	if (IHFanPWM != 0){
+		StatusByte |= _BV(SB_IHFanOn);
+	}else{
+		StatusByte&= ~_BV(SB_IHFanOn);
 	}
+
 	if (lastIHFanPWM != IHFanPWM){
 		analogWrite(IHFanPWM_TIMER, IHFanPWM);
 		lastIHFanPWM = IHFanPWM;
@@ -114,6 +123,12 @@ void Heating_heatControl(){
       outputValueIH = initialOutputValue;
     }
 lastIsHeating=isHeating;
+	if (isHeating){
+		StatusByte |= _BV(SB_isIHOn);
+	}else{
+		StatusByte&= ~_BV(SB_isIHOn);
+	}
+
 /*
       // print the results to the serial monitor:
       Serial.print("start = " );                       

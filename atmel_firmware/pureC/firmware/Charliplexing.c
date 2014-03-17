@@ -102,10 +102,10 @@ static boolean initialized = false;
 
 /// Uncomment to set analog pin 5 high during interrupts, so that an
 /// oscilloscope can be used to measure the processor time taken by it
-#define MEASURE_ISR_TIME
+//#define MEASURE_ISR_TIME
 #ifdef MEASURE_ISR_TIME
 #include "input.h"
-struct pinInfo statusPIN = PD_2;
+struct pinInfo statusPIN = PA_3;
 #endif
 
 
@@ -354,7 +354,9 @@ ISR(TIMER0_OVF_vect) {
 #ifdef MEASURE_ISR_TIME
     digitalWrite(statusPIN, HIGH);
 #endif
-
+	uint8_t oldSREG = SREG;
+	cli();
+	
     // For each cycle, we have potential SHADES pages to display.
     // Once every page has been displayed, then we move on to the next
     // cycle.
@@ -371,11 +373,12 @@ ISR(TIMER0_OVF_vect) {
 
     // Set sink pin to Vcc/source, turning off current.
     PINC = sink;
-    PINB = (PINB & 0xE0) | (sink >> 8);
+//    PINB = (PINB & 0xF0) | (sink >> 8);
+    PINB = ((sink >> 8) & 0x0F); //seting logical one will Toggle ... so do not set anything in the ignored part of PortB (Atmega_644.pdf, page 65, 12.1)
     //delayMicroseconds(1);
     // Set pins to input mode; Vcc/source become pullups.
     DDRC = 0;
-    DDRB = (DDRB & 0xE0) | 0;
+    DDRB = (DDRB & 0xF0) | 0;
 
     //sink = 1 << (cycle+2);
 	sink = 1 << cycle;
@@ -385,14 +388,15 @@ ISR(TIMER0_OVF_vect) {
 
     // Enable pullups on new output pins.
     PORTC = pins;
-    PORTB = (PORTB & 0xE0) | (pins >> 8);
+    PORTB = (PORTB & 0xF0) | (pins >> 8);
     //delayMicroseconds(1);
     // Set pins to output mode; pullups become Vcc/source.
     DDRC = pins;
-    DDRB = (DDRB & 0xE0) | (pins >> 8);
+    DDRB = (DDRB & 0xF0) | (pins >> 8);
     // Set sink pin to GND/sink, turning on current.
     PINC = sink;
-    PINB = (PINB & 0xE0) | (sink >> 8);
+//    PINB = (PINB & 0xF0) | (sink >> 8);
+    PINB = ((sink >> 8) & 0x0F); //seting logical one will Toggle ... so do not set anything in the ignored part of PortB (Atmega_644.pdf, page 65, 12.1)
 
     page++;
 
@@ -426,6 +430,8 @@ ISR(TIMER0_OVF_vect) {
 	    displayPointer = displayBuffer->pixels;
         }
     }
+	
+	SREG = oldSREG;
 #ifdef MEASURE_ISR_TIME
     digitalWrite(statusPIN, LOW);
 #endif

@@ -4,9 +4,11 @@
 #include "NormalFont.h"
 #include "SmallFont.h"
 #include "mytypes.h"
+#include "communication.h"
 
 #include <inttypes.h>
 #include <util/delay.h>
+#include <avr/wdt.h>
 
 
 //#include <stdio.h>
@@ -35,11 +37,15 @@ uint8_t lastPercentCols = 0;
 boolean lastHalfLed = false;
 uint8_t lastPercentText = 0;
 
-uint16_t picture[9];
+uint16_t pictureToShow[9];
 
 
 
-void DisplayHandler_setPicture(uint16_t picture[9]){
+void DisplayHandler_setPicture(uint16_t* picture){
+	uint8_t i;
+	for(i=0; i<9; i++){
+		pictureToShow[i]=picture[i];
+	}
 }
 
 void DisplayHandler_setText(char *newTextToShow){
@@ -49,6 +55,12 @@ void DisplayHandler_setText(char *newTextToShow){
   textCharPos = 0;
 }
 
+void DisplayHandler_setText2(char *newTextToShow){
+  textToShow = newTextToShow;
+  textXCord = 0;
+  textYCord = 0;
+  textCharPos = 0;
+}
 
 void DisplayHandler_clearPercentTextArea(){
 	uint8_t y=0;
@@ -215,7 +227,7 @@ void DisplayHandler_DisplayBitMap()
   uint8_t line = 0;       //Row counter
   unsigned long data;  //Temporary storage of the row data
   for(line = 0; line < 9; line++) {
-    data = picture[line];
+    data = pictureToShow[line];
 	uint8_t led=0;
     for (; led<14; ++led) {
       //if (data & (1<<led)) { //data is reversed, last bit is first pixel
@@ -230,55 +242,50 @@ void DisplayHandler_DisplayBitMap()
 }
 
 boolean DisplayHandler_readText(){
-/*
-  uint8_t textLen = 0;
-  uint8_t readAmount = 0;
-  textLen = SPI_read_wait();
-  char *newText = (char *) malloc(textLen * sizeof(char) + 1);
-//Serial.print("Text length:");
-//Serial.println(textLen);
-  while(readAmount < textLen){
-        newText[readAmount] = SPI_read_wait();
-//Serial.write(newText[readAmount]);
-        readAmount++;
-  }
-//Serial.println();
-  boolean sucess = false;
-//Serial.println("Text end reached");
-  if(newText[readAmount] != 00){
-    newText[readAmount] = 0x00;
-    if(Serial.available() == 0) {
-      delay(100);
-    }
-    if(Serial.available() == 0) {
-//  Serial.println("no sign after text end, it have to end with a 0x00");
-      sucess = false;
-    } else {
-      uint8_t inByte = Serial.peek();
-      if (inByte != 0x00) {
-//    Serial.println("text have to end with a 0x00");
-        sucess = false;
-      } else {
-        inByte = Serial.read();
-//   Serial.println("text is OK");
-        sucess = true;
-      }
-    }
-  } else {
-//  Serial.println("text end submited");
-    sucess = true;
-  }
-//  if (sucess){
-    if (textToShow != NULL){
-      free(textToShow);
-    }
-    textToShow = newText;
-    textXCord = DISPLAY_COLS;
-    textYCord = 0;
-    textCharPos = 0;
-//  }
-  return sucess;
+	uint8_t textLen = 0;
+	uint8_t readAmount = 0;
+	textLen = readSPI(true);
+	char *newText = (char *) malloc(textLen * sizeof(char) + 1);
+	while(readAmount < textLen){
+		newText[readAmount] = readSPI(true);
+		wdt_reset();
+		readAmount++;
+	}
+	boolean sucess = false;
+	if(newText[readAmount] != 00){
+		newText[readAmount] = 0x00;
+/*		if(availableSPI() == 0) {
+			_delay_ms(500);
+		}
 */
+		if(availableSPI() == 0) {
+			//Serial.println("no sign after text end, it have to end with a 0x00");
+			sucess = false;
+		} else {
+			uint8_t inByte = peekSPI();
+			if (inByte != 0x00) {
+				//Serial.println("text have to end with a 0x00");
+				sucess = false;
+			} else {
+				inByte = readSPI(true);
+				//Serial.println("text is OK");
+				sucess = true;
+			}
+		}
+	} else {
+		//Serial.println("text end submited");
+		sucess = true;
+	}
+//	if (sucess){
+		if (textToShow != NULL){
+			free(textToShow);
+		}
+		textToShow = newText;
+		textXCord = DISPLAY_COLS;
+		textYCord = 0;
+		textCharPos = 0;
+//	}
+	return sucess;
 }
 
 boolean DisplayHandler_displayText(boolean small){

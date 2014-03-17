@@ -8,10 +8,12 @@
 #define PIXEL_HALF 2
 #define PIXEL_OFF 0
 
+
 //namespace DisplayHandler
 //{
-  extern void DisplayHandler_setPicture(uint16_t picture[9]);
+  extern void DisplayHandler_setPicture(uint16_t* picture);
   extern void DisplayHandler_setText(char *newTextToShow);
+  extern void DisplayHandler_setText2(char *newTextToShow);
   extern void DisplayHandler_clearPercentTextArea();
   extern void DisplayHandler_displayProgress(uint8_t percent, boolean noFlip);
   extern void DisplayHandler_DisplayBitMap();
