@@ -17,9 +17,14 @@ See GPLv3.htm in the main folder for details.
  *
  */
 
-//Pin defination for the I2C
+//Pin defination for the I2C (gpio numbers)
 #define SDA	      2
 #define SCL	      3
+/*
+//Pin defination for the I2C (physics numbers)
+#define SDA	      3
+#define SCL	      5
+*/
 
 //I2C_DELAY_TIME
 #define DELAY_TIME   10

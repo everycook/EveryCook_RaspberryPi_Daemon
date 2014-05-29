@@ -45,8 +45,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 
 #include "daemon_structs.h"
 #include "hardwareFunctions.h"
-#include "atmel.h"
-#include <wiringSerial.h>
+//#include "atmel.h"
+//#include <wiringSerial.h>
+#include "virtualspiAtmel.h"
 
 
 const uint32_t MIN_STATUS_INTERVAL = 20;
@@ -178,12 +179,18 @@ int main(int argc, const char* argv[]){
 	initHardware(settings.shieldVersion, buttonConfig.button_pin, buttonConfig.button_inverse);
 	delay(30);
 	
+	if (settings.shieldVersion >= 4){
+		VirtualSPIAtmelInit(settings.debug_enabled);
+	}
+	
 	initOutputFile();
 	state.Delay = settings.LongDelay;
 	
 	resetValues();
 	state.referenceForce = forceCalibration.offset; //for default reference Force in calibration mode
-	SegmentDisplaySimple(' ', &state, &i2c_config);
+	if (settings.shieldVersion < 4){
+		SegmentDisplaySimple(' ', &state, &i2c_config);
+	}
 	
 	if (settings.debug_enabled){printf("commandFile is: %s\n", settings.commandFile);}
 	if (settings.debug_enabled){printf("statusFile is: %s\n", settings.statusFile);}
@@ -197,18 +204,21 @@ int main(int argc, const char* argv[]){
 	printf("runtime is now: %d \n", timeValues.runTime);
 	timeValues.stepStartTime = timeValues.runTime; //TODO WIA CHANGE THIS
 	
+	
+	if (settings.debug_enabled){printf("runningModes: normalMode:%d, calibration:%d, measure_noise:%d, test_7seg:%d, test_servo:%d, test_heat_led:%d, test_motor:%d, test_buttons:%d, test_adc:%d, test_heating_power:%d, test_heating_press:%d, test_serial:%d\n", runningMode.normalMode, runningMode.calibration, runningMode.measure_noise, runningMode.test_7seg, runningMode.test_servo, runningMode.test_heat_led, runningMode.test_motor, runningMode.test_buttons, runningMode.test_adc, runningMode.test_heating_power, runningMode.test_heating_press, runningMode.test_serial);}
+	
+	
 	if (runningMode.normalMode){
-		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		if (settings.shieldVersion < 4){
+			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
 		if(settings.shieldVersion != 1){
 			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);
 		}
 		
-		int fd = atmelConnenct(settings.atmelDevicePath);
-		state.atmelfd = fd;
-		
 		//Show Smilly / startscreen
-		if (state.atmelfd != -1){
+		if (settings.shieldVersion >= 4){
 									//00##############
 			uint16_t picture[9] = {	0b0000000111110000,
 									0b0000001000001000,
@@ -219,68 +229,9 @@ int main(int argc, const char* argv[]){
 									0b0000010011100100,
 									0b0000001000001000,
 									0b0000000111110000};
-			atmelShowPicture(state.atmelfd, &picture[0]);
-		}
-		/*
-		//Show Text
-		atmelShowText(fd, "1234567890");
-		delay(2000);
-		
-		printf("Show Smilly\n");
-		//Show Smilly
-								//00##############
-		uint16_t picture[9] = {	0b0000000111110000,
-								0b0000001000001000,
-								0b0000010000000100,
-								0b0000010100010100,
-								0b0000010000000100,
-								0b0000010100010100,
-								0b0000010011100100,
-								0b0000001000001000,
-								0b0000000111110000};
-		atmelShowPicture(fd, &picture[0]);
-		while(serialDataAvail(fd)){
-			int inChar = serialGetchar (fd);
-			printf("%c", inChar);
-		}
-		delay(1000);
-		
-		uint16_t picture2[9]  = {	0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010};
-		atmelShowPicture(fd, &picture2[0]);
-		while(serialDataAvail(fd)){
-			int inChar = serialGetchar (fd);
-			printf("%c", inChar);
-		}
-		delay(1000);
-		
-		printf("Show percent progress\n");
-		// show percent 0-140
-		uint8_t i=0;
-		for (; i<140; ++i) {
-		
-			if (state.atmelfd != -1){
-			atmelShowPercent(state.atmelfd, i);
-				while(serialDataAvail(fd)){
-					int inChar = serialGetchar (fd);
-					printf("%c", inChar);
-				}
-			}
-			delay(200);
+			atmelShowPicture(&picture[0]);
 		}
 		
-		printf("Show text\n");
-		//Show Text
-		atmelShowText(fd, "Hallo Welt! Ich komme vom Raspi!");
-		delay(18400);
-		*/
 		while (state.running){
 			if (settings.debug_enabled){printf("main loop...\n");}
 			if (timeValues.lastRunTime != timeValues.runTime){
@@ -316,15 +267,13 @@ int main(int argc, const char* argv[]){
 		} else {
 			setSolenoidOpen(false, &daemon_values);
 		}
-		if (state.atmelfd >= 0){
-			atmelClear(state.atmelfd);
-			atmelClose(state.atmelfd);
-		}
 		if(settings.shieldVersion != 1){
 			pthread_join(threadHandleButtons, NULL);
 		}
 		pthread_join(threadReadADCValues, NULL);
-		pthread_join(threadHeaterLedReader, NULL);
+		if (settings.shieldVersion < 4){
+			pthread_join(threadHeaterLedReader, NULL);
+		}
 	} else if (runningMode.calibration || runningMode.measure_noise){
 		if (runningMode.calibration) {
 			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
@@ -359,35 +308,44 @@ int main(int argc, const char* argv[]){
 			pthread_join(threadHeaterLedReader, NULL);
 		}
 	} else if (runningMode.test_7seg){
-		while (state.running){
-			blink7Segment(&i2c_config);
-			delay(state.Delay);
-		}
-	} else if (runningMode.test_servo){
-		int16_t diff = settings.test_servo_max-settings.test_servo_min;
-		int16_t step = diff / 20;
-		uint16_t value=settings.test_servo_min;
-		if (step == 0){
-			printf("%d\n",value);
-			writeI2CPin(i2c_config.i2c_servo, value);
-		} else if (step>0){
-			printf(">0 step: %d\n",step);
-			while (value<=settings.test_servo_max && state.running){
-				printf("%d\n",value);
-				writeI2CPin(i2c_config.i2c_servo, value);
-				delay(500);
-				value=value+step;
+		if (settings.shieldVersion < 4){
+			while (state.running){
+				blink7Segment(&i2c_config);
+				delay(state.Delay);
 			}
 		} else {
-			printf("<0 step: %d\n",step);
-			while (value>=settings.test_servo_max && state.running){
+			printf("There is no 7seg display in shieldVersion %d\n", settings.shieldVersion);
+		}
+	} else if (runningMode.test_servo){
+		if (settings.shieldVersion < 4){
+			int16_t diff = settings.test_servo_max-settings.test_servo_min;
+			int16_t step = diff / 20;
+			uint16_t value=settings.test_servo_min;
+			if (step == 0){
 				printf("%d\n",value);
 				writeI2CPin(i2c_config.i2c_servo, value);
-				delay(500);
-				value=value+step;
+			} else if (step>0){
+				printf(">0 step: %d\n",step);
+				while (value<=settings.test_servo_max && state.running){
+					printf("%d\n",value);
+					writeI2CPin(i2c_config.i2c_servo, value);
+					delay(500);
+					value=value+step;
+				}
+			} else {
+				printf("<0 step: %d\n",step);
+				while (value>=settings.test_servo_max && state.running){
+					printf("%d\n",value);
+					writeI2CPin(i2c_config.i2c_servo, value);
+					delay(500);
+					value=value+step;
+				}
 			}
+			delay(2000);
+		} else {
+			printf("There is no servo in shieldVersion %d, so open/close solenoid if min value is >0/=0\n", settings.shieldVersion);
+			setSolenoidOpen(settings.test_servo_min>0, &daemon_values);
 		}
-		delay(2000);
 	} else if (runningMode.test_heat_led){
 		state.Delay = 10;
 		uint32_t led[6];
@@ -716,6 +674,8 @@ int main(int argc, const char* argv[]){
 				}
 				delay(state.Delay);
 			}
+		} else {
+			printf("No longer China Board (on shieldVersion %d), so no need to read heater-leds. Logic now on ATMega644 firmware\n", settings.shieldVersion);
 		}
 	} else if (runningMode.test_motor){
 		int16_t diff = settings.test_servo_max-settings.test_servo_min;
@@ -724,12 +684,20 @@ int main(int argc, const char* argv[]){
 		printf("motor is i2c pin: %d\n", i2c_config.i2c_motor);
 		if (step == 0){
 			printf("%d\n",value);
-			writeI2CPin(i2c_config.i2c_motor, value);
+			if(settings.shieldVersion < 4){
+				writeI2CPin(i2c_config.i2c_motor, value);
+			} else {
+				atmelSetMotorRPM(value);
+			}
 		} else if (step>0){
 			printf(">0 step: %d\n",step);
 			while (value<=settings.test_servo_max && state.running){
 				printf("%d\n",value);
-				writeI2CPin(i2c_config.i2c_motor, value);
+				if(settings.shieldVersion < 4){
+					writeI2CPin(i2c_config.i2c_motor, value);
+				} else {
+					atmelSetMotorRPM(value);
+				}
 				delay(500);
 				value=value+step;
 			}
@@ -737,14 +705,22 @@ int main(int argc, const char* argv[]){
 			printf("<0 step: %d\n",step);
 			while (value>=settings.test_servo_max && state.running){
 				printf("%d\n",value);
-				writeI2CPin(i2c_config.i2c_motor, value);
+				if(settings.shieldVersion < 4){
+					writeI2CPin(i2c_config.i2c_motor, value);
+				} else {
+					atmelSetMotorRPM(value);
+				}
 				delay(500);
 				value=value+step;
 			}
 		}
 		delay(2000);
 		printf("set motor back to 0\n");
-		writeI2CPin(i2c_config.i2c_motor, 0);
+		if(settings.shieldVersion < 4){
+			writeI2CPin(i2c_config.i2c_motor, 0);
+		} else {
+			atmelSetMotorRPM(0);
+		}
 	} else if (runningMode.test_buttons){
 		state.Delay = 10;
 		printf("test_buttons\n");
@@ -1050,7 +1026,7 @@ int main(int argc, const char* argv[]){
 			timeValues.runTimeMillis = millis();
 			if (settings.debug_enabled || settings.debug3_enabled){printf("time: %9d\tWeight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", timeValues.runTimeMillis,  adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}
 			if (currentTestPart == 0){
-				if (state.lidOpen){
+				if (!state.lidClosed){
 					if (partReachedTime == 0){
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
@@ -1087,7 +1063,7 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 2){
-				if (!state.lidOpen){
+				if (state.lidClosed){
 					if (adc_values.Weight.valueByOffset - weight < 400){
 						if (partErrorTime == 0){
 							partErrorTime = timeValues.runTimeMillis;
@@ -1214,7 +1190,7 @@ int main(int argc, const char* argv[]){
 			timeValues.runTimeMillis = millis();
 			if (settings.debug_enabled || settings.debug3_enabled){printf("time: %9d\tWeight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", timeValues.runTimeMillis,  adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}
 			if (currentTestPart == 0){
-				if (state.lidOpen){
+				if (!state.lidClosed){
 					if (partReachedTime == 0){
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
@@ -1251,7 +1227,7 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 2){
-				if (!state.lidOpen){
+				if (state.lidClosed){
 					if (adc_values.Weight.valueByOffset - weight < 400){
 						if (partErrorTime == 0){
 							partErrorTime = timeValues.runTimeMillis;
@@ -1385,73 +1361,170 @@ int main(int argc, const char* argv[]){
 		HeatOff(&daemon_values);
 		pthread_join(threadHeaterLedReader, NULL);
 	} else if (runningMode.test_serial){
-		printf("test serial\n");
-		int fd = atmelConnenct(settings.atmelDevicePath);
-		if (fd == -1){
-			return 1;
-		}
-		state.atmelfd = fd;
-		
-		//Show Text
-		atmelShowText(fd, "1234567890");
-		delay(2000);
-		
-		printf("Show Smilly\n");
-		//Show Smilly
-								//00##############
-		uint16_t picture[9] = {	0b0000000111110000,
-								0b0000001000001000,
-								0b0000010000000100,
-								0b0000010100010100,
-								0b0000010000000100,
-								0b0000010100010100,
-								0b0000010011100100,
-								0b0000001000001000,
-								0b0000000111110000};
-		atmelShowPicture(fd, &picture[0]);
-		while(serialDataAvail(fd)){
-			int inChar = serialGetchar (fd);
-			printf("%c", inChar);
-		}
-		delay(1000);
-		
-		uint16_t picture2[9]  = {	0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010,
-									0b0001010101010101,
-									0b0010101010101010};
-		atmelShowPicture(fd, &picture2[0]);
-		while(serialDataAvail(fd)){
-			int inChar = serialGetchar (fd);
-			printf("%c", inChar);
-		}
-		delay(1000);
-		
-		printf("Show percent progress\n");
-		// show percent 0-140
-		uint8_t i=0;
-		for (; i<140; ++i) {
-			atmelShowPercent(fd, i);
-			while(serialDataAvail(fd)){
-				int inChar = serialGetchar (fd);
-				printf("%c", inChar);
+		if (settings.shieldVersion < 4){
+			printf("there is no ATMega644 on shieldVersion %d\n", settings.shieldVersion);
+		} else {
+			printf("test serial / Atmel communication\n");
+			SPIAtmelReset();
+			atmelSetMaintenance(true);
+			
+			uint8_t stepNr = 0;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("count from 0 to 255\n");
+				uint8_t value=0;
+				for(value=10;value<255 && state.running;value++){
+					SPIAtmelWrite(value);
+					//delay(200);
+					if (value % 10 == 0){
+						delay(1000);
+					}
+				}
+				if (!state.running){
+					exit(0);
+				}
+				SPIAtmelWrite(value);
+				delay(250);
 			}
-			delay(200);
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				atmelShowPercent(100);
+				delay(2000);
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				//Show Text
+				printf("Show Numbers\n");
+				atmelShowText("1234567890");
+				delay(6000);
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("Show Smilly\n");
+				//Show Smilly
+										//00##############
+				uint16_t picture[9] = {	0b0000000111110000,
+										0b0000001000001000,
+										0b0000010000000100,
+										0b0000010100010100,
+										0b0000010000000100,
+										0b0000010100010100,
+										0b0000010011100100,
+										0b0000001000001000,
+										0b0000000111110000};
+				atmelShowPicture(&picture[0]);
+				delay(2000);
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("Show chess\n");
+				uint16_t picture2[9]  = {	0b0010101010101010,
+											0b0001010101010101,
+											0b0010101010101010,
+											0b0001010101010101,
+											0b0010101010101010,
+											0b0001010101010101,
+											0b0010101010101010,
+											0b0001010101010101,
+											0b0010101010101010};
+				atmelShowPicture(&picture2[0]);
+				delay(2000);
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("Show percent progress\n");
+				// show percent 0-140
+				uint8_t i=0;
+				for (; i<140 && state.running; i=i+10) {
+					atmelShowPercent(i);
+				}
+				delay(2000);
+				printf("clear\n");
+				atmelClear();
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("Show text\n");
+				//Show Text
+				atmelShowText("Hallo Welt! Ich komme vom Raspi!");
+				//delay(18400);
+				delay(14000);
+				printf("clear\n");
+				atmelClear();
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("atmelSetSolenoidOpen, for 5 seconds\n");
+				uint8_t count=0;
+				atmelSetSolenoidOpen(true);
+				while(state.running && count<10){
+					parseAtmelState();
+					delay(500);
+					count++;
+				}
+				atmelSetSolenoidOpen(false);
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("enable heater, for 10 seconds\n");
+				uint8_t count=0;
+				atmelSetHeating(true);
+				while(state.running && count<20){
+					parseAtmelState();
+					delay(500);
+					count++;
+				}
+				atmelSetHeating(false);
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("enable motor in full speed, for 10 seconds\n");
+				uint8_t count=0;
+				atmelSetMotorRPM(200);
+				while(state.running && count<20){
+					parseAtmelState();
+					delay(500);
+					count++;
+				}
+				atmelSetMotorRPM(0);
+			}
+			
+			stepNr++;
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+				printf("read status until programm end Ctrl+C\n");
+				while(state.running){
+					parseAtmelState();
+					delay(500);
+				}
+			}
+			atmelSetMaintenance(false);
 		}
-		
-		printf("Show text\n");
-		//Show Text
-		atmelShowText(fd, "Hallo Welt! Ich komme vom Raspi!");
-		delay(18400);
-		atmelClear(fd);
-		atmelClose(fd);
 	}
-	
-	SegmentDisplaySimple('S', &state, &i2c_config);
+	if (settings.shieldVersion < 4){
+		SegmentDisplaySimple('S', &state, &i2c_config);
+	} else {
+		//atmel show bye
+		uint16_t picture_bye[9] = {
+			0b00000000000000,
+			0b01110010101110,
+			0b01001010101000,
+			0b01001010101000,
+			0b01110001001110,
+			0b01001001001000,
+			0b01001001001000,
+			0b01110001001110,
+			0b00000000000000
+		};
+		atmelShowPicture(&picture_bye[0]);
+	}
 	if (settings.logLines == 0 || state.logLineNr<settings.logLines){
 		fclose(state.logFilePointer);
 	}
@@ -1604,6 +1677,16 @@ int parseParams(int argc, const char* argv[]){
 		} else if(strcmp(argv[i], "--test-serial") == 0 || strcmp(argv[i], "-te") == 0){
 			runningMode.test_serial = true;
 			runningMode.normalMode = false;
+			settings.test_servo_min = 1;
+			settings.test_servo_max = 10;
+			if (argc>i+1 && argv[i+1][0] != '-'){
+				++i;
+				settings.test_servo_min = StringConvertToNumber(argv[i]);
+				if (argc>i+1 && argv[i+1][0] != '-'){
+					++i;
+					settings.test_servo_max = StringConvertToNumber(argv[i]);
+				}
+			}
 		} else if(strcmp(argv[i], "--no-middleware") == 0 || strcmp(argv[i], "-nm") == 0){
 			settings.useMiddleware = false;
 			settings.useFile = true;
@@ -1684,7 +1767,7 @@ void initOutputFile(void){
 	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":-2}", fp);
 	fclose(fp);
 	
-	char* headerLine = "Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode, heaterHasPower, isOn, noPan, lidOpen\n";
+	char* headerLine = "Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode, heaterHasPower, isOn, noPan, lidClosed, lidLocked, pusherLocked\n";
 	if (settings.logLines != 0){
 		state.logLines = (char **)malloc(sizeof(char *) * (settings.logLines+1)); //+1 for headerline/line 0
 		state.logLines[0] = (char *) malloc(strlen(headerLine) * sizeof(char) + 1);
@@ -1754,7 +1837,9 @@ void resetValues(){
 	state.Delay = settings.LongDelay;
 	
 	i2c_servo_values.servoOpen=0;
-	writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_closed);
+	if (settings.shieldVersion < 4){
+		writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_closed);
+	}
 	
 	heaterStatus.ledValues[0] = 0;
 	heaterStatus.ledValues[1] = 0;
@@ -1878,10 +1963,9 @@ void ProcessCommand(void){
 		if (settings.debug_enabled || runningMode.simulationMode || settings.debug3_enabled){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 		
 		OptionControl();
-		
-		if (state.atmelfd != -1){
+		if (settings.shieldVersion >= 4){
 			if (currentCommandValues.mode==MODE_STANDBY) {
-				//atmelClear(state.atmelfd);
+				/*
 										//00##############
 				uint16_t picture[9] = {	0b0000000111110000,
 										0b0000001000001000,
@@ -1892,7 +1976,9 @@ void ProcessCommand(void){
 										0b0000010011100100,
 										0b0000001000001000,
 										0b0000000111110000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
+				*/
+				atmelClear();
 			} else if (currentCommandValues.mode==MODE_CUT) {
 										//00##############
 				uint16_t picture[9] = {	0b0000000000000000,
@@ -1904,7 +1990,7 @@ void ProcessCommand(void){
 										0b0000000000000000,
 										0b0000000000000000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_SCALE) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -1916,7 +2002,7 @@ void ProcessCommand(void){
 										0b0000000010000000,
 										0b0000001111100000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_HEATUP) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -1928,7 +2014,7 @@ void ProcessCommand(void){
 										0b0001110111011100,
 										0b0000100010001000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_COOK) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -1940,7 +2026,7 @@ void ProcessCommand(void){
 										0b0000111111111110,
 										0b0000011111100000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_COOLDOWN) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -1952,7 +2038,7 @@ void ProcessCommand(void){
 										0b0000111111111110,
 										0b0000011111100000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_PRESSUP) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000010000000,
@@ -1964,7 +2050,7 @@ void ProcessCommand(void){
 										0b0000001111100000,
 										0b0000001111100000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_PRESSHOLD) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -1976,7 +2062,7 @@ void ProcessCommand(void){
 										0b0001110111111110,
 										0b0001110011111000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_PRESSDOWN) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -1988,7 +2074,7 @@ void ProcessCommand(void){
 										0b0000001111100000,
 										0b0000001111100000,
 										0b0000000000000000};
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			} else if (currentCommandValues.mode==MODE_PRESSVENT) {
 										//00##############
 				uint16_t picture[9] = { 0b001000000000100,
@@ -2001,7 +2087,7 @@ void ProcessCommand(void){
 										0b000001111100000,
 										0b000000000000000};
 
-				atmelShowPicture(state.atmelfd, &picture[0]);
+				atmelShowPicture(&picture[0]);
 			}
 			/*
 			MODE_HOT
@@ -2014,9 +2100,13 @@ void ProcessCommand(void){
 			*/
 		}
 		
+		
 		if (state.alwaysReadMode){
 			speak(state.actionText);
 		}
+	}
+	if (settings.shieldVersion >= 4){
+		parseAtmelState();
 	}
 	TempControl();
 	PressControl();
@@ -2032,8 +2122,8 @@ void ProcessCommand(void){
 	ScaleFunction();
 	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
 		if (state.dataChanged){
-			if (state.atmelfd != -1){
-				atmelShowPercent(state.atmelfd, state.weightPercent);
+			if (settings.shieldVersion >= 4){
+				atmelShowPercent(state.weightPercent);
 			}
 		}
 	}
@@ -2068,15 +2158,95 @@ void OptionControl(){
 		} else if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_OFF){
 			settings.doRememberBeep=false;
 		} else if (currentCommandValues.mode==MODE_OPTION_7SEGMENT_BLINK){
-			SegmentDisplaySimple(' ', &state, &i2c_config);
-			blink7Segment(&i2c_config);
-			blink7Segment(&i2c_config);
-			blink7Segment(&i2c_config);
-			blink7Segment(&i2c_config);
+			if(settings.shieldVersion < 4){
+				SegmentDisplaySimple(' ', &state, &i2c_config);
+				blink7Segment(&i2c_config);
+				blink7Segment(&i2c_config);
+				blink7Segment(&i2c_config);
+				blink7Segment(&i2c_config);
+			}
 		}
 		currentCommandValues.mode=MODE_STANDBY;
 		state.dataChanged=true;
     }
+}
+
+
+//TODO: state erweitern um neue sensor werte
+//TODO: beim start atmel, prüfen ob motor an richtiger stelle(und läuft nicht), ansonnsten bis dahin drehen.
+
+#define SB_CommandOK		0
+#define SB_LidClosed		1
+#define SB_LidLocked		2
+#define SB_PusherLocked		3
+#define SB_isIHOn			4
+#define SB_IHFanOn			5
+#define SB_MotorStoped		6
+#define SB_CommandError		7
+
+void parseAtmelState(){
+	uint8_t atmelState = atmelGetStatus();
+	
+	state.lidClosed = (atmelState & (1<<SB_LidClosed))>0;
+	state.lidLocked = (atmelState & (1<<SB_LidLocked))>0;
+	state.pusherLocked = (atmelState & (1<<SB_PusherLocked))>0;
+
+	//TODO heaterStatus.hasPower =security chain
+	heaterStatus.isOn = (atmelState & (1<<SB_isIHOn))>0;
+	//TODO heaterStatus.noPanError = set if errorcode
+
+	if ((atmelState & (1<<SB_MotorStoped))>0){
+		i2c_motor_values.motorRpm = 0;
+	}
+	//TODO(need this?) i2c_solenoid_values.solenoidOpen != bit in status
+
+	uint8_t atmelMotorSpeed = atmelGetMotorSpeed();
+	uint8_t atmelIGBTTemp = atmelGetIGBTTemp();
+	uint8_t atmelHeatingOutputLevel = atmelGetHeatingOutputLevel();
+	bool atmelMotorPosSensor = atmelGetMotorPosSensor();
+	uint8_t atmelMotorRPM = atmelGetMotorRPM();
+
+	if (settings.debug_enabled || settings.debug3_enabled){
+		printf("atmelState:%02X, atmelMotorSpeed:%02X, atmelMotorRPM:%02X, atmelIGBTTemp:%02X, atmelHeatingOutputLevel:%02X, atmelMotorPosSensor:%02X\n", atmelState, atmelMotorSpeed, atmelMotorRPM, atmelIGBTTemp, atmelHeatingOutputLevel, atmelMotorPosSensor); //HEX
+	}
+
+	
+/*
+	currentCommandValues.temp
+	currentCommandValues.press, 
+	currentCommandValues.motorRpm
+	currentCommandValues.motorOn
+	currentCommandValues.motorOff
+	currentCommandValues.weight
+	currentCommandValues.time
+	currentCommandValues.mode
+	currentCommandValues.stepId
+
+	heaterStatus.isOnLastTime = runTimeMillis;
+	heaterStatus.errorMsg = NULL;
+	if (!heaterStatus.isOn || heaterStatus.hasError){
+		heaterStatus.isOn = true;
+		heaterStatus.isModeHeating = led[IND_LED_MODE_HEATING];
+		heaterStatus.isModeKeepwarm = led[IND_LED_MODE_KEEPWARM];
+		different = true;
+	}
+	if(led[IND_LED_TEMP_MAX]){
+		heaterStatus.level = 3;
+	} else if(led[IND_LED_TEMP_MIDDLE]){
+		heaterStatus.level = 2;
+	} else if(led[IND_LED_TEMP_MIN]){
+		heaterStatus.level = 1;
+	}
+	heaterStatus.hasError = false;
+	heaterStatus.noPanError = false;
+	heaterStatus.IGBTTempToHeightError = false;
+	heaterStatus.tempSensorError = false;
+	heaterStatus.IGBTSensorError = false;
+	heaterStatus.voltageToHeightError = false;
+	heaterStatus.voltageToLowError = false;
+	heaterStatus.bowOutOfWaterError = false;
+	heaterStatus.ledsOffBlinkState = false;
+*/
 }
 
 void TempControl(){
@@ -2299,6 +2469,9 @@ void ScaleFunction(){
 
 //void SegmentDisplay(struct State state, struct Settings settings, struct Running_Mode runningMode, struct I2C_Config i2c_config){
 void SegmentDisplay(){
+	if (settings.shieldVersion >= 4){
+		return;
+	}
 	char curSegmentDisplay = ' ';
 	if (currentCommandValues.press>=settings.LowPress){
 		curSegmentDisplay = 'P';
@@ -2387,8 +2560,8 @@ void prepareState(char* TotalUpdate){
 	} else {
 		press = 0;
 	}
-	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidOpen\":%d}",	currentCommandValues.temp, 						press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidOpen);
-	if (settings.debug_enabled){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidOpen:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidOpen);}
+	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidClosed\":%d,\"lidLocked\":%d,\"pusherLocked\":%d}",	currentCommandValues.temp, 						press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
+	if (settings.debug_enabled){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidClosed:%d, lidLocked:%d, pusherLocked:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);}
 }
 
 void writeStatus(char* data){
@@ -2444,7 +2617,7 @@ void writeLog(){
 		StringClean(tempString, 20);
 		strftime(tempString, 20,"%F %T",timeValues.localTime);
 		char logline[200];
-		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, i2c_motor_values.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidOpen);
+		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, i2c_motor_values.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
 		
 		if (settings.logLines == 0){
 			fputs(logline, state.logFilePointer);
@@ -2894,7 +3067,7 @@ void ReadConfigurationFile(void){
 	
 	fclose(fp);
 	
-	if (settings.shieldVersion < 1 && settings.shieldVersion > 3){
+	if (settings.shieldVersion < 1 && settings.shieldVersion > 4){
 		printf("Shield version %d unknown stop daemon.\n", settings.shieldVersion);
 		exit(1);
 	}
@@ -3447,8 +3620,8 @@ void *heaterLedEvaluation(void *ptr){
 			}
 			delay(updateDelay);
 		}
-	} else if (settings.shieldVersion >= 3){
-		//4 pins
+	} else if (settings.shieldVersion >= 4){
+		printf("No longer China Board (on shieldVersion %d), so no need to read heater-leds. Logic now on ATMega644 firmware\n", settings.shieldVersion);
 	}
 	return 0;
 }
@@ -3458,7 +3631,7 @@ void *readADCValues(void *ptr){
 	uint32_t delayTempPess;
 	
 	if (runningMode.simulationMode){
-		state.lidOpen = false;
+		state.lidClosed = true;
 		delayWeight = 300;
 		delayTempPess = 1000;
 		while (state.running){		
@@ -3604,14 +3777,16 @@ void *readADCValues(void *ptr){
 			
 			timeValues.lastWeightUpdateTime = millis();
 			
-			if (currentCommandValues.mode != MODE_SCALE){
-				//check isLidOpen
-				double front = (adc_values.LoadCellFrontLeft.valueByOffset + adc_values.LoadCellFrontRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
-				double back = (adc_values.LoadCellBackLeft.valueByOffset + adc_values.LoadCellBackRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
-				
-				double diff = front - back;
-				state.lidOpen = diff < -1000;
-				if (settings.debug3_enabled) {printf("lidopen front: %2.f, back: %2.f, diff: %2.f, isOpen: %d\n", front, back, diff, state.lidOpen);}
+			if (settings.shieldVersion < 4){
+				if (currentCommandValues.mode != MODE_SCALE){
+					//check isLidClosed
+					double front = (adc_values.LoadCellFrontLeft.valueByOffset + adc_values.LoadCellFrontRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
+					double back = (adc_values.LoadCellBackLeft.valueByOffset + adc_values.LoadCellBackRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
+					
+					double diff = front - back;
+					state.lidClosed = diff >= -1000;
+					if (settings.debug3_enabled) {printf("lidClosed front: %2.f, back: %2.f, diff: %2.f, lidClosed: %d\n", front, back, diff, state.lidClosed);}
+				}
 			}
 			
 			if (runningMode.measure_noise){
@@ -3665,7 +3840,11 @@ void *readADCValues(void *ptr){
 			//Validate Temp/press is valid value
 			if (!runningMode.calibration && !runningMode.measure_noise && (adc_values.Temp.valueByOffset < 0 || adc_values.Temp.valueByOffset > 300 || adc_values.Press.valueByOffset < -10 || adc_values.Press.valueByOffset > 100)){
 				adc_config.restarting_adc = true;
-				SegmentDisplaySimple('E', &state, &i2c_config);
+				if (settings.shieldVersion < 4){
+					SegmentDisplaySimple('E', &state, &i2c_config);
+				} else {
+					//TODO atmel show error
+				}
 				//adc_values.Temp.valueByOffset = 0;
 				//adc_values.Press.valueByOffset = 0;
 				HeatOff(&daemon_values);

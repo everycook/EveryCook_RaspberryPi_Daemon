@@ -17,11 +17,20 @@ See GPLv3.htm in the main folder for details.
  *
  */
 
-//Pin defination for the SPI
+//Pin defination for the SPI (gpio numbers)
 #define MOSI	10
 #define MISO	9
 #define SCLK	11
+//CS is fix set to ground=>selected since ShieldVersion 2
 #define CS	8
+/*
+//Pin defination for the SPI (physics numbers)
+#define MOSI	19
+#define MISO	21
+#define SCLK	23
+//CS is fix set to ground=>selected since ShieldVersion 2
+#define CS		24
+*/
 
 //AD774 Register defination
 #define READ_STATUS_REG		0x40

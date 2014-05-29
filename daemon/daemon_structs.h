@@ -292,8 +292,9 @@ struct State {
 	
 	double weightValues[4];
 	uint8_t weightPercent;
-	bool lidOpen;
-	int atmelfd;
+	bool lidClosed;
+	bool lidLocked;
+	bool pusherLocked;
 };
 
 struct Heater_Led_Values {

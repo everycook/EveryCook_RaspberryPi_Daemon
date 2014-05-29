@@ -19,31 +19,70 @@ See GPLv3.htm in the main folder for details.
 #include <wiringPi.h>
 #include "virtualspi.h"
 
-uint8_t Data[10];
 
-/*******************PI Driver Code**********************/
-/* VirtualSPIInit
- */
-void VirtualSPIInit(void){
+void SPI_SLAVE_ISR (void);
+
+uint8_t currentInByte = 0;
+uint8_t currentOutByte = 0;
+uint8_t bitRead = 0;
+
+uint8_t spiOutData[100];
+uint8_t spiOutPos = 0;
+uint8_t spiOutLen = 0;
+
+uint8_t spiInData[100];
+uint8_t spiInPos = 0;
+uint8_t spiInLen = 0;
+
+
+
+void VirtualSPISlaveInit(void){
 	wiringPiSetupGpio();
 	
-	pinMode(MOSI, OUTPUT);
-	pinMode(MISO, INPUT);
-	pinMode(SCLK, OUTPUT);
-//	pinMode(CS, OUTPUT);
-	delay(30);
+	pinMode(SLAVE_MOSI, INPUT);
+	pinMode(SLAVE_MISO, OUTPUT);
+	pinMode(SLAVE_SCLK, INPUT);
+	//pinMode(SLAVE_CS, OUTPUT);
+	
+	wiringPiISR(SLAVE_SCLK, INT_EDGE_FALLING, &SPI_SLAVE_ISR) ;
 }
+
+
+uint8_t SPISlaveRead(){
+}
+
+void SPISlaveWrite(uint8_t data){
+}
+
+
+void SPI_SLAVE_ISR (void) {
+	uint8_t bit = digitalRead(SLAVE_MOSI);
+	currentInByte = currentInByte << 1 | bit;
+	if (currentOutByte & 0x80){
+		digitalWrite(SLAVE_MISO, HIGH);
+	} else {
+		digitalWrite(SLAVE_MISO, LOW);
+	}
+	currentOutByte <<= 1;
+	bitRead++;
+	if (bitRead == 0){
+		spiInData
+	}
+}
+
+
+
 
 /* SPIReset: Reset the AD7794 chip, write 4 0xff.
  *
  */
 void SPIReset(void){
-//	digitalWrite(CS, LOW);
+//	digitalWrite(SLAVE_CS, LOW);
 	SPIWrite(0xff);
 	SPIWrite(0xff);
 	SPIWrite(0xff);
 	SPIWrite(0xff);
-//	digitalWrite(CS, HIGH);	
+//	digitalWrite(SLAVE_CS, HIGH);	
 }
 
 /* SPIWrite: Write one byte data to the register in AD7794
@@ -89,21 +128,21 @@ uint8_t SPIRead(void){
  * 
  */
 void SPIWriteByte(uint8_t reg, uint8_t data){
-//	digitalWrite(CS, LOW);
+//	digitalWrite(SLAVE_CS, LOW);
 	SPIWrite(reg);
 	SPIWrite(data);
-//	digitalWrite(CS, HIGH);
+//	digitalWrite(SLAVE_CS, HIGH);
 }
 
 /* SPIWrite2Bytes: Wirte one byte to denstination register. 
  * 
  */
 void SPIWrite2Bytes(uint8_t reg, uint32_t data){
-//	digitalWrite(CS, LOW);
+//	digitalWrite(SLAVE_CS, LOW);
 	SPIWrite(reg);
 	SPIWrite((data>>8)&0xff);
 	SPIWrite(data&0xff);
-//	digitalWrite(CS, HIGH);
+//	digitalWrite(SLAVE_CS, HIGH);
 }
 
 /* SPIReadByte: Get one byte from denstination register. 
@@ -112,10 +151,10 @@ void SPIWrite2Bytes(uint8_t reg, uint32_t data){
 uint8_t SPIReadByte(uint8_t reg){
 	uint8_t data;
 
-//	digitalWrite(CS, LOW);
+//	digitalWrite(SLAVE_CS, LOW);
 	SPIWrite(reg);
 	data = SPIRead();
-//	digitalWrite(CS, HIGH);
+//	digitalWrite(SLAVE_CS, HIGH);
 
 	return data;
 }
@@ -126,11 +165,11 @@ uint8_t SPIReadByte(uint8_t reg){
 uint32_t SPIRead2Bytes(uint8_t reg){
 	uint32_t data;
 
-//	digitalWrite(CS, LOW);
+//	digitalWrite(SLAVE_CS, LOW);
 	SPIWrite(reg);
 	data = SPIRead();
 	data = (data << 8)| SPIRead();
-//	digitalWrite(CS, HIGH);
+//	digitalWrite(SLAVE_CS, HIGH);
 	
 	return data;
 }
@@ -141,12 +180,12 @@ uint32_t SPIRead2Bytes(uint8_t reg){
 uint32_t SPIRead3Bytes(uint8_t reg){
 	uint32_t data;
 
-//	digitalWrite(CS, LOW);
+//	digitalWrite(SLAVE_CS, LOW);
 	SPIWrite(reg);
 	data = SPIRead();
 	data = (data << 8)| SPIRead();
 	data = (data << 8)| SPIRead();
-//	digitalWrite(CS, HIGH);
+//	digitalWrite(SLAVE_CS, HIGH);
 
 	return data;
 }

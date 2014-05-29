@@ -75,11 +75,11 @@ i2c_solonoid_closed=0
 
 
 #Buttons
-pin_button_0=22
-pin_button_1=17
-pin_button_2=27
+pin_button_0=25
+pin_button_1=8
+pin_button_2=7
 
 #Buttons inverse
 inverse_button_0=1
-inverse_button_1=0
+inverse_button_1=1
 inverse_button_2=1

@@ -13,34 +13,31 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 See GPLv3.htm in the main folder for details.
 */
 
-
-/* Header of the firmware.
+/* Header of the virtualspiSlave.
  *
  */
 
-#include "bool.h"
+//Pin defination for the SPI (gpio numbers)
+#define SLAVE_MOSI	18
+#define SLAVE_MISO	23
+#define SLAVE_SCLK	24
+//#define SLAVE_CS	?
+/*
+//Pin defination for the SPI (physics numbers)
+#define SLAVE_MOSI	12
+#define SLAVE_MISO	16
+#define SLAVE_SCLK	18
+//#define SLAVE_CS	?	//is fix set to ground=>selected
+*/
 
-void resetValues();
-void ProcessCommand(void);
-void prepareState(char* TotalUpdate);
-void writeStatus(char* data);
-void writeLog();
-void parseSockInput(char* input);
-bool ReadFile();
-void evaluateInput();
-bool readConfigLine(char* keyString, char* valueString, FILE *fp);
-void ReadConfigurationFile(void);
-void ReadCalibrationFile(void);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+void VirtualSPISlaveInit(void);
+uint8_t SPISlaveRead();
+void SPISlaveWrite(uint8_t data);
 
-void OptionControl();
-void parseAtmelState();
-void TempControl();
-void PressControl();
-void MotorControl();
-void ValveControl();
-void ScaleFunction();
-void setFreqTimer();
-void FreqHandler(); 
-void SegmentDisplay();
-void Beep();
+#ifdef __cplusplus
+}
+#endif

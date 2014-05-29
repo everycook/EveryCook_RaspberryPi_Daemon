@@ -95,6 +95,7 @@ int8_t textXCord = DISPLAY_COLS;
 int8_t textYCord = 0;
 int8_t textCharPos = 0;
 
+char *ToMutchtext = "TO MUTCH";
 uint8_t lastPercentValue = 0;
 uint8_t lastPercentCols = 0;
 boolean lastHalfLed = false;
@@ -102,6 +103,10 @@ uint8_t lastPercentText = 0;
 boolean updatePercentAgain = false;
 
 uint16_t picture[9];
+
+uint16_t picture_hi[9];
+uint16_t picture_bye[9];
+uint16_t picture_Knife[9];
 
 uint8_t currentMode = 0;
 
@@ -123,8 +128,40 @@ void setup() {
   }
   LedSign::Init(DOUBLE_BUFFER | GRAYSCALE);  //Initializes the screen
   
-  wdt_enable(WDTO_2S); //15MS,30MS,60MS,120MS,250MS,500MS,1S,2S,4S,8S
-  wdt_reset();
+picture_hi[0] = 0b00000000000000;
+picture_hi[1] = 0b00110110011000;
+picture_hi[2] = 0b00110110011000;
+picture_hi[3] = 0b00110110000000;
+picture_hi[4] = 0b00111110011000;
+picture_hi[5] = 0b00110110011000;
+picture_hi[6] = 0b00110110011000;
+picture_hi[7] = 0b00110110011000;
+picture_hi[8] = 0b00000000000000;
+
+
+picture_bye[0] = 0b00000000000000;
+picture_bye[1] = 0b01110010101110;
+picture_bye[2] = 0b01001010101000;
+picture_bye[3] = 0b01001010101000;
+picture_bye[4] = 0b01110001001110;
+picture_bye[5] = 0b01001001001000;
+picture_bye[6] = 0b01001001001000;
+picture_bye[7] = 0b01110001001110;
+picture_bye[8] = 0b00000000000000;
+
+picture_Knife[0] = 0b00000000000000;
+picture_Knife[1] = 0b01010100100000;
+picture_Knife[2] = 0b01010100110000;
+picture_Knife[3] = 0b01010100110000;
+picture_Knife[4] = 0b00111000110000;
+picture_Knife[5] = 0b00010000110000;
+picture_Knife[6] = 0b00010000100000;
+picture_Knife[7] = 0b00010000100000;
+picture_Knife[8] = 0b00010000100000;
+
+  
+//  wdt_enable(WDTO_2S); //15MS,30MS,60MS,120MS,250MS,500MS,1S,2S,4S,8S
+//  wdt_reset();
 }
 
 void loop() {
@@ -140,16 +177,21 @@ void loop() {
   picture[6] = 0xFFFF;
   picture[7] = 0xFFFF;
   picture[8] = 0xFFFF;
+  
   currentMode = 0x03;
   DisplayBitMap();
   
   delay(250);
+  uint8_t i;
+  uint8_t progress;
   
+  /*
   //Show starting text until daemon is ready, daemon will then show star screen/image.
   textXCord = DISPLAY_COLS;
   textYCord = 0;
   textCharPos = 0;
   currentMode = 0x01;
+  */
   
 //  uint8_t test = 0;
   while(run == true) {
@@ -246,6 +288,36 @@ void loop() {
           run = false;
         break;
         
+        case 'H': //Hi
+          for (i=0; i<9; i++){
+            picture[i]=picture_hi[i];
+          }
+          currentMode = 0x03;
+          DisplayBitMap();
+        break;
+        
+        case 'B': //Bye
+          for (i=0; i<9; i++){
+            picture[i]=picture_bye[i];
+          }
+          currentMode = 0x03;
+          DisplayBitMap();
+        break;
+        
+        case 'K': //Knife
+          for (i=0; i<9; i++){
+            picture[i]=picture_Knife[i];
+          }
+          currentMode = 0x03;
+          DisplayBitMap();
+        break;
+        
+        
+        case 'R': //Progress Test
+          progress=0;
+          displayProgress(inByte, progress);
+        break;
+        
         
         default: //Unknown value, clear screen
           Serial.println("unknown command");
@@ -284,6 +356,16 @@ void loop() {
             displaySmallText(textToShow);
           }
         break;
+        
+        case 'R': //Progress Test
+          progress++;
+          if (progress >= 140){
+            currentMode = 0;
+          } else {
+            displayProgress(progress, false);
+          }
+        break;
+        
       }
     }
     delay(100);
@@ -390,10 +472,13 @@ void displayProgress(uint8_t percent, boolean noFlip){
   } else if (percent >= 105){
     //to mutch
     if (lastPercentText != PERCENT_TEXT_TO_MUTCH || changed){
+      if (lastPercentText != PERCENT_TEXT_TO_MUTCH){
+        textXCord = DISPLAY_COLS;
+        textYCord = 0;
+        textCharPos = 0;
+      }
       lastPercentText = PERCENT_TEXT_TO_MUTCH;
       changed = true;
-      clearPercentTextArea();
-      //TODO show text
     }
   } else {
     //clear
@@ -439,7 +524,10 @@ void displayProgress(uint8_t percent, boolean noFlip){
     LedSign::Set(i,5, 7);
   }
 */
-  if (changed && !noFlip){
+
+  if (lastPercentText == PERCENT_TEXT_TO_MUTCH){
+    displaySmallText(ToMutchtext);
+  } else if (changed && !noFlip){
     LedSign::Flip(true);
   }
   lastPercentValue = percent;
@@ -545,7 +633,7 @@ void displaySmallText(const char *text){
   for (int8_t x2=x, i2=i; x2<DISPLAY_COLS;) {
     if (i2 < strlen(text)){
       const uint8_t *character = SmallFont::getChar(text[i2]);
-      int8_t w = FontHandler::Draw(x2, textYCord, character);
+      int8_t w = FontHandler::Draw(x2, textYCord, character, PIXEL_ON);
       x2 += w;
       i2 = (i2+1);
     } else {
@@ -582,7 +670,7 @@ void displayText(const char *text){
       if (i2 < strlen(text)){
 //        int8_t w = Font::Draw(text[i2], x2, textYCord);
         const uint8_t *character = NormalFont::getChar(text[i2]);
-        int8_t w = FontHandler::Draw(x2, textYCord, character);
+        int8_t w = FontHandler::Draw(x2, textYCord, character, PIXEL_ON);
         x2 += w;
         i2 = (i2+1);
       } else {

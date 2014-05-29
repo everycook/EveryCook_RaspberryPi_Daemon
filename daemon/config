@@ -1,6 +1,6 @@
 #configuration file for the EveryCook_RaspberryPi_Daemon
 #lines starting with a # are comments
-shieldVersion=2
+shieldVersion=4
 
 weightReachedMultiplier=0.95
 
@@ -38,7 +38,6 @@ StatusFile=/run/shm/status
 calibrationFile=/opt/EveryCook/daemon/calibration
 hourCounterFile=/opt/EveryCook/daemon/hourCounter
 installPath=/opt/EveryCook/
-atmelDevicePath=/dev/ttyUSB9
 speakLanguage=english
 
 middlewareHostname=127.0.0.1

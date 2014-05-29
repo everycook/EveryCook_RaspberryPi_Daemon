@@ -23,13 +23,14 @@ See GPLv3.htm in the main folder for details.
 #include "basic_functions.h"
 #include "daemon_structs.h"
 #include "hardwareFunctions.h"
+#include "virtualspiAtmel.h"
 
 const float MOTOR_RPM_TO_PWM = 4095.0/200.0;
 
 /******************* functions to evaluate **********************/
 
 double readTemp(struct Daemon_Values *dv){
-		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Temp %d dig %.0f �C | ", dv->adc_values->Temp.adc_value, dv->adc_values->Temp.valueByOffset);}
+		if (dv->settings->debug_enabled || dv->runningMode->calibration || dv->settings->debug3_enabled){printf("Temp %d dig %.0f C | ", dv->adc_values->Temp.adc_value, dv->adc_values->Temp.valueByOffset);}
 		return dv->adc_values->Temp.valueByOffset;
 }
 
@@ -41,64 +42,118 @@ int32_t readPress(struct Daemon_Values *dv){
 
 //Power control functions
 bool HeatOn(struct Daemon_Values *dv){
-	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn, was: %d\n", state->heatPowerStatus);}
-	if (dv->state->heatPowerStatus && !dv->heaterStatus->isOn){
-		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) > 6000){
-			dv->state->heatPowerStatus = false;
-		}
-	}
-	if (dv->adc_config->restarting_adc){
-		return false;
-	}
-	
-	if (!dv->state->heatPowerStatus) { //if its off
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
-		if (!dv->runningMode->simulationMode){
-			if (!dv->heaterStatus->isOn){
-				writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
-				delay(500);
-				writeControllButtonPin(IND_KEY_POWER, 1);
-				if (dv->settings->debug3_enabled){printf("-->HeatOn\n");}
-			} else {
-				printf("ERROR: should turn HeatOn, but led's say it is already on, so nothing done\n");
+	if(dv->settings->shieldVersion < 4){
+		//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn, was: %d\n", state->heatPowerStatus);}
+		if (dv->state->heatPowerStatus && !dv->heaterStatus->isOn){
+			if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) > 6000){
+				dv->state->heatPowerStatus = false;
 			}
 		}
-		dv->state->heatPowerStatus=true; //save that we turned it on
-		dv->timeValues->heaterStartTime = dv->timeValues->runTime;
-		return true;
+		if (dv->adc_config->restarting_adc){
+			return false;
+		}
+	
+		if (!dv->state->heatPowerStatus) { //if its off
+			if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
+			if (!dv->runningMode->simulationMode){
+				if (!dv->heaterStatus->isOn){
+					writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
+					delay(500);
+					writeControllButtonPin(IND_KEY_POWER, 1);
+					if (dv->settings->debug3_enabled){printf("-->HeatOn\n");}
+				} else {
+					printf("ERROR: should turn HeatOn, but led's say it is already on, so nothing done\n");
+				}
+			}
+			dv->state->heatPowerStatus=true; //save that we turned it on
+			dv->timeValues->heaterStartTime = dv->timeValues->runTime;
+			return true;
+		} else {
+			return false;
+		}
 	} else {
-		return false;
+		if (dv->state->heatPowerStatus && !dv->heaterStatus->isOn){
+			dv->state->heatPowerStatus = false;
+		}
+
+		if (dv->adc_config->restarting_adc){
+			return false;
+		}
+
+		if (!dv->state->heatPowerStatus) { //if its off
+			if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOn status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
+			if (!dv->runningMode->simulationMode){
+				if (!dv->heaterStatus->isOn){
+					atmelSetHeating(true);
+					if (dv->settings->debug3_enabled){printf("-->HeatOn\n");}
+				} else {
+					printf("ERROR: should turn HeatOn, but ATMega644 status say it's already on, so nothing done\n");
+				}
+			}
+			dv->state->heatPowerStatus=true; //save that we turned it on
+			dv->timeValues->heaterStartTime = dv->timeValues->runTime;
+			return true;
+		} else {
+			return false;
+		}
 	}
 }
 
 bool HeatOff(struct Daemon_Values *dv){
-	if (!dv->state->heatPowerStatus && dv->heaterStatus->isOn){
-		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) < 3000){
-			dv->state->heatPowerStatus = true;
-		}
-	}
-	if (dv->adc_config->restarting_adc){
-		return false;
-	}
-	
-	//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}
-	if (dv->state->heatPowerStatus) { //if its on
-		if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
-		if (!dv->runningMode->simulationMode){
-			if (dv->heaterStatus->isOn){
-				writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
-				delay(500);
-				writeControllButtonPin(IND_KEY_POWER, 1);
-				if (dv->settings->debug3_enabled){printf("-->HeatOff\n");}
-			} else {
-				printf("ERROR: should turn HeatOff, but led's say it is already off, so nothing done\n");
+	if(dv->settings->shieldVersion < 4){
+		if (!dv->state->heatPowerStatus && dv->heaterStatus->isOn){
+			if ((dv->timeValues->runTimeMillis - dv->heaterStatus->isOnLastTime) < 3000){
+				dv->state->heatPowerStatus = true;
 			}
 		}
-		dv->state->heatPowerStatus=false; //save that we turned it off
-		dv->timeValues->heaterStopTime = dv->timeValues->runTime;
-		return true;
+		if (dv->adc_config->restarting_adc){
+			return false;
+		}
+	
+		//if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff, was: %d\n", state->heatPowerStatus);}
+		if (dv->state->heatPowerStatus) { //if its on
+			if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
+			if (!dv->runningMode->simulationMode){
+				if (dv->heaterStatus->isOn){
+					writeControllButtonPin(IND_KEY_POWER, 0); //"press" the power button
+					delay(500);
+					writeControllButtonPin(IND_KEY_POWER, 1);
+					if (dv->settings->debug3_enabled){printf("-->HeatOff\n");}
+				} else {
+					printf("ERROR: should turn HeatOff, but led's say it is already off, so nothing done\n");
+				}
+			}
+			dv->state->heatPowerStatus=false; //save that we turned it off
+			dv->timeValues->heaterStopTime = dv->timeValues->runTime;
+			return true;
+		} else {
+			return false;
+		}
 	} else {
-		return false;
+		if (!dv->state->heatPowerStatus && dv->heaterStatus->isOn){
+			dv->state->heatPowerStatus = true;
+		}
+
+		if (dv->adc_config->restarting_adc){
+			return false;
+		}
+
+		if (dv->state->heatPowerStatus) { //if its on
+			if (dv->settings->debug_enabled || dv->runningMode->simulationMode){printf("HeatOff status was: %d, led is heating: %d\n", dv->state->heatPowerStatus, dv->heaterStatus->isOn);}
+			if (!dv->runningMode->simulationMode){
+				if (dv->heaterStatus->isOn){
+					atmelSetHeating(false);
+										if (dv->settings->debug3_enabled){printf("-->HeatOff\n");}
+				} else {
+					printf("ERROR: should turn HeatOff, but ATMega644 status say it is already off, so nothing done\n");
+				}
+			}
+			dv->state->heatPowerStatus=false; //save that we turned it off
+			dv->timeValues->heaterStopTime = dv->timeValues->runTime;
+			return true;
+		} else {
+			return false;
+		}
 	}
 }
 
@@ -110,22 +165,29 @@ void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 	}
 	
 	if (!dv->heaterStatus->hasPower && rpm != 0){
-		uint32_t timeouts[2];
-		if (dv->settings->shieldVersion == 1){
-			timeouts[0] = 12000;
-			timeouts[1] = 6000;
+		if(dv->settings->shieldVersion < 4){
+			uint32_t timeouts[2];
+			if (dv->settings->shieldVersion == 1){
+				timeouts[0] = 12000;
+				timeouts[1] = 6000;
+			} else {
+				timeouts[0] = 5000;
+				timeouts[1] = 2000;
+			}
+			if ((dv->timeValues->runTimeMillis - dv->heaterStatus->hasPowerLedOnLastTime) > timeouts[0]){
+				//Manipulate values, so it will set to 0 directly, because there is no power
+				rpm = 0;
+				dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->i2c_motor_speed_min;
+				dv->i2c_motor_values->destRpm = dv->i2c_motor_values->i2c_motor_speed_min;
+			} else if ((dv->timeValues->runTimeMillis - dv->heaterStatus->hasPowerLedOnLastTime) > timeouts[1]){
+				//set dest rpm to 0, so it will create a ramp down, if hasPower state is false it will not stop directly.
+				rpm = 0;
+			}
 		} else {
-			timeouts[0] = 5000;
-			timeouts[1] = 2000;
-		}
-		if ((dv->timeValues->runTimeMillis - dv->heaterStatus->hasPowerLedOnLastTime) > timeouts[0]){
 			//Manipulate values, so it will set to 0 directly, because there is no power
 			rpm = 0;
 			dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->i2c_motor_speed_min;
 			dv->i2c_motor_values->destRpm = dv->i2c_motor_values->i2c_motor_speed_min;
-		} else if ((dv->timeValues->runTimeMillis - dv->heaterStatus->hasPowerLedOnLastTime) > timeouts[1]){
-			//set dest rpm to 0, so it will create a ramp down, if hasPower state is false it will not stop directly.
-			rpm = 0;
 		}
 	}
 	
@@ -161,21 +223,31 @@ void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 			}
 			dv->i2c_motor_values->i2c_motor_value=dv->i2c_motor_values->currentValue * MOTOR_RPM_TO_PWM;
 			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setMotorRPM: value:%.2f, motor_value:%d\n", dv->i2c_motor_values->currentValue, dv->i2c_motor_values->i2c_motor_value);}
-			if (!dv->runningMode->simulationMode){
-				writeI2CPin(dv->i2c_config->i2c_motor, dv->i2c_motor_values->i2c_motor_value);
-			}
 			dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->currentValue;
+			if (!dv->runningMode->simulationMode){
+				if(dv->settings->shieldVersion < 4){
+					writeI2CPin(dv->i2c_config->i2c_motor, dv->i2c_motor_values->i2c_motor_value);
+				} else {
+					atmelSetMotorRPM(dv->i2c_motor_values->motorRpm);
+				}
+			}
+
 			dv->state->Delay = dv->settings->LongDelay;
 		} else {
 			if (dv->i2c_motor_values->motorRpm != dv->i2c_motor_values->destRpm){
 				dv->i2c_motor_values->currentValue = dv->i2c_motor_values->destRpm;
 				dv->i2c_motor_values->i2c_motor_value=dv->i2c_motor_values->currentValue * MOTOR_RPM_TO_PWM;
 				if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setMotorRPM: value:%.2f, motor_value:%d\n", dv->i2c_motor_values->currentValue, dv->i2c_motor_values->i2c_motor_value);}
+				dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->destRpm;
 				if (!dv->runningMode->simulationMode){
-					writeI2CPin(dv->i2c_config->i2c_motor, dv->i2c_motor_values->i2c_motor_value);
+					if(dv->settings->shieldVersion < 4){
+						writeI2CPin(dv->i2c_config->i2c_motor, dv->i2c_motor_values->i2c_motor_value);
+					} else {
+						atmelSetMotorRPM(dv->i2c_motor_values->motorRpm);
+					}
 				}
 			}
-			dv->i2c_motor_values->motorRpm = dv->i2c_motor_values->destRpm;
+
 		}
 	}
 }
@@ -183,16 +255,24 @@ void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 void setSolenoidOpen(bool open, struct Daemon_Values *dv){
 	if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("setSolenoidOpen, open: %d\n", open);}
 	if (dv->i2c_solenoid_values->solenoidOpen != open){
-		if (open){
-			dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_open;
+		if(dv->settings->shieldVersion < 4){
+			if (open){
+				dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_open;
+			} else {
+				dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_closed;
+			}
+			dv->i2c_solenoid_values->i2c_solenoid_value = (int)(dv->i2c_solenoid_values->currentValue);
+			
+			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setSolonoidOpen: value:%.2f, solonoid_value:%d\n", dv->i2c_solenoid_values->currentValue, dv->i2c_solenoid_values->i2c_solenoid_value);}
+			if (!dv->runningMode->simulationMode){
+				writeI2CPin(dv->i2c_config->i2c_servo, dv->i2c_solenoid_values->i2c_solenoid_value);
+			}
 		} else {
-			dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_closed;
-		}
-		dv->i2c_solenoid_values->i2c_solenoid_value = (int)(dv->i2c_solenoid_values->currentValue);
-		
-		if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setSolonoidOpen: value:%.2f, solonoid_value:%d\n", dv->i2c_solenoid_values->currentValue, dv->i2c_solenoid_values->i2c_solenoid_value);}
-		if (!dv->runningMode->simulationMode){
-			writeI2CPin(dv->i2c_config->i2c_servo, dv->i2c_solenoid_values->i2c_solenoid_value);
+			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setSolonoidOpen: old: %d, new: %d\n",dv->i2c_solenoid_values->solenoidOpen, open);}
+			if (!dv->runningMode->simulationMode){
+				atmelSetSolenoidOpen(open);
+			}
+
 		}
 		dv->i2c_solenoid_values->solenoidOpen = open;
 	}

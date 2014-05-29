@@ -32,10 +32,12 @@ uint16_t ModeReg = 0x008;
 uint8_t* PinHeaterLeds;
 uint8_t PinHeaterLeds_v1[] = {24, 25, 27, 22, 7, 17};
 uint8_t PinHeaterLeds_v2[] = {4,14,15,7};
+uint8_t PinHeaterLeds_v4[] = {};
 
 uint8_t* PinHeaterControllButtons;
 uint8_t PinHeaterControllButtons_v1[] = {14, 15, 18, 23};
 uint8_t PinHeaterControllButtons_v2[] = {18, 23, 24, 25};
+uint8_t PinHeaterControllButtons_v4[] = {};
 
 uint8_t* PinButtons;
 uint8_t PinButtons_v1[] = {};
@@ -63,6 +65,11 @@ void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonIn
 	} else if(shieldVersion == 2 || shieldVersion == 3){
 		PinHeaterLeds = &PinHeaterLeds_v2[0];
 		PinHeaterControllButtons = &PinHeaterControllButtons_v2[0];
+		PinButtons = &buttonPins[0];
+		InverseButtons = &buttonInverse[0];
+	} else if(shieldVersion == 4){
+		PinHeaterLeds = &PinHeaterLeds_v4[0];
+		PinHeaterControllButtons = &PinHeaterControllButtons_v4[0];
 		PinButtons = &buttonPins[0];
 		InverseButtons = &buttonInverse[0];
 	}
