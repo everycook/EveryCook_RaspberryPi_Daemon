@@ -1,4 +1,5 @@
 #include <avr/interrupt.h>
+#include <util/delay.h>
 
 #include "input.h"
 #include "mytypes.h"
@@ -10,11 +11,6 @@ uint8_t nextResponse = SPI_NoResponse;
 uint8_t reciveBuffer[512];
 uint8_t recivePos=0;
 uint8_t reciveLen=0;
-
-
-uint8_t recivedCounter = 0;
-uint8_t recivedData = 0;
-boolean raspiRecived = false;
 
 boolean lastClock = false;
 uint8_t shiftcount = 0;
@@ -72,18 +68,20 @@ uint8_t readSPI(boolean blocking){
 	if (availableSPI()>0){
 		uint8_t data = reciveBuffer[recivePos];
 		recivePos++;
-		//cli();
-		//TODO mutex?
+		uint8_t oldSREG = SREG;
+		cli();
 		if (recivePos == reciveLen && recivePos>100){
 			recivePos=0;
 			reciveLen=0;
 		}
-		//sei();
+		SREG = oldSREG;
 		return data;
 	} else {
 		if (blocking){
-			//TODO what do I here?
-			while(reciveLen == recivePos){}			
+			while(reciveLen == recivePos){
+				_delay_ms(1);
+				//_delay_us(500);
+			}			
 			uint8_t data = reciveBuffer[recivePos];
 			recivePos++;
 			return data;
@@ -104,7 +102,6 @@ ISR(PCINT1_vect){
 		}
 		
 		//digitalWrite(PIN_MISO, inBit);
-		
 		if ((outValue & 0x80) == 0x80){
 			digitalWrite(PIN_MISO, HIGH);
 		} else {
@@ -123,15 +120,14 @@ ISR(PCINT1_vect){
 	lastClock = clock;
 }
 
-//don't work.... ?
+//don't work.... 
 //############################ SPI Interrupt ############################
 ISR(SPI_STC_vect){
 	uint8_t data = SPDR;
-	//SPDR = nextResponse;
-	SPDR = data;
+	SPDR = nextResponse;
+	//SPDR = data;
 	
 	nextResponse = SPI_NoResponse;
-	//TODO mutex?
 	reciveBuffer[reciveLen] = data;
 	reciveLen++;
 }

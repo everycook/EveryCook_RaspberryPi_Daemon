@@ -24,27 +24,26 @@ void Heating_controlIHTemp(){
 	//controll IHTemp
 	ihTemp = analogRead(IHTempSensor);
 	ihTemp8bit = ihTemp >> 2;
-	uint8_t IHFanPWM = 0;
+	uint8_t IHFanPWMValue = 0;
 	if (ihTemp8bit > 200){
-		IHFanPWM = 255;
+		IHFanPWMValue = 255;
 	} else if (ihTemp8bit > 150){
-		IHFanPWM = 200;
+		IHFanPWMValue = 200;
 	} else if (ihTemp8bit > 100){
-		IHFanPWM = 150;
+		IHFanPWMValue = 150;
 	} else if (ihTemp8bit > 64){
-		IHFanPWM = 100;
+		IHFanPWMValue = 100;
 	} else if (ihTemp8bit < 32){
-		IHFanPWM = 0;
+		IHFanPWMValue = 0;
 }
-	if (IHFanPWM != 0){
+	if (IHFanPWMValue != 0){
 		StatusByte |= _BV(SB_IHFanOn);
 	}else{
 		StatusByte&= ~_BV(SB_IHFanOn);
 	}
-
-	if (lastIHFanPWM != IHFanPWM){
-		analogWrite(IHFanPWM_TIMER, IHFanPWM);
-		lastIHFanPWM = IHFanPWM;
+	if (lastIHFanPWM != IHFanPWMValue){
+		analogWrite(IHFanPWM_TIMER, IHFanPWMValue);
+		lastIHFanPWM = IHFanPWMValue;
 	}
 }
 
@@ -87,56 +86,53 @@ void Heating_init(){
 
 
 void Heating_setHeating(boolean on){
-  heating = on;
+	if (on && !heating){
+		outputValueIH = initialOutputValue;
+	}
+	heating = on;
 }
 
 int Heating_getLastOnPWM(){
-  return lastOutputValueIHRun;
+	return lastOutputValueIHRun;
 }
 
 boolean Heating_isHeating(){
-  return isHeating;
+	return isHeating;
 }
 
 void Heating_heatControl(){
-     isHeating=digitalRead(isIHOn);
-    if (heating){
-      if(isHeating)  {
-	if(!lastIsHeating){
-		lastOutputValueIHStart = outputValueIH;
+	isHeating=digitalRead(isIHOn);
+	if (heating){
+		if(isHeating)  {
+			if(!lastIsHeating){
+				lastOutputValueIHStart = outputValueIH;
+			}
+			lastOutputValueIHRun = outputValueIH;
+		} else{
+			outputValueIH+=Increment;
+			if (outputValueIH>255){
+				outputValueIH = 255;
+			}
+			analogWrite(IHPowerPWM_TIMER, outputValueIH);
+			digitalWrite(IHOn,HIGH);
+			_delay_ms(20);
+			//digitalWrite(IHOn,LOW);
+		}
+	} else if (isHeating){
+		/*
+		digitalWrite(IHOff,HIGH);
+		_delay_ms(20);
+		digitalWrite(IHOff,LOW);
+		*/
+		outputValueIH = 0;
+		analogWrite(IHPowerPWM_TIMER, outputValueIH);
+	} else {
+		digitalWrite(IHOn,LOW);
 	}
-	lastOutputValueIHRun = outputValueIH;
-      } else{
-        outputValueIH+=Increment;
-     analogWrite(IHPowerPWM_TIMER, outputValueIH);
-        digitalWrite(IHOn,HIGH);
-        _delay_ms(20);
-        digitalWrite(IHOn,LOW);		
-      }
-   } else if (isHeating){
-      /*
-      digitalWrite(IHOff,HIGH);
-      _delay_ms(20);
-      digitalWrite(IHOff,LOW);
-      */
-      analogWrite(IHPowerPWM_TIMER, 0);
-      outputValueIH = initialOutputValue;
-    }
-lastIsHeating=isHeating;
+	lastIsHeating=isHeating;
 	if (isHeating){
 		StatusByte |= _BV(SB_isIHOn);
-	}else{
+	} else {
 		StatusByte&= ~_BV(SB_isIHOn);
 	}
-
-/*
-      // print the results to the serial monitor:
-      Serial.print("start = " );                       
-      Serial.print(heating);      
-      Serial.print("\t feedback = " );                       
-      Serial.print(runRead);      
-      Serial.print("\t output = ");      
-      Serial.println(outputValueIH);
-      _delay_ms(pause);   
-*/
 }

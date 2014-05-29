@@ -23,6 +23,16 @@ volatile uint8_t * port_to_input[] = {
 	&PIND,
 };
 
+struct pinInfo timer_to_pin[] = {
+	PB_3, //NOT_ON_TIMER
+	PB_3, //TIMER0A
+	PB_4, //TIMER0B
+	PD_5, //TIMER1A
+	PD_4, //TIMER1B
+	PD_7, //TIMER2A
+	PD_6  //TIMER2B
+};
+
 uint8_t currentPinMode[4][8] = {
 	{INPUT, INPUT, INPUT, INPUT, INPUT, INPUT, INPUT, INPUT},
 	{INPUT, INPUT, INPUT, INPUT, INPUT, INPUT, INPUT, INPUT},
@@ -139,6 +149,11 @@ uint16_t analogRead(struct pinInfo pin) {
 //from wiring_analog.c from arduino library
 void analogWrite(uint8_t timer, int val)
 {
+	if (val == 0 || val == 255){
+		disableTimer(timer);
+		digitalWrite(timer_to_pin[timer], val);
+	}
+	
 	switch(timer)
 	{
 		#if defined(TCCR0A) && defined(COM0A1)
@@ -193,6 +208,62 @@ void analogWrite(uint8_t timer, int val)
 			//sbi(TCCR2A, COM2B1);
 			TCCR2A |= _BV(COM2B1);
 			OCR2B = val; // set pwm duty
+			break;
+		#endif
+	}
+}
+
+
+//from wiring_digital.c from arduino library
+void disableTimer(uint8_t timer)
+{
+	switch(timer)
+	{
+		#if defined(TCCR0A) && defined(COM0A1)
+		case TIMER0A:
+			// discconnect pwm from pin on timer 0, channel A
+			//cbi(TCCR0A, COM0A1);
+			break;
+		#endif
+
+		#if defined(TCCR0A) && defined(COM0B1)
+		case TIMER0B:
+			// discconnect pwm from pin on timer 0, channel B
+			//cbi(TCCR0A, COM0B1);
+			TCCR0A &= ~_BV(COM0B1);
+			break;
+		#endif
+
+		
+		#if defined(TCCR1A) && defined(COM1A1)
+		case TIMER1A:
+			// discconnect pwm from pin on timer 1, channel A
+			//cbi(TCCR1A, COM1A1);
+			TCCR1A &= ~_BV(COM1A1);
+			break;
+		#endif
+
+		#if defined(TCCR1A) && defined(COM1B1)
+		case TIMER1B:
+			// discconnect pwm from pin on timer 1, channel B
+			//cbi(TCCR1A, COM1B1);
+			TCCR1A &= ~_BV(COM1B1);
+			break;
+		#endif
+
+		#if defined(TCCR2A) && defined(COM2A1)
+		case TIMER2A:
+			// discconnect pwm from pin on timer 2, channel A
+			//cbi(TCCR2A, COM2A1);
+			TCCR2A &= ~_BV(COM2A1);
+			break;
+		#endif
+
+		#if defined(TCCR2A) && defined(COM2B1)
+		case TIMER2B:
+			// discconnect pwm from pin on timer 2, channel B
+			//cbi(TCCR2A, COM2B1);
+			TCCR2A &= ~_BV(COM2B1);
 			break;
 		#endif
 	}

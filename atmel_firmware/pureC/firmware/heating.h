@@ -11,6 +11,11 @@
 	extern void Heating_setHeating(boolean on);
 	extern int Heating_getLastOnPWM();
 	extern boolean Heating_isRunning();
+	
+	extern uint8_t IHPowerPWM_TIMER;
+	extern uint8_t IHFanPWM_TIMER;
+	extern uint8_t ihTemp8bit;
+	extern int outputValueIH;
 //}
 
 #endif

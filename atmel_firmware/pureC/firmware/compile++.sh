@@ -3,6 +3,7 @@ rm firmware
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o input.o input.c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o status.o status.c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o time.o time.c
+avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o communication.o communication.c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o Charliplexing.o Charliplexing.c
 #avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o spihandling.o spihandling.c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o heating.o heating.c

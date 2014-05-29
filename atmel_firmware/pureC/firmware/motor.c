@@ -7,31 +7,30 @@
 #include "status.h"
 
 struct pinInfo MotorPosSensor = PA_2; //in
-struct pinInfo MotorPWM = PD_5; //pwm	//OC1B
+struct pinInfo MotorPWM = PD_5; //pwm	//OC1A
 
-uint8_t MotorPWM_TIMER = TIMER1B;
+uint8_t MotorPWM_TIMER = TIMER1A;
 
 uint8_t stopSpeed = 256/6;
 int slowRotationTime=500;
 
 
-boolean motorStop = false;
+boolean motorStop = true;
 boolean motorStoped = false;
 uint8_t motorSpeed = 0;
 
 
 
 //Motor vars
-long LastSensorTrigger = 0;
-boolean LastSensorValue=false;
+long lastSensorTrigger = 0;
+boolean lastSensorValue=false;
 
 long previousMillis = 0;
 long interval = 1000;   
 int rotationTime=0;
 
-int sensorValue = 0;        
+uint8_t sensorValue = 0;        
 int outputValueMotor = 0;        // value output to the PWM (analog out)
-int setValue=0;
 int rpm=0;
 
 
@@ -52,53 +51,64 @@ void Motor_init(){
 
 
 void Motor_setMotor(uint8_t speed){
-  motorSpeed = speed;
-  motorStop = (motorSpeed == 0);
-  if (motorStop){
-    //outputValueMotor=min(outputValueMotor,stopSpeed);
-	outputValueMotor=(outputValueMotor<stopSpeed)?outputValueMotor:stopSpeed; // min(outputValueMotor,stopSpeed);
-  } else {
-    outputValueMotor=motorSpeed;
-motorStoped=false;
-  }
+	motorSpeed = speed;
+	motorStop = (motorSpeed == 0);
+	if (motorStop){
+		//outputValueMotor=min(outputValueMotor,stopSpeed);
+		outputValueMotor=(outputValueMotor<stopSpeed)?outputValueMotor:stopSpeed; // min(outputValueMotor,stopSpeed);
+	} else {
+		outputValueMotor=motorSpeed;
+		motorStoped=false;
+	}
 }
 
 boolean Motor_isStopped(){
-  return motorStoped;
+	return motorStoped;
 }
 
 void Motor_motorControl() {
-    if (outputValueMotor != 0){
-      sensorValue = digitalRead(MotorPosSensor);
-      if (sensorValue &&!LastSensorValue) {
-        rotationTime=millis()-LastSensorTrigger;
-        LastSensorTrigger=millis();
-        if (motorStop && rotationTime>=slowRotationTime) {
-          outputValueMotor=0;
-          motorStoped = true;
-        }
-      }
-	if (outputValueMotor == 0){
-		StatusByte |= _BV(SB_MotorStoped);
-	}else{
-		StatusByte&= ~_BV(SB_MotorStoped);
+	if (outputValueMotor != 0){
+		sensorValue = digitalRead(MotorPosSensor);
+		if (sensorValue &&!lastSensorValue) {
+			rotationTime=millis()-lastSensorTrigger;
+			rpm=60000/rotationTime;
+			lastSensorTrigger=millis();
+			if (motorStop && rotationTime>=slowRotationTime) {
+				outputValueMotor=0;
+				rpm=0;
+				motorStoped = true;
+			}
+		}
+		if (outputValueMotor == 0){
+			StatusByte |= _BV(SB_MotorStoped);
+		} else {
+			StatusByte&= ~_BV(SB_MotorStoped);
+		}
+		lastSensorValue=sensorValue;
+
+		analogWrite(MotorPWM_TIMER, outputValueMotor);
+		/*
+		// print the results to the serial monitor:        
+		Serial.print("sensorvalue = " );                       
+		Serial.print(sensorValue);      
+
+		Serial.print("\t RPM = " );                       
+		Serial.print(RPM);      
+		Serial.print("\t rTime = " );                       
+		Serial.print(rotationTime);      
+		Serial.print("\t output = ");      
+		Serial.println(outputValueMotor);   
+		*/
+	} else {
+		lastSensorValue = digitalRead(MotorPosSensor);
+		if (lastSensorValue){
+			if (motorStop) {
+				motorStoped = true;
+			}
+			StatusByte |= _BV(SB_MotorStoped);
+		} else {
+			StatusByte&= ~_BV(SB_MotorStoped);
+		}
 	}
-      LastSensorValue=sensorValue;
-
-      analogWrite(MotorPWM_TIMER, outputValueMotor);       
-		rpm=60000/rotationTime;
-/*
-        // print the results to the serial monitor:        
-        Serial.print("sensorvalue = " );                       
-        Serial.print(sensorValue);      
-
-        Serial.print("\t RPM = " );                       
-        Serial.print(RPM);      
-        Serial.print("\t rTime = " );                       
-        Serial.print(rotationTime);      
-        Serial.print("\t output = ");      
-        Serial.println(outputValueMotor);   
-*/
-    }
 
 }

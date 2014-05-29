@@ -93,6 +93,8 @@ struct timerInfo timer[2], *frontTimer, *backTimer;
 const uint8_t
         fastPrescaler = _BV(CS01),						// 8
         slowPrescaler = _BV(CS01) | _BV(CS00);			// 64
+//		fastPrescaler = _BV(CS00),						// 8
+//        slowPrescaler = _BV(CS01);			// 64
 #       define SLOWSCALERSHIFT 7
 #       define FASTSCALERSHIFT 2
 
@@ -105,7 +107,7 @@ static boolean initialized = false;
 //#define MEASURE_ISR_TIME
 #ifdef MEASURE_ISR_TIME
 #include "input.h"
-struct pinInfo statusPIN = PA_3;
+struct pinInfo statusPIN = PA_3; //Ventil
 #endif
 
 

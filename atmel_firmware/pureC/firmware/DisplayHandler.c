@@ -9,6 +9,7 @@
 #include <inttypes.h>
 #include <util/delay.h>
 #include <avr/wdt.h>
+#include <stdio.h>
 
 
 //#include <stdio.h>
@@ -62,6 +63,14 @@ void DisplayHandler_setText2(char *newTextToShow){
   textCharPos = 0;
 }
 
+void DisplayHandler_showByte(uint8_t data){
+	char valueAsString[10];
+	sprintf(valueAsString, "%X", data); //HEX
+	//sprintf(valueAsString, "%d", data);  //DEC
+	DisplayHandler_setText2(valueAsString);
+	DisplayHandler_displayText(false);
+}
+	
 void DisplayHandler_clearPercentTextArea(){
 	uint8_t y=0;
   for (; y<5; y++){
@@ -254,10 +263,13 @@ boolean DisplayHandler_readText(){
 	boolean sucess = false;
 	if(newText[readAmount] != 00){
 		newText[readAmount] = 0x00;
-/*		if(availableSPI() == 0) {
-			_delay_ms(500);
+		if(availableSPI() == 0) {
+			_delay_ms(10);
+			if (availableSPI() == 0) {
+				_delay_ms(20);
+			}
 		}
-*/
+		
 		if(availableSPI() == 0) {
 			//Serial.println("no sign after text end, it have to end with a 0x00");
 			sucess = false;
@@ -276,7 +288,7 @@ boolean DisplayHandler_readText(){
 		//Serial.println("text end submited");
 		sucess = true;
 	}
-//	if (sucess){
+	if (sucess){
 		if (textToShow != NULL){
 			free(textToShow);
 		}
@@ -284,7 +296,7 @@ boolean DisplayHandler_readText(){
 		textXCord = DISPLAY_COLS;
 		textYCord = 0;
 		textCharPos = 0;
-//	}
+	}
 	return sucess;
 }
 
@@ -292,80 +304,53 @@ boolean DisplayHandler_displayText(boolean small){
   if (textToShow == NULL){
     return false;
   }
-  if (small){
-    return DisplayHandler_displaySmallText(textToShow);
-  } else {
-    return DisplayHandler_displayBigText(textToShow);
-  }
+  return DisplayHandler_displayText2(textToShow, small);
 }
 
-boolean DisplayHandler_displaySmallText(const char *text){
-  int8_t x=textXCord;
-  int8_t i=textCharPos;
-//  LedSign_Clear();
-  DisplayHandler_clearPercentTextArea();
-  int8_t x2, i2;
-  for (x2=x, i2=i; x2<DISPLAY_COLS;) {
-    if (i2 < strlen(text)){
-      const uint8_t *character = SmallFont_getChar(text[i2]);
-      int8_t w = FontHandler_Draw(x2, textYCord, character, PIXEL_ON);
-      x2 += w;
-      i2 = (i2+1);
-    } else {
-      //add a "space"
-      x2 += 4;
-      i2 = (i2+1);
-    }
-    if (x2 <= 0){ // the currently drawn character was completely out of screen
-      //adjust looping values for next loop
-      x = x2, i = i2;
-    }
-  }
-  LedSign_Flip(true);
-  x--;
-  textXCord=x;
-  textCharPos=i;
+boolean DisplayHandler_displayText2(const char *text, boolean small){
+	int8_t x=textXCord;
+	int8_t i=textCharPos;
+	if (small) {
+		DisplayHandler_clearPercentTextArea();
+	} else {
+		LedSign_Clear(PIXEL_OFF);
+	}
+	int8_t x2, i2;
+	for (x2=x, i2=i; x2<DISPLAY_COLS;) {
+		if (i2 < strlen(text)){
+			const uint8_t *character;
+			if (small) {
+				character = SmallFont_getChar(text[i2]);
+			} else {
+				character = NormalFont_getChar(text[i2]);
+			}
+			int8_t w = FontHandler_Draw(x2, textYCord, character, PIXEL_ON);
+			x2 += w;
+			i2 = (i2+1);
+		} else {
+			//add a "space"
+			if (small) {
+				x2 += 4;
+			} else {
+				x2 += 5;
+			}
+			i2 = (i2+1);
+		}
+		if (x2 <= 0){ // the currently drawn character was completely out of screen
+			//adjust looping values for next loop
+			x = x2, i = i2;
+		}
+	}
+	LedSign_Flip(true);
+	x--;
+	textXCord=x;
+	textCharPos=i;
 
-  if (i == strlen(text) && x <= 0){
-//    currentMode = 0;
-    return false;
-  } else {
-    return true;
-  }
-}
-
-boolean DisplayHandler_displayBigText(const char *text){
-  int8_t x=textXCord;
-  int8_t i=textCharPos;
-  LedSign_Clear(PIXEL_OFF);
-  int8_t x2, i2;
-  for (x2=x, i2=i; x2<DISPLAY_COLS;) {
-    if (i2 < strlen(text)){
-      const uint8_t *character = NormalFont_getChar(text[i2]);
-      int8_t w = FontHandler_Draw(x2, textYCord, character, PIXEL_ON);
-      x2 += w;
-      i2 = (i2+1);
-    } else {
-      //add a "space"
-      x2 += 5;
-      i2 = (i2+1);
-    }
-    if (x2 <= 0){ // the currently drawn character was completely out of screen
-      //adjust looping values for next loop
-      x = x2, i = i2;
-    }
-  }
-  LedSign_Flip(true);
-  x--;
-  textXCord=x;
-  textCharPos=i;
-
-  if (i == strlen(text) && x <= 0){
-//    currentMode = 0;
-    return false;
-  } else {
-    return true;
-  }
+	if (i == strlen(text) && x <= 0){
+		return false;
+	} else {
+		return true;
+	}
 }
 
 
