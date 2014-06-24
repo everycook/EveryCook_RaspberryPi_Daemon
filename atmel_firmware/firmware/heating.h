@@ -3,6 +3,8 @@
 
 #include "mytypes.h"
 
+#define HEATING_PULSE_INTERVAL 500
+
 //namespace Heating
 //{
 	extern void Heating_controlIHTemp();

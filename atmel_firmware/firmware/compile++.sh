@@ -12,6 +12,7 @@ avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o FontHandler.o FontHandler.c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o NormalFont.o NormalFont.c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o SmallFont.o SmallFont.c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o DisplayHandler.o DisplayHandler.c
+avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o watchdog.o watchdog.c
 #avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o .o .c
 avr-g++ -Os -DF_CPU=8000000UL -mmcu=atmega644p -c -o firmware.o firmware.c
 #avr-g++ -mmcu=atmega644p firmware.o input.o time.o Charliplexing.o -o firmware

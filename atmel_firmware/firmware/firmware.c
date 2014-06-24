@@ -154,11 +154,11 @@ int main (void)
 	
 	initTime();
 	//Init LoL-Shield
-	#ifdef GRAYSCALE
+//	#ifdef GRAYSCALE
 	LedSign_Init(DOUBLE_BUFFER | GRAYSCALE);  //Initializes the screen
-	#else
-	LedSign_Init(DOUBLE_BUFFER);  //Initializes the screen
-	#endif
+//	#else
+//	LedSign_Init(DOUBLE_BUFFER);  //Initializes the screen
+//	#endif
 	LedSign_Clear(0);
 	LedSign_Flip(false);
 	

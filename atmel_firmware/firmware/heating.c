@@ -4,6 +4,7 @@
 #include "heating.h"
 #include "input.h"
 #include "status.h"
+#include "time.h"
 
 struct pinInfo IHTempSensor = PA_1; //Analog
 
@@ -17,6 +18,7 @@ uint8_t IHPowerPWM_TIMER = TIMER2B;
 uint8_t IHFanPWM_TIMER = TIMER2A;
 
 uint8_t lastIHFanPWM = 0;
+uint16_t lastPulseTime = 0;
 
 uint16_t ihTemp = 0;
 uint8_t ihTemp8bit;
@@ -55,7 +57,7 @@ boolean heating = false;
 //IH vars
 const int Increment = 5;
 const int pause=100;
-int initialOutputValue = 50;
+int initialOutputValue = 0;
 boolean isHeating = false;
 boolean lastIsHeating = false;
 int outputValueIH = 50; //initialOutputValue
@@ -108,15 +110,36 @@ void Heating_heatControl(){
 				lastOutputValueIHStart = outputValueIH;
 			}
 			lastOutputValueIHRun = outputValueIH;
+/*			
+//			uint16_t currentMillis = millis();
+//			if (currentMillis - lastPulseTime>HEATING_PULSE_INTERVAL){
+				outputValueIH+=Increment;
+				if (outputValueIH>80){
+					outputValueIH = 80;
+				}
+				analogWrite(IHPowerPWM_TIMER, outputValueIH);
+				lastPulseTime = currentMillis;
+//			}
+*/
 		} else{
-			outputValueIH+=Increment;
-			if (outputValueIH>255){
-				outputValueIH = 255;
+			uint16_t currentMillis = millis();
+			if (currentMillis - lastPulseTime>HEATING_PULSE_INTERVAL){
+				outputValueIH+=Increment;
+				
+				if (outputValueIH>255){
+					outputValueIH = 255;
+				}
+				/*
+				if (outputValueIH>100){
+					outputValueIH = 100;
+				}
+				*/
+				analogWrite(IHPowerPWM_TIMER, outputValueIH);
+				digitalWrite(IHOn,HIGH);
+				_delay_ms(20);
+				digitalWrite(IHOn,LOW);
+				lastPulseTime = currentMillis;
 			}
-			analogWrite(IHPowerPWM_TIMER, outputValueIH);
-			digitalWrite(IHOn,HIGH);
-			_delay_ms(20);
-			//digitalWrite(IHOn,LOW);
 		}
 	} else if (isHeating){
 		/*
@@ -126,8 +149,6 @@ void Heating_heatControl(){
 		*/
 		outputValueIH = 0;
 		analogWrite(IHPowerPWM_TIMER, outputValueIH);
-	} else {
-		digitalWrite(IHOn,LOW);
 	}
 	lastIsHeating=isHeating;
 	if (isHeating){

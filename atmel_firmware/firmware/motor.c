@@ -38,6 +38,7 @@ void Motor_init(){
 	//Set Pin Modes
 	pinMode(MotorPosSensor, INPUT_PULLUP);
 	pinMode(MotorPWM, OUTPUT/*_PWM*/);
+	analogWrite(MotorPWM_TIMER, 0);
 	
 	cli();
 	
