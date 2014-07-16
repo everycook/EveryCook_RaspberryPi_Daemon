@@ -98,7 +98,10 @@ bool HeatOn(struct Daemon_Values *dv){
 		}
 	}
 }
-
+/** @brief turn heat off
+ *	@param *dv : Daemon_Values
+ *  @return succed?
+*/
 bool HeatOff(struct Daemon_Values *dv){
 	if(dv->settings->shieldVersion < 4){
 		if (!dv->state->heatPowerStatus && dv->heaterStatus->isOn){
@@ -364,7 +367,11 @@ double readWeightSeparate(double* values, struct Daemon_Values *dv){
 		}
 		return weightValue;
 }
-
+/** @brief display a char on 7 segment
+ *  @param curSegmentDisplay : char to display
+ *  @param state : state of 7 seg
+ *  @param i2c_config
+*/
 void SegmentDisplaySimple(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config){
 	if (curSegmentDisplay == 'P'){
 		state->oldSegmentDisplay = 'P';

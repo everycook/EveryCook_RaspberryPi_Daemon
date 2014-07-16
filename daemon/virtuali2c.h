@@ -33,13 +33,21 @@ See GPLv3.htm in the main folder for details.
 extern "C" {
 #endif
 
-//virtualI2C function delaration
+/** @brief virtualI2C function delaration
+*/
 void VirtualI2CInit(void);
 void I2CStart(void);
 void I2CStop(void);
 int CheckAck(void);
 uint8_t I2CReadByte(void);
+/** @brief I2CWriteByte: Write one Byte to the PCA9685
+ *  @param data:Data to the PCA9685
+ */
 void I2CWriteByte(uint8_t data);
+/** @brief I2CWriteBytes: Write one Byte to the PCA9685
+ *  @param data:The frist byte must be the address of the 'CHIP', then the data to the chip.
+ *  @param len : data size
+ */
 void I2CWriteBytes(uint8_t *data, uint8_t len);
 
 #ifdef __cplusplus

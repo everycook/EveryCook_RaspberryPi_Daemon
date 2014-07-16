@@ -19,8 +19,7 @@ See GPLv3.htm in the main folder for details.
 
 #include "convertFunctions.h"
 
-/* Clean the string
- *
+/** @brief Clean the string
  */
 void StringClean(char *str, uint32_t len){
 	uint32_t i = 0;
@@ -30,9 +29,7 @@ void StringClean(char *str, uint32_t len){
 	}
 }
 
-
-/* convert a string to a number
- *
+/** @brief convert a string to a number
  */
 uint32_t StringConvertToNumber(const char *str){
 	uint32_t value = 0 ,len = 0, mutiple = 1;
@@ -56,6 +53,8 @@ uint32_t StringConvertToNumber(const char *str){
 	return value;
 }
 
+/** @brief convert a string to a double
+ */
 double StringConvertToDouble(char *str){
 	double value = 0.0, mutiple = 1.0;
 	uint32_t len = 0;
@@ -84,7 +83,10 @@ double StringConvertToDouble(char *str){
 	return value;
 }
 
-/*
+/** @brief calculates n^i that is the higher and lower than num
+ *  @param num :number to divide
+ *  @param n : divisor
+ *  @return i : max(n^i)<num
 */
 int POWNTimes(uint32_t num, uint8_t n){
 	int i = 0;
@@ -95,7 +97,6 @@ int POWNTimes(uint32_t num, uint8_t n){
 	}
 	return i;
 }
-
 
 char* my_itoa(int val, int base){
 	static char buf[32]={0};

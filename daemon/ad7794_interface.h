@@ -70,14 +70,40 @@ enum ad7794_registers {
 #include <stdio.h>
 
 
-
+/** \brief Handles communication with the AD7794 chip. 
+ **/
 int ad7794_communicate(struct adc_private *adc, int reg, int dir, int len, uint8_t *buffer);
 int ad7794_reset(struct adc_private *adc);
+/** \brief Initializes SPI based AD7794 A/D converter
+ * \param spi_bus_nr Number of SPI bus the device is connected to.
+ * \param spi_cs_nr Number of SPI chip select line the device is connected to.
+ * \return Zero on success, otherwise the negated error number encountered, conforming to errno.h
+ **/
 int ad7794_init(struct adc_private *adc, int spi_bus_nr, int spi_cs_nr);
+/** Test wether a conversion has successfully been completed.
+ * This is done by querying the status register. 
+ * The datasheet says: [..] continuously convert with the RDY 
+ * pin in the status register going low each time a conversion is complete.
+ * 
+ * Furthermore the /RDY bit in the STATUS register also gives an indication
+ * if a conversion was finished. It is cleared whenever data is ready to be
+ * polled from the AD.
+ * \return <0 on error. 0 when not ready, 1 when ready
+ */
 int ad7794_check_if_ready(struct adc_private *adc);
+/** Select a channel for A/D conversion 
+  */
 int ad7794_select_channel(struct adc_private *adc, int chan);
+/** Select a channel for A/D conversion 
+  */
 int ad7794_select_channel2(struct adc_private *adc, uint8_t chan, uint32_t config);
+/** @brief use the fonction ad7794_read_data_reg
+ *  @return data
+*/
 uint32_t ad7794_read_data(struct adc_private *adc);
+/** @brief read data
+ *  @return data
+*/
 uint32_t ad7794_read_data_reg(struct adc_private *adc, uint32_t reg);
 uint32_t ad7794_write_data(struct adc_private *adc, uint32_t reg, uint32_t data);
 int ad7794_run_conversion(struct adc_private * adc);

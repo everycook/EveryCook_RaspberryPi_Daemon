@@ -24,6 +24,9 @@ See GPLv3.htm in the main folder for details.
 bool debug = false;
 bool debug2 = false;
 
+/** @brief initialization PIN for SPI and debug=debugEnabled
+ *  @param debugEnabled 
+ */
 void VirtualSPIAtmelInit(bool debugEnabled){
 	debug = debugEnabled;
 	wiringPiSetupGpio();
@@ -85,7 +88,6 @@ uint8_t SPIAtmelWrite(uint8_t data){
 	return readed;
 }
 
-
 /* SPIAtmelRead: Read one byte data from the Atmel
  * return: data from register
  */
@@ -111,7 +113,6 @@ uint8_t SPIAtmelRead(void){
 	delay(100);
 	return data;
 }
-
 
 uint8_t getResult(){
 	uint8_t tryCount = 0;
@@ -204,7 +205,6 @@ void atmelShowPercentText(uint8_t percent, char* text){
 	SPIAtmelWrite(0x00);
 	getValidResultOrResetAdditionalValid(SPI_Error_Text_Invalid);
 }
-
 
 void atmelSetHeating(bool on){
 	if (debug2) {printf("--->atmelSetHeating\n");}

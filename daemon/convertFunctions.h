@@ -14,9 +14,23 @@ See GPLv3.htm in the main folder for details.
 */
 
 #include <stdint.h>
-
+/** @brief Clean the string
+ */
 void StringClean(char *str, uint32_t len);
+
+/** @brief convert a string to a number
+ */
 uint32_t StringConvertToNumber(const char *str);
+
+/** @brief convert a string to a double
+ */
 double StringConvertToDouble(char *str);
+
+/** @brief calculates n^i that is the higher and lower than num
+ *  @param num :number to divide
+ *  @param n : divisor
+ *  @return i : max(n^i)<num
+*/
 int POWNTimes(uint32_t num, uint8_t n);
+
 char* my_itoa(int val, int base);

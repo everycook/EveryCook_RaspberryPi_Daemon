@@ -105,21 +105,54 @@ uint8_t HeaterErrorPattern[7][6] = {{0, 0, 0, 0, 0, 0},{0, 0, 1, 1, 1, 1},{1, 0,
 char* HeaterErrorCodes[] = {"No Pan", "Temperature Sensor out of work", "IGBT Sensor out of work","Voltage To High(>260V)", "Voltage to Low(<85V)","The bow out of water","IGBT Temperature To High"};
 uint8_t HeaterErrorTimeout[7] = {1, 4, 4, 2, 2, 3, 2};
 
+/** @brief program different mode according to what is chosen during the launch
+ *  @param argc : mode number selected
+ *  @param argv : mode which has been selected
+*/
 int parseParams(int argc, const char* argv[]);
+/** @brief initialization signals
+ */
 void defineSignalHandler();
 void handleSignal(int signum);
+/** @brief clear HourCounter
+*/
 void clearHourCounter();
+/** @brief creation of file
+ */
 void initOutputFile(void);
+/** @brief check if new information  were send by web
+*/
 bool checkForInput();
 void doOutput();
 
 void updateMotorTime();
 void updateHeaterTime();
 
+/** @brief check something
+ * 	@param * leds :
+ *  @param errNo
+ *  @param * state
+ *  @param * lastTime
+ *  @param runTime
+ @return true if no probleme
+*/
+bool checkIsHeaterState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* lastTime, uint32_t runTime);
+/** @brief calculate the status of heater in according to the shield Version
+*/
 void *heaterLedEvaluation(void *ptr);
+/** @brief return the valu of temperaure, pression and loadcell
+*/
 void *readADCValues(void *ptr);
+/** @brief return the value of buttons and speak
+*/
 void *handleButtons(void *ptr);
+/** @brief creat a thread to speak
+ *  @param * text : text that is spoken
+*/
 void speak(char* text);
+/** @brief fonction witch speaks
+ *  @param *ptr : text that is spoken
+*/
 void *speakThreadFunc(void *ptr);
 
 /*
@@ -165,28 +198,28 @@ int main(int argc, const char* argv[]){
 	printf("starting EveryCook daemon...\n");
 	if (settings.debug_enabled){printf("main\n");}
 	
-	int result=parseParams(argc, argv);
-	if (result != -1){
+	int result=parseParams(argc, argv); // reading modes that were selected
+	if (result != -1){   // end of the program depending on the mode
 		return result;
 	}
-	defineSignalHandler();
+	defineSignalHandler(); //initialization signals
 	state.alwaysReadMode = false;
 	
-	StringClean(state.TotalUpdate, 512);
-	ReadConfigurationFile();
-	ReadCalibrationFile();
+	StringClean(state.TotalUpdate, 512);//clean state.TotalUpdate
+	ReadConfigurationFile();// read the file configuration
+	ReadCalibrationFile(); // read the file calibration
 	
-	initHardware(settings.shieldVersion, buttonConfig.button_pin, buttonConfig.button_inverse);
+	initHardware(settings.shieldVersion, buttonConfig.button_pin, buttonConfig.button_inverse); // initilalization PIN
 	delay(30);
 	
 	if (settings.shieldVersion >= 4){
-		VirtualSPIAtmelInit(settings.debug_enabled);
+		VirtualSPIAtmelInit(settings.debug_enabled); // initilalization PIN (SPI)
 	}
 	
-	initOutputFile();
+	initOutputFile();// création of the file wich is use for web
 	state.Delay = settings.LongDelay;
 	
-	resetValues();
+	resetValues(); //reset all value
 	state.referenceForce = forceCalibration.offset; //for default reference Force in calibration mode
 	if (settings.shieldVersion < 4){
 		SegmentDisplaySimple(' ', &state, &i2c_config);
@@ -209,12 +242,12 @@ int main(int argc, const char* argv[]){
 	
 	
 	if (runningMode.normalMode){
-		if (settings.shieldVersion < 4){
-			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
+			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); // calculate the heater status in according to the shield version
 		}
-		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
-		if(settings.shieldVersion != 1){
-			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);
+		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
+		if(settings.shieldVersion != 1){// only if shield version is not 1
+			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);//gestionndes bouttons
 		}
 		
 		//Show Smilly / startscreen
@@ -234,16 +267,16 @@ int main(int argc, const char* argv[]){
 		
 		while (state.running){
 			if (settings.debug_enabled){printf("main loop...\n");}
-			if (timeValues.lastRunTime != timeValues.runTime){
+			if (timeValues.lastRunTime != timeValues.runTime){// if new start
 				state.timeChanged = true;
-				timeValues.lastRunTime = timeValues.runTime;
+				timeValues.lastRunTime = timeValues.runTime;//new time start
 			}
 			bool valueChanged = checkForInput();
 			
 			timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
 			timeValues.runTimeMillis = millis();
 			
-			if (valueChanged){
+			if (valueChanged){//if new information
 				if (settings.debug_enabled){printf("valueChanged=true\n");}
 				//TODO: timeValues.lastFileChangeTime = timeValues.runTime;
 				evaluateInput();
@@ -1551,7 +1584,8 @@ time_t get_mtime(const char *path){
     return statbuf.st_mtime;
 }
 
-
+/** @brief shows the different modes that can be chosen
+ */
 void printUsage(){
 	printf("Usage: ecdaemon [OPTIONS]\r\n");
 	printf("programm options:\r\n");
@@ -1580,6 +1614,10 @@ void printUsage(){
 	printf("  -?,  --help                   show this help\r\n");
 }
 
+/** @brief program different mode according to what is chosen during the launch
+ *  @param argc : mode number selected
+ *  @param argv : mode which has been selected
+*/
 int parseParams(int argc, const char* argv[]){
 	int i;
 	for (i=1; i<argc; ++i){ //param 0 is programmname
@@ -1627,7 +1665,7 @@ int parseParams(int argc, const char* argv[]){
 		} else if(strcmp(argv[i], "--test-motor") == 0 || strcmp(argv[i], "-tm") == 0){
 			runningMode.test_motor = true;
 			runningMode.normalMode = false;
-			settings.test_servo_min = 200;
+			settings.test_servo_min = 200;// même variable que au dessus, et meme fonction
 			settings.test_servo_max = 2000;
 			if (argc>i+1 && argv[i+1][0] != '-'){
 				++i;
@@ -1724,6 +1762,8 @@ int parseParams(int argc, const char* argv[]){
 	return -1;
 }
 
+/** @brief initialization signals
+ */
 void defineSignalHandler(){
 	signal (SIGTERM, handleSignal); //kill -term <pid>
 	signal (SIGINT, handleSignal); //Ctr+c
@@ -1750,6 +1790,8 @@ void handleSignal(int signum) {
 	}
 }
 
+/** @brief clear HourCounter
+*/
 void clearHourCounter(){
 	hourCounter.identifier[0] = 'H';
 	hourCounter.identifier[1] = 'C';
@@ -1760,6 +1802,8 @@ void clearHourCounter(){
 	hourCounter.motor = 0;
 }
 
+/** @brief creation of file
+ */
 void initOutputFile(void){
 	if (settings.debug_enabled){printf("iniOutputFile\n");}
 	FILE *fp;
@@ -1814,6 +1858,8 @@ void initOutputFile(void){
 	}
 }
 
+/** @brief reset all value
+ */
 void resetValues(){
 	state.isBuzzing = true; //to be sure first send a off to buzzer
 	state.oldSegmentDisplay = ' ';
@@ -1838,7 +1884,7 @@ void resetValues(){
 	
 	i2c_servo_values.servoOpen=0;
 	if (settings.shieldVersion < 4){
-		writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_closed);
+		writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_closed); // send the value by the I2C
 	}
 	
 	heaterStatus.ledValues[0] = 0;
@@ -1849,7 +1895,8 @@ void resetValues(){
 	heaterStatus.ledValues[5] = 0;
 }
 
-
+/** @brief check if new information  were send by web
+*/
 bool checkForInput(){
 	bool valueChanged = false;
 	if (settings.useMiddleware){
@@ -1944,8 +1991,8 @@ void ProcessCommand(void){
 				newCommandValues.stepId=0;
 			}
 		}
-		oldCommandValues.mode = currentCommandValues.mode;
-		currentCommandValues.mode = newCommandValues.mode;
+		oldCommandValues.mode = currentCommandValues.mode;//save old mode
+		currentCommandValues.mode = newCommandValues.mode;//save new mode
 		currentCommandValues.stepId = newCommandValues.stepId;
 		timeValues.stepStartTime = timeValues.runTime;
 		state.dataChanged = true;
@@ -2508,7 +2555,6 @@ void SegmentDisplay(){
 	}
 }
 
-
 void Beep(){
 	if(settings.doRememberBeep==1){
 		if (timeValues.runTime>timeValues.stepEndTime){
@@ -2547,10 +2593,8 @@ void Beep(){
 	}
 }
 
-
 /*******************PI File read/write Code**********************/
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
-
 
 void prepareState(char* TotalUpdate){
 	StringClean(TotalUpdate, 512);
@@ -2590,7 +2634,6 @@ void updateMotorTime(){
 		}
 	}
 }
-
 
 void updateHeaterTime(){
 	//if (currentCommandValues.motorRpm>0){
@@ -2824,7 +2867,8 @@ bool ReadFile(){
 	return true;
 }
 
-
+/** @brief change the newCommandeValue with state
+*/
 void evaluateInput(){
 	//TODO only set "setXXX" values if stepId changed, other wise ignore "new/changed values".
 	int i;
@@ -2858,17 +2902,20 @@ void evaluateInput(){
 	if (newCommandValues.motorOff>0 && newCommandValues.motorOff<2) newCommandValues.motorOff=2;
 }
 
-
-
-
+/** @brief read one ligne of the file fp
+ *  @param keyString : name of value
+ *  @param valueString : value
+ *  @param fp : file to read
+ *  @return true line was read or false in a other case
+ */
 bool readConfigLine(char* keyString, char* valueString, FILE *fp){
 	char c;
 	char c2;
 	
 	uint8_t i = 0;
 	c = fgetc(fp);
-	while (c != 255){
-		if (c == '#'){
+	while (c != 255){ // 255=nothing
+		if (c == '#'){ 
 			if (settings.debug_enabled){printf("\tline with # found\n");}
 			while (c != '\r' && c != '\n' && c != 255){
 				c = fgetc(fp);
@@ -2877,7 +2924,7 @@ bool readConfigLine(char* keyString, char* valueString, FILE *fp){
 			//Empty line or end of last line
 		} else if (c == '\r'){
 			//Empty line
-		} else {
+		} else {// good line
 			i = 0;
 			while (c != '=' && c != '\r' && c != '\n'){
 				keyString[i] = c;
@@ -2923,8 +2970,7 @@ bool readConfigLine(char* keyString, char* valueString, FILE *fp){
 	return false;
 }
 
-/* Read the configuration
- *
+/** @brief Read the configuration
  */
 void ReadConfigurationFile(void){
 	if (settings.debug_enabled){printf("ReadConfigurationFile...\n");}
@@ -2937,7 +2983,7 @@ void ReadConfigurationFile(void){
 	StringClean(keyString, 30);
 	StringClean(valueString, 100);
 	fp = fopen(settings.configFile, "r");
-	if (fp != NULL){
+	if (fp != NULL){// if file exist
 		while (readConfigLine(&keyString[0], &valueString[0], fp)){
 			if (settings.debug_enabled){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
 			
@@ -3061,7 +3107,7 @@ void ReadConfigurationFile(void){
 			StringClean(keyString, 30);
 			StringClean(valueString, 100);
 		}
-	} else {
+	} else { // if file doesn't exist
 		printf("config file '%s' not found!", settings.configFile);
 	}
 	
@@ -3077,6 +3123,8 @@ void ReadConfigurationFile(void){
 	if (settings.debug_enabled){printf("done.\n");}
 }
 
+/** @brief Read the calibration
+ */
 void ReadCalibrationFile(void){
 	if (settings.debug_enabled){printf("ReadCalibrationFile...\n");}
 	
@@ -3315,6 +3363,14 @@ void ReadCalibrationFile(void){
 	if (settings.debug_enabled){printf("done.\n");}
 }
 
+/** @brief check something
+ * 	@param * leds :
+ *  @param errNo
+ *  @param * state
+ *  @param * lastTime
+ *  @param runTime
+ @return true if no probleme
+*/
 bool checkIsHeaterState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* lastTime, uint32_t runTime){
 	bool isSame = true;
 	uint8_t i;
@@ -3335,8 +3391,10 @@ bool checkIsHeaterState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* la
 	return *state;
 }
 
+/** @brief calculate the status of heater in according to the shield Version
+*/
 void *heaterLedEvaluation(void *ptr){
-	if (runningMode.simulationMode){
+	if (runningMode.simulationMode){//if simulation mode
 		heaterStatus.hasPower = true;
 		heaterStatus.noPanError = false;
 		while (state.running){
@@ -3345,11 +3403,11 @@ void *heaterLedEvaluation(void *ptr){
 		}
 		return 0;
 	}
-	if (settings.shieldVersion == 1){
+	if (settings.shieldVersion == 1){//if n 1 shield Version
 		uint32_t lastTime_V1[7];
 		while (state.running){
 			uint32_t runTime = time(NULL);
-			
+			//return high or low
 			heaterStatus.ledValues[0] = readSignPin(0);
 			heaterStatus.ledValues[1] = readSignPin(1);
 			heaterStatus.ledValues[2] = readSignPin(2);
@@ -3357,19 +3415,19 @@ void *heaterLedEvaluation(void *ptr){
 			heaterStatus.ledValues[4] = readSignPin(4);
 			heaterStatus.ledValues[5] = readSignPin(5);
 			
-			if (heaterStatus.ledValues[0] && heaterStatus.ledValues[1] && heaterStatus.ledValues[2]  && heaterStatus.ledValues[3] && heaterStatus.ledValues[4]  && heaterStatus.ledValues[5]){
+			if (heaterStatus.ledValues[0] && heaterStatus.ledValues[1] && heaterStatus.ledValues[2]  && heaterStatus.ledValues[3] && heaterStatus.ledValues[4]  && heaterStatus.ledValues[5]){ //all leds are turn on
 				if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < timeValues.runTime){
 					heaterStatus.hasPower = false;
 				}
-			} else {
-				heaterStatus.hasPowerLedOnLastTime = timeValues.runTime;
+			} else {// all leds are not turn on
+				heaterStatus.hasPowerLedOnLastTime = timeValues.runTime;//initialization of time
 				if (!heaterStatus.hasPower){
 					heaterStatus.hasPower = true;
 				}
 			}
 			
 			if (heaterStatus.ledValues[3] == 0){
-				heaterStatus.isOnLastTime = timeValues.runTime;
+				heaterStatus.isOnLastTime = timeValues.runTime;//initialization of time
 				if (!heaterStatus.isOn){
 					heaterStatus.isOn = true;
 				}
@@ -3409,7 +3467,7 @@ void *heaterLedEvaluation(void *ptr){
 				errorFound = true;
 			}
 			
-			if (!errorFound){
+			if (!errorFound){//si error
 				heaterStatus.errorMsg = NULL;
 			}
 			//if (settings.debug_enabled){
@@ -3417,7 +3475,7 @@ void *heaterLedEvaluation(void *ptr){
 			//}
 			delay(10);
 		}
-	} else if (settings.shieldVersion == 2 || settings.shieldVersion == 3){
+	} else if (settings.shieldVersion == 2 || settings.shieldVersion == 3){//if n 2 or 3 shield Version
 		uint32_t led[6];
 		led[0] = 0;
 		led[1] = 0;
@@ -3626,11 +3684,13 @@ void *heaterLedEvaluation(void *ptr){
 	return 0;
 }
 
+/** @brief return the valu of temperaure, pression and loadcell
+*/
 void *readADCValues(void *ptr){
 	uint32_t delayWeight;
 	uint32_t delayTempPess;
 	
-	if (runningMode.simulationMode){
+	if (runningMode.simulationMode){// if simulation mode
 		state.lidClosed = true;
 		delayWeight = 300;
 		delayTempPess = 1000;
@@ -3777,14 +3837,14 @@ void *readADCValues(void *ptr){
 			
 			timeValues.lastWeightUpdateTime = millis();
 			
-			if (settings.shieldVersion < 4){
+			if (settings.shieldVersion < 4){//if shield Version 1, 2 or 3
 				if (currentCommandValues.mode != MODE_SCALE){
 					//check isLidClosed
 					double front = (adc_values.LoadCellFrontLeft.valueByOffset + adc_values.LoadCellFrontRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
 					double back = (adc_values.LoadCellBackLeft.valueByOffset + adc_values.LoadCellBackRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
 					
 					double diff = front - back;
-					state.lidClosed = diff >= -1000;
+					state.lidClosed = diff >= -1000;// close/open
 					if (settings.debug3_enabled) {printf("lidClosed front: %2.f, back: %2.f, diff: %2.f, lidClosed: %d\n", front, back, diff, state.lidClosed);}
 				}
 			}
@@ -3858,7 +3918,8 @@ void *readADCValues(void *ptr){
 	return 0;
 }
 
-
+/** @brief return the value of buttons and speak
+*/
 void *handleButtons(void *ptr){
 	int buttonDelay = 10;
 	printf("handleButtons\n");
@@ -3872,24 +3933,24 @@ void *handleButtons(void *ptr){
 	uint32_t runTimeMillis = 0;
 	bool changed;
 	while (state.running){
-		runTimeMillis = millis();
+		runTimeMillis = millis();//save time
 		i=0;
 		changed = false;
 		for(; i<buttonCount; ++i){
 			but[i] = readButton(i);
-			if (but[i]){
-				if (but[i] != buttonValues.button[i]){
-					buttonValues.buttonOnTime[i] = runTimeMillis;
+			if (but[i]){//si bouton on
+				if (but[i] != buttonValues.button[i]){//value change
+					buttonValues.buttonOnTime[i] = runTimeMillis;//save time
 					changed = true;
 				}
 				buttonValues.buttonPressedTime[i] = runTimeMillis - buttonValues.buttonOnTime[i];
-			} else {
-				if (but[i] != buttonValues.button[i]){
-					buttonValues.buttonOffTime[i] = runTimeMillis;
+			} else {// if button off
+				if (but[i] != buttonValues.button[i]){//value change
+					buttonValues.buttonOffTime[i] = runTimeMillis;//save time
 					changed = true;
 				}
 			}
-			buttonValues.button[i] = but[i];
+			buttonValues.button[i] = but[i];//save new button's value
 			if (changed){
 				printf("\t%d (pressed: %d, ontime: %d, offtime: %d)", but[i], buttonValues.buttonPressedTime[i], buttonValues.buttonOnTime[i], buttonValues.buttonOffTime[i]);
 			}
@@ -3900,7 +3961,7 @@ void *handleButtons(void *ptr){
 		
 		//Check button functions
 		uint8_t buttonNumber = 2;
-		if (buttonValues.button[buttonNumber]){
+		if (buttonValues.button[buttonNumber]){// button back
 			//if button is (still) pressed
 			if (buttonValues.buttonPressedTime[buttonNumber] > 60000){
 				if (runTimeMillis - buttonValues.actionStartedTime[buttonNumber] > 10000){
@@ -4025,6 +4086,9 @@ void *handleButtons(void *ptr){
 	return 0;
 }
 
+/** @brief creat a thread to speak
+ *  @param * text : text that is spoken
+*/
 void speak(char* text){
 /*
 	if (fork() == 0){
@@ -4042,6 +4106,9 @@ void speak(char* text){
 	//pthread_join(threadSpeak, NULL);
 }
 
+/** @brief fonction wich speaks
+ *  @param *ptr : text that is spoken
+*/
 void *speakThreadFunc(void *ptr){
 	char* text = (char *) ptr;
 	char command[400];

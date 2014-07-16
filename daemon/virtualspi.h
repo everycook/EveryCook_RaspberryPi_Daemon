@@ -65,14 +65,40 @@ extern uint32_t SPIRead3Bytes(uint8_t register);
 */
 
 //virtualSPI function delaration
+/** @brief VirtualSPIInit
+ */
 void VirtualSPIInit(void);
+/** @brief SPIReset: Reset the AD7794 chip, write 4 0xff.
+ */
 void SPIReset(void);
+/** @brief SPIWrite: Write one byte data to the register in AD7794
+ *  @param data:datas write to register
+ */
 void SPIWrite(uint8_t data);	
+/** @brief Read one byte data from the AD7794
+ *  @return  data from register
+ */
 uint8_t SPIRead(void);
 void SPIWriteByte(uint8_t reg, uint8_t data);
+/** @brief SPIWrite2Bytes: Wirte one byte to denstination register. 
+ *  @param reg : register
+ *  @param data
+ */
 void SPIWrite2Bytes(uint8_t reg, uint32_t data);
+/** @brief Get one byte from denstination register.
+ *  @param reg : register
+ *  @return 1 byte data
+ */
 uint8_t SPIReadByte(uint8_t register);
+/** @brief Get 2 bytes from denstination register.
+ *  @param reg : register
+ * @return  2 bytes data
+ */
 uint32_t SPIRead2Bytes(uint8_t register);
+/** @brief Get 3 bytes from denstination register.
+ *  @param reg : register
+ * @return  2 bytes data
+ */
 uint32_t SPIRead3Bytes(uint8_t register);
 
 #ifdef __cplusplus

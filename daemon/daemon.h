@@ -20,6 +20,8 @@ See GPLv3.htm in the main folder for details.
 
 #include "bool.h"
 
+/** @brief reset all value
+ */
 void resetValues();
 void ProcessCommand(void);
 void prepareState(char* TotalUpdate);
@@ -27,9 +29,21 @@ void writeStatus(char* data);
 void writeLog();
 void parseSockInput(char* input);
 bool ReadFile();
+/** @brief change the newCommandeValue with state
+*/
 void evaluateInput();
+/** @brief read one ligne of the file fp
+ *  @param keyString : name of value
+ *  @param valueString : value
+ *  @param fp : file to read
+ *  @return true line was read or false in a other case
+ */
 bool readConfigLine(char* keyString, char* valueString, FILE *fp);
+/** @brief Read the configuration
+ */
 void ReadConfigurationFile(void);
+/** @brief Read the calibration
+ */
 void ReadCalibrationFile(void);
 
 

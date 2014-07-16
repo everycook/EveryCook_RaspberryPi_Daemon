@@ -81,6 +81,9 @@ extern "C" {
 #endif
 
 //virtualSPI function delaration
+/** @brief initialization PIN for SPI and debug=debugEnabled
+ *  @param debugEnabled 
+ */
 void VirtualSPIAtmelInit(bool debugEnabled);
 void SPIAtmelReset(void);
 uint8_t SPIAtmelWrite(uint8_t data);	

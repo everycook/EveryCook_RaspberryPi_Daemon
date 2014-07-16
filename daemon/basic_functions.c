@@ -49,11 +49,17 @@ struct adc_private adc;
 bool debug_enabled2 = false;
 
 bool use_spi_dev = false;
-
+/** @brief modifie debug_enabled2 avec value
+ *  @param value
+*/
 void setDebugEnabled(bool value){
 	debug_enabled2 = value;
 }
-
+/** @brief initialization PIN
+ *  @param shieldVersion 
+ *  @param buttonPins 
+ *  @param buttonInverse 
+ */
 void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonInverse){
 	if (debug_enabled2){printf("initHardware\n");}
 	
@@ -82,7 +88,9 @@ void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonIn
 	PCA9685Init(shieldVersion);
 	AD7794Init();
 }
-
+/** @brief remplit le tableau ConfigurationReg avec newConfig
+ *  @param newConfig
+*/
 void setADCConfigReg(uint32_t newConfig[]){
 	if (debug_enabled2){printf("setADCConfigReg...\n");}
 	uint8_t i=0;
@@ -93,11 +101,15 @@ void setADCConfigReg(uint32_t newConfig[]){
 	if (debug_enabled2){printf("done.\n");}
 }
 
+/** @brief modifie ModeReg avec newModeReg
+ *  @param newModeReg
+*/
 void setADCModeReg(uint16_t newModeReg){
 	ModeReg = newModeReg;
 }
 
-//GPIO PCA9685 initialization
+/** @brief GPIO PCA9685 initialization 
+*/
 void GPIOInit(void){
 	if (debug_enabled2){printf("GPIOInit\n");}
 	//heater led pins
@@ -124,6 +136,9 @@ void GPIOInit(void){
 	}
 	if (debug_enabled2){printf("done\n");}
 }
+/** @brief initialization according to shieldVersion
+ *  @param shieldVersion
+*/
 void PCA9685Init(uint32_t shieldVersion){
 	if (debug_enabled2){printf("PCA9685Init\n");}
 	Data[0] = 0x80;
@@ -152,6 +167,8 @@ void PCA9685Init(uint32_t shieldVersion){
 	Data[2] = 0x04;
 	I2CWriteBytes(Data, 3);
 }
+/** @brief initialization
+*/
 void AD7794Init(void){
 	if (debug_enabled2){printf("AD7794Init\n");}
 	if (use_spi_dev){
@@ -172,10 +189,11 @@ void AD7794Init(void){
 	}
 }
 
-
-
-
 //read/write functions
+/** @brief return the register's value of ADC 
+ *  @param i : register
+ *  @return value of register
+*/
 uint32_t readADC(uint8_t i){
 	uint32_t data;
 	if (use_spi_dev){
@@ -186,16 +204,16 @@ uint32_t readADC(uint8_t i){
 	
 	bool readyToRead = false;
 	if (use_spi_dev){
-		while (!readyToRead){
-			if (ad7794_check_if_ready(&adc)){
+		while (!readyToRead){//wait until the transmition is ready
+			if (ad7794_check_if_ready(&adc)){//if ready
 				readyToRead = true;
-			} else {
+			} else {if //not ready wait
 				delay(5);
 			}
 		}
 		data = ad7794_read_data(&adc);
-	} else {
-		while (!readyToRead){
+	} else {// if SPI
+		while (!readyToRead){//wait until the transmition is ready
 			uint8_t adcState = SPIReadByte(READ_STATUS_REG);
 			if ((adcState & 0x80) == 0){
 				readyToRead = true;
@@ -203,15 +221,18 @@ uint32_t readADC(uint8_t i){
 				delay(5);
 			}
 		}
-		data = SPIRead3Bytes(READ_DATA_REG);
+		data = SPIRead3Bytes(READ_DATA_REG);//read byte
 	}
 	if (debug_enabled2){printf("readADC(%d): %06X\n", i, data);}
 	return data;
 }
-
+/** @brief read the value at Pin i
+ *  @param i
+ * @return value at Pin i
+*/
 uint32_t readSignPin(uint8_t i){
 	uint32_t data;
-	data = digitalRead(PinHeaterLeds[i]);
+	data = digitalRead(PinHeaterLeds[i]);//return high or low
 	if (debug_enabled2){printf("readSignPin(%d): %06X\n", i, data);}
 	return data;
 }
@@ -231,7 +252,10 @@ void writeControllButtonPin(uint8_t i, uint8_t on){
 		digitalWrite(PinHeaterControllButtons[i], LOW);
 	}
 }
-
+/** @brief return the value of i button
+ *  @param i
+ *  @return value
+*/
 uint32_t readButton(uint8_t i){
 	uint32_t data;
 	data = digitalRead(PinButtons[i]);
@@ -241,7 +265,10 @@ uint32_t readButton(uint8_t i){
 	if (debug_enabled2){printf("readButton(%d): %06X\n", i, data);}
 	return data;
 }
-
+/** @brief write on the Pin i the value (1/0) on
+ *  @param i
+ *  @param on
+*/
 void writeRaspberryPin(uint8_t i, uint8_t on){
 	if (debug_enabled2){printf("writeRaspberryPin(%d): %d\n", i, on);}
 	if (on){
@@ -261,7 +288,10 @@ void buzzer(uint8_t on, uint32_t pwm){
 	}
 }
 
-
+/** @brief put value in the right structure with 
+ *  @param i : what value
+ *  @param value : value you want send
+ */
 void writeI2CPin(uint8_t i, uint32_t value){
 	if (debug_enabled2){printf("writeI2CPin(%d): %04X\n", i, value);}
 	//Data[0] = 0x80; //set in PCA9685Init()

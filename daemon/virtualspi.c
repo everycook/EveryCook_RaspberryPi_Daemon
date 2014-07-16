@@ -22,7 +22,7 @@ See GPLv3.htm in the main folder for details.
 uint8_t Data[10];
 
 /*******************PI Driver Code**********************/
-/* VirtualSPIInit
+/** @brief VirtualSPIInit
  */
 void VirtualSPIInit(void){
 	wiringPiSetupGpio();
@@ -34,8 +34,7 @@ void VirtualSPIInit(void){
 	delay(30);
 }
 
-/* SPIReset: Reset the AD7794 chip, write 4 0xff.
- *
+/** @brief SPIReset: Reset the AD7794 chip, write 4 0xff.
  */
 void SPIReset(void){
 //	digitalWrite(CS, LOW);
@@ -46,8 +45,8 @@ void SPIReset(void){
 //	digitalWrite(CS, HIGH);	
 }
 
-/* SPIWrite: Write one byte data to the register in AD7794
- * data:datas write to register
+/** @brief SPIWrite: Write one byte data to the register in AD7794
+ *  @param data:datas write to register
  */
 void SPIWrite(uint8_t data){
 	int i = 7;
@@ -65,8 +64,8 @@ void SPIWrite(uint8_t data){
 	}	
 }
 
-/* SPIRead: Read one byte data from the AD7794
- * return: data from register
+/** @brief Read one byte data from the AD7794
+ *  @return  data from register
  */
 uint8_t SPIRead(void){
 	int i = 7;
@@ -95,8 +94,9 @@ void SPIWriteByte(uint8_t reg, uint8_t data){
 //	digitalWrite(CS, HIGH);
 }
 
-/* SPIWrite2Bytes: Wirte one byte to denstination register. 
- * 
+/** @brief SPIWrite2Bytes: Wirte one byte to denstination register. 
+ *  @param reg : register
+ *  @param data
  */
 void SPIWrite2Bytes(uint8_t reg, uint32_t data){
 //	digitalWrite(CS, LOW);
@@ -106,8 +106,9 @@ void SPIWrite2Bytes(uint8_t reg, uint32_t data){
 //	digitalWrite(CS, HIGH);
 }
 
-/* SPIReadByte: Get one byte from denstination register. 
- * return: 1 byte data
+/** @brief Get one byte from denstination register.
+ *  @param reg : register
+ *  @return 1 byte data
  */
 uint8_t SPIReadByte(uint8_t reg){
 	uint8_t data;
@@ -120,8 +121,9 @@ uint8_t SPIReadByte(uint8_t reg){
 	return data;
 }
 
-/* SPIReadByte: Get two bytes from denstination register. 
- * return: 2 bytes data
+/** @brief Get 2 bytes from denstination register.
+ *  @param reg : register
+ * @return  2 bytes data
  */
 uint32_t SPIRead2Bytes(uint8_t reg){
 	uint32_t data;
@@ -135,8 +137,9 @@ uint32_t SPIRead2Bytes(uint8_t reg){
 	return data;
 }
 
-/* SPIReadByte: Get three bytes from denstination register. 
- * return: 3 bytes data
+/** @brief Get 3 bytes from denstination register.
+ *  @param reg : register
+ * @return  2 bytes data
  */
 uint32_t SPIRead3Bytes(uint8_t reg){
 	uint32_t data;

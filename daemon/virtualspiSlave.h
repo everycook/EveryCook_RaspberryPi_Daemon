@@ -34,8 +34,11 @@ See GPLv3.htm in the main folder for details.
 extern "C" {
 #endif
 
+
 void VirtualSPISlaveInit(void);
+
 uint8_t SPISlaveRead();
+
 void SPISlaveWrite(uint8_t data);
 
 #ifdef __cplusplus

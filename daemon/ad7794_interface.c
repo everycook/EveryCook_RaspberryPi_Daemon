@@ -171,7 +171,8 @@ int ad7794_select_channel(struct adc_private *adc, int chan)
 	adc->selected_input = chan;
 	return r;
 }
-
+/** Select a channel for A/D conversion 
+  */
 int ad7794_select_channel2(struct adc_private *adc, uint8_t chan, uint32_t config){
 	uint8_t value[2];
 	value[0] = config & 0x000000FF;
@@ -180,12 +181,15 @@ int ad7794_select_channel2(struct adc_private *adc, uint8_t chan, uint32_t confi
 	adc->selected_input = chan;
 	return r;
 }
-
-
+/** @brief use the fonction ad7794_read_data_reg
+ *  @return data
+*/
 uint32_t ad7794_read_data(struct adc_private *adc){
 	return ad7794_read_data_reg(adc, AD7794_DATA);
 }
-
+/** @brief read data
+ *  @return data
+*/
 uint32_t ad7794_read_data_reg(struct adc_private *adc, uint32_t reg){
 	uint8_t data[3];
 	uint32_t r;

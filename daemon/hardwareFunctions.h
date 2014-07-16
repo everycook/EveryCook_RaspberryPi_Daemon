@@ -18,13 +18,21 @@ See GPLv3.htm in the main folder for details.
 double readTemp(struct Daemon_Values *dv);
 int32_t readPress(struct Daemon_Values *dv);
 bool HeatOn(struct Daemon_Values *dv);
+/** @brief turn heat off
+ *	@param *dv : Daemon_Values
+ *  @return succed?
+*/
 bool HeatOff(struct Daemon_Values *dv);
 void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv);
 void setSolenoidOpen(bool open, struct Daemon_Values *dv);
 void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct Daemon_Values *dv);
 double readWeight(struct Daemon_Values *dv);
 double readWeightSeparate(double* values, struct Daemon_Values *dv);
-
+/** @brief display a char on 7 segment
+ *  @param curSegmentDisplay : char to display
+ *  @param state : state of 7 seg
+ *  @param i2c_config
+*/
 void SegmentDisplaySimple(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
 void SegmentDisplayOptimized(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
 void blink7Segment(struct I2C_Config *i2c_config);

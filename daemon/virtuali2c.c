@@ -19,8 +19,7 @@ See GPLv3.htm in the main folder for details.
 #include <wiringPi.h>
 #include "virtuali2c.h"
 
-/* VirtualI2CInit: Initializate the virtual I2C-BUS protocal
- *
+/** VirtualI2CInit: Initializate the virtual I2C-BUS protocal
  */
 void VirtualI2CInit(void){
 	wiringPiSetupGpio();
@@ -78,8 +77,8 @@ int CheckAck(void){
 	return 1;
 }
 
-/* I2CWriteByte: Write one Byte to the PCA9685
- * data:Data to the PCA9685
+/** @brief I2CWriteByte: Write one Byte to the PCA9685
+ *  @param data:Data to the PCA9685
  */
 void I2CWriteByte(uint8_t data){
 	uint8_t i = 0;
@@ -129,9 +128,9 @@ uint8_t I2CReadByte(void){
 	return data;
 }
 
-/* I2CWriteBytes: Write one Byte to the PCA9685
- * data:The frist byte must be the address of the 'CHIP', then the data to the
- *      chip.
+/** @brief I2CWriteBytes: Write one Byte to the PCA9685
+ *  @param data:The frist byte must be the address of the 'CHIP', then the data to the chip.
+ *  @param len : data size
  */
 void I2CWriteBytes(uint8_t *data, uint8_t len){
 	uint8_t i = 0;

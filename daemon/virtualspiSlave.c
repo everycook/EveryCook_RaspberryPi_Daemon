@@ -19,7 +19,6 @@ See GPLv3.htm in the main folder for details.
 #include <wiringPi.h>
 #include "virtualspi.h"
 
-
 void SPI_SLAVE_ISR (void);
 
 uint8_t currentInByte = 0;
@@ -34,8 +33,8 @@ uint8_t spiInData[100];
 uint8_t spiInPos = 0;
 uint8_t spiInLen = 0;
 
-
-
+/** @brief Pin initialisation
+*/
 void VirtualSPISlaveInit(void){
 	wiringPiSetupGpio();
 	
@@ -47,13 +46,11 @@ void VirtualSPISlaveInit(void){
 	wiringPiISR(SLAVE_SCLK, INT_EDGE_FALLING, &SPI_SLAVE_ISR) ;
 }
 
-
 uint8_t SPISlaveRead(){
 }
 
 void SPISlaveWrite(uint8_t data){
 }
-
 
 void SPI_SLAVE_ISR (void) {
 	uint8_t bit = digitalRead(SLAVE_MOSI);
@@ -70,11 +67,7 @@ void SPI_SLAVE_ISR (void) {
 	}
 }
 
-
-
-
-/* SPIReset: Reset the AD7794 chip, write 4 0xff.
- *
+/** @brief SPIReset: Reset the AD7794 chip, write 4 0xff.
  */
 void SPIReset(void){
 //	digitalWrite(SLAVE_CS, LOW);
@@ -85,8 +78,8 @@ void SPIReset(void){
 //	digitalWrite(SLAVE_CS, HIGH);	
 }
 
-/* SPIWrite: Write one byte data to the register in AD7794
- * data:datas write to register
+/** @brief ** @bSPIWrite: Write one byte data to the register in AD7794
+ * @param data :datas write to register
  */
 void SPIWrite(uint8_t data){
 	int i = 7;
