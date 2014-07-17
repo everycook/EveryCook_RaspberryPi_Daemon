@@ -113,7 +113,9 @@ int parseParams(int argc, const char* argv[]);
 /** @brief initialization signals
  */
 void defineSignalHandler();
+
 void handleSignal(int signum);
+
 /** @brief clear HourCounter
 */
 void clearHourCounter();
@@ -123,9 +125,17 @@ void initOutputFile(void);
 /** @brief check if new information  were send by web
 */
 bool checkForInput();
+
+/** @ write all output file to communicate with web
+*/
 void doOutput();
 
+/** @brief update time of motor
+*/
 void updateMotorTime();
+
+/** @brief update time of heater
+*/
 void updateHeaterTime();
 
 /** @brief check something
@@ -271,7 +281,7 @@ int main(int argc, const char* argv[]){
 				state.timeChanged = true;
 				timeValues.lastRunTime = timeValues.runTime;//new time start
 			}
-			bool valueChanged = checkForInput();
+			bool valueChanged = checkForInput();//check if new value
 			
 			timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
 			timeValues.runTimeMillis = millis();
@@ -279,12 +289,12 @@ int main(int argc, const char* argv[]){
 			if (valueChanged){//if new information
 				if (settings.debug_enabled){printf("valueChanged=true\n");}
 				//TODO: timeValues.lastFileChangeTime = timeValues.runTime;
-				evaluateInput();
+				evaluateInput();//look what have change
 			}
-			ProcessCommand();
+			ProcessCommand();//control all output electronique system
 			currentCommandValues.time = timeValues.runTime - timeValues.stepStartTime;
 			
-			doOutput();
+			doOutput();// control all output for web
 			
 			if (settings.debug_enabled){printf("main loop end.\n");}
 			delay(state.Delay);
@@ -296,28 +306,30 @@ int main(int argc, const char* argv[]){
 		setMotorRPM(0, &daemon_values);
 		
 		if (settings.shieldVersion < 3){
-			setServoOpen(0, 1, 0, &daemon_values);
+			setServoOpen(0, 1, 0, &daemon_values);//open valve with servo 
 		} else {
-			setSolenoidOpen(false, &daemon_values);
+			setSolenoidOpen(false, &daemon_values);//open solenoide valve
 		}
 		if(settings.shieldVersion != 1){
-			pthread_join(threadHandleButtons, NULL);
+			pthread_join(threadHandleButtons, NULL);// wait end of thread
 		}
-		pthread_join(threadReadADCValues, NULL);
+		pthread_join(threadReadADCValues, NULL);// wait end of thread
 		if (settings.shieldVersion < 4){
-			pthread_join(threadHeaterLedReader, NULL);
+			pthread_join(threadHeaterLedReader, NULL);// wait end of thread
 		}
 	} else if (runningMode.calibration || runningMode.measure_noise){
 		if (runningMode.calibration) {
-			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //read status of heater
 		}
-		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
+		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		while (state.running){
 			timeValues.runTime = time(NULL);
 			timeValues.runTimeMillis = millis();
 			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
-			if (runningMode.calibration) HeatOn(&daemon_values);
-			if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled || runningMode.measure_noise) {printf("time %8d | ", timeValues.runTimeMillis);}
+			if (runningMode.calibration) HeatOn(&daemon_values);// heat turn on
+			if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled || runningMode.measure_noise) {	
+				printf("time %8d | ", timeValues.runTimeMillis);
+			}
 			
 			if (settings.debug_enabled || runningMode.calibration || settings.debug3_enabled){printf("Temp %d dig %.0f °C | ", adc_values.Temp.adc_value, adc_values.Temp.valueByOffset);}
 			if (runningMode.measure_noise) {printf("NoiseTemp %d | ", adc_noise.DeltaTemp);}
@@ -335,29 +347,29 @@ int main(int argc, const char* argv[]){
 			SegmentDisplay();
 			delay(state.Delay);
 		}
-		pthread_join(threadReadADCValues, NULL);
+		pthread_join(threadReadADCValues, NULL);// wait he end of thread
 		if (runningMode.calibration){
 			if (runningMode.calibration) HeatOff(&daemon_values);
 			pthread_join(threadHeaterLedReader, NULL);
 		}
 	} else if (runningMode.test_7seg){
-		if (settings.shieldVersion < 4){
+		if (settings.shieldVersion < 4){//there is a 7 seg
 			while (state.running){
 				blink7Segment(&i2c_config);
 				delay(state.Delay);
 			}
-		} else {
+		} else {// 7 seg is not implemented
 			printf("There is no 7seg display in shieldVersion %d\n", settings.shieldVersion);
 		}
 	} else if (runningMode.test_servo){
-		if (settings.shieldVersion < 4){
+		if (settings.shieldVersion < 4){// there is a servo
 			int16_t diff = settings.test_servo_max-settings.test_servo_min;
 			int16_t step = diff / 20;
 			uint16_t value=settings.test_servo_min;
-			if (step == 0){
+			if (step == 0){//if step=0 servo go at une position
 				printf("%d\n",value);
 				writeI2CPin(i2c_config.i2c_servo, value);
-			} else if (step>0){
+			} else if (step>0){//if step>0 servo begin at min position and go to max step by step
 				printf(">0 step: %d\n",step);
 				while (value<=settings.test_servo_max && state.running){
 					printf("%d\n",value);
@@ -365,7 +377,7 @@ int main(int argc, const char* argv[]){
 					delay(500);
 					value=value+step;
 				}
-			} else {
+			} else {//if step<0 servo begin at max position and go to min step by step
 				printf("<0 step: %d\n",step);
 				while (value>=settings.test_servo_max && state.running){
 					printf("%d\n",value);
@@ -380,8 +392,8 @@ int main(int argc, const char* argv[]){
 			setSolenoidOpen(settings.test_servo_min>0, &daemon_values);
 		}
 	} else if (runningMode.test_heat_led){
-		state.Delay = 10;
-		uint32_t led[6];
+		state.Delay = 10;//delay's initialization
+		uint32_t led[6];//leds' initilazation
 		led[0] = 0;
 		led[1] = 0;
 		led[2] = 0;
@@ -715,14 +727,14 @@ int main(int argc, const char* argv[]){
 		int16_t step = diff / 10;
 		uint16_t value=settings.test_servo_min;
 		printf("motor is i2c pin: %d\n", i2c_config.i2c_motor);
-		if (step == 0){
+		if (step == 0){// turn the motor at one speed
 			printf("%d\n",value);
 			if(settings.shieldVersion < 4){
 				writeI2CPin(i2c_config.i2c_motor, value);
 			} else {
 				atmelSetMotorRPM(value);
 			}
-		} else if (step>0){
+		} else if (step>0){//the motor speed will increase from minimum to maximum requested
 			printf(">0 step: %d\n",step);
 			while (value<=settings.test_servo_max && state.running){
 				printf("%d\n",value);
@@ -734,7 +746,7 @@ int main(int argc, const char* argv[]){
 				delay(500);
 				value=value+step;
 			}
-		} else {
+		} else {//the motor speed will increase from maximum to minimum requested
 			printf("<0 step: %d\n",step);
 			while (value>=settings.test_servo_max && state.running){
 				printf("%d\n",value);
@@ -749,9 +761,9 @@ int main(int argc, const char* argv[]){
 		}
 		delay(2000);
 		printf("set motor back to 0\n");
-		if(settings.shieldVersion < 4){
+		if(settings.shieldVersion < 4){//motor turn off
 			writeI2CPin(i2c_config.i2c_motor, 0);
-		} else {
+		} else {//motor turn off
 			atmelSetMotorRPM(0);
 		}
 	} else if (runningMode.test_buttons){
@@ -766,13 +778,13 @@ int main(int argc, const char* argv[]){
 			i=0;
 			for(; i<buttonCount; ++i){
 				but[i] = readButton(i);
-				if (but[i]){
-					if (but[i] != buttonValues.button[i]){
+				if (but[i]){//button pressed
+					if (but[i] != buttonValues.button[i]){//button pressed first time
 						buttonValues.buttonOnTime[i] = timeValues.runTimeMillis;
 					}
 					buttonValues.buttonPressedTime[i] = timeValues.runTimeMillis - buttonValues.buttonOnTime[i];
-				} else {
-					if (but[i] != buttonValues.button[i]){
+				} else {//button released
+					if (but[i] != buttonValues.button[i]){//button is releasing
 						buttonValues.buttonOffTime[i] = timeValues.runTimeMillis;
 					}
 				}
@@ -1955,8 +1967,10 @@ bool checkForInput(){
 	return valueChanged;
 }
 
+/** @ write all output file to communicate with web
+*/
 void doOutput(){
-	prepareState(state.TotalUpdate);
+	prepareState(state.TotalUpdate);// state.TotalUpdate contain all value
 	if (state.dataChanged || timeValues.lastStatusTime+MIN_STATUS_INTERVAL<timeValues.runTime){// || state.timeChanged){
 		if (settings.debug_enabled){printf("dataChanged=%d\n",state.dataChanged);}
 		if (settings.useMiddleware && state.sockfd>=0){
@@ -1976,6 +1990,8 @@ void doOutput(){
 	writeLog();
 }
 
+/** @brief controle temp,press,motor,valve,beep, display
+*/
 void ProcessCommand(void){
 	if (newCommandValues.stepId != currentCommandValues.stepId){
 		if (newCommandValues.stepId < currentCommandValues.stepId){
@@ -1993,9 +2009,9 @@ void ProcessCommand(void){
 		}
 		oldCommandValues.mode = currentCommandValues.mode;//save old mode
 		currentCommandValues.mode = newCommandValues.mode;//save new mode
-		currentCommandValues.stepId = newCommandValues.stepId;
-		timeValues.stepStartTime = timeValues.runTime;
-		state.dataChanged = true;
+		currentCommandValues.stepId = newCommandValues.stepId;//save new stepId
+		timeValues.stepStartTime = timeValues.runTime;//save time
+		state.dataChanged = true;// save the fact that the date have changed
 		timeValues.stepEndTime = timeValues.stepStartTime + newCommandValues.time;
 		
 		state.scaleReady = false;
@@ -2009,8 +2025,8 @@ void ProcessCommand(void){
 		if (settings.debug_enabled){printf("stepId changed, new mode is: %d\n", currentCommandValues.mode);}
 		if (settings.debug_enabled || runningMode.simulationMode || settings.debug3_enabled){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 		
-		OptionControl();
-		if (settings.shieldVersion >= 4){
+		OptionControl();//bep and blink 7seg
+		if (settings.shieldVersion >= 4){// if display, show image per mode
 			if (currentCommandValues.mode==MODE_STANDBY) {
 				/*
 										//00##############
@@ -2133,10 +2149,9 @@ void ProcessCommand(void){
 										0b000001111100000,
 										0b000001111100000,
 										0b000000000000000};
-
 				atmelShowPicture(&picture[0]);
 			}
-			/*
+			/* TODO
 			MODE_HOT
 			MODE_PRESSURIZED
 			MODE_COLD
@@ -2145,32 +2160,30 @@ void ProcessCommand(void){
 			MODE_COOK_TIMEEND
 			MODE_RECIPE_END
 			*/
-		}
-		
-		
+		}	
 		if (state.alwaysReadMode){
-			speak(state.actionText);
+			speak(state.actionText);//speak the action
 		}
 	}
 	if (settings.shieldVersion >= 4){
-		parseAtmelState();
+		parseAtmelState();//TODO
 	}
-	TempControl();
-	PressControl();
+	TempControl();//temperature
+	PressControl();//pression
 	if (settings.debug3_enabled){
 		printf("\n");
 	}
-	MotorControl();
-	ValveControl();
+	MotorControl();//motor
+	ValveControl();//valve
 	
 	if (settings.debug3_enabled){
 		printf("after ValveControl\n");
 	}
-	ScaleFunction();
+	ScaleFunction();//weight
 	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
 		if (state.dataChanged){
 			if (settings.shieldVersion >= 4){
-				atmelShowPercent(state.weightPercent);
+				atmelShowPercent(state.weightPercent);// show percent on display
 			}
 		}
 	}
@@ -2198,6 +2211,8 @@ void ProcessCommand(void){
 }
 
 /******************* processing functions **********************/
+/** @brief beep, stop beep or blinck 7segment in according to currentCommandValues.mode
+*/
 void OptionControl(){
     if (currentCommandValues.mode>=MODE_OPTIONS_BEGIN){
 		if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_ON){
@@ -2230,7 +2245,8 @@ void OptionControl(){
 #define SB_IHFanOn			5
 #define SB_MotorStoped		6
 #define SB_CommandError		7
-
+/** @brief fonction is not finish
+*/
 void parseAtmelState(){
 	uint8_t atmelState = atmelGetStatus();
 	
@@ -2296,6 +2312,8 @@ void parseAtmelState(){
 */
 }
 
+/** @brief Controle temperature
+*/
 void TempControl(){
 	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
@@ -2342,6 +2360,8 @@ void TempControl(){
 	}
 }
 
+/** @brief Controle pression
+*/
 void PressControl(){
 	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
 	if (currentCommandValues.mode>=MIN_PRESS_MODE && currentCommandValues.mode<=MAX_PRESS_MODE) {
@@ -2389,6 +2409,8 @@ void PressControl(){
 	}
 }
 
+/** @brief Controle Motor
+*/
 void MotorControl(){
 	if (currentCommandValues.mode==MODE_CUT || currentCommandValues.mode>=MIN_TEMP_MODE){
 		if (currentCommandValues.mode==MODE_CUT) timeValues.stepEndTime=timeValues.runTime+1;
@@ -2422,6 +2444,8 @@ void MotorControl(){
 }
 
 //void ValveControl(struct State state, struct Settings settings, struct Command_Values currentCommandValues, struct Time_Values timeValues){
+/** @brief Controle Valve
+*/
 void ValveControl(){
 	if (currentCommandValues.mode==MODE_PRESSVENT) {
 		HeatOff(&daemon_values);
@@ -2453,6 +2477,8 @@ void ValveControl(){
 }
 
 //void ScaleFunction(struct State state, struct Settings settings, struct Command_Values oldCommandValues, struct Command_Values currentCommandValues, struct Command_Values newCommandValues, struct Time_Values timeValues){
+/** @brief control weight
+*/
 void ScaleFunction(){
 	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
 		timeValues.stepEndTime=timeValues.runTime+2;
@@ -2515,14 +2541,16 @@ void ScaleFunction(){
 }
 
 //void SegmentDisplay(struct State state, struct Settings settings, struct Running_Mode runningMode, struct I2C_Config i2c_config){
+/** @brief show the new status (P/O/H) or blink it
+*/
 void SegmentDisplay(){
 	if (settings.shieldVersion >= 4){
 		return;
 	}
 	char curSegmentDisplay = ' ';
-	if (currentCommandValues.press>=settings.LowPress){
+	if (currentCommandValues.press>=settings.LowPress){// if pression
 		curSegmentDisplay = 'P';
-	} else if (currentCommandValues.temp>=settings.LowTemp){
+	} else if (currentCommandValues.temp>=settings.LowTemp){//if hot
 		curSegmentDisplay = 'H';
 	} else {
 		curSegmentDisplay = '0';
@@ -2531,7 +2559,7 @@ void SegmentDisplay(){
 		if(!adc_config.restarting_adc){
 			if (settings.debug_enabled || runningMode.simulationMode){printf("SegmentDisplay: '%c'\n", curSegmentDisplay);}
 			if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
-				SegmentDisplaySimple(curSegmentDisplay, &state, &i2c_config);
+				SegmentDisplaySimple(curSegmentDisplay, &state, &i2c_config);// show new statu (H/P/O)
 				//SegmentDisplayOptimized(curSegmentDisplay, &state, &i2c_config);
 			} else {
 				state.oldSegmentDisplay = curSegmentDisplay;
@@ -2539,7 +2567,7 @@ void SegmentDisplay(){
 		}
 	}
 	if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
-		if (timeValues.lastBlinkTime != timeValues.runTime){
+		if (timeValues.lastBlinkTime != timeValues.runTime){//if no change, blink 7seg
 			timeValues.lastBlinkTime = timeValues.runTime;
 			//togglePin(i2c_7seg_period);
 			if (state.blinkState){
@@ -2555,9 +2583,11 @@ void SegmentDisplay(){
 	}
 }
 
+/** @brief beep if doRememberBeep==1 (after 1 sec, 5 sec 30 sec...)
+*/
 void Beep(){
 	if(settings.doRememberBeep==1){
-		if (timeValues.runTime>timeValues.stepEndTime){
+		if (timeValues.runTime>timeValues.stepEndTime){//if step is ended
 			if (currentCommandValues.mode>=MIN_STATUS_MODE && currentCommandValues.mode<=MAX_STATUS_MODE){
 				int toLateTime = timeValues.runTime-timeValues.stepEndTime;
 				if (toLateTime==1){
@@ -2595,7 +2625,9 @@ void Beep(){
 
 /*******************PI File read/write Code**********************/
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
-
+/** @brief put all value in char TotalUpdate with the good format
+ *  @param * TotalUpdate : char witch will have
+ */
 void prepareState(char* TotalUpdate){
 	StringClean(TotalUpdate, 512);
 	uint32_t press; //remove negative values for output;
@@ -2608,6 +2640,9 @@ void prepareState(char* TotalUpdate){
 	if (settings.debug_enabled){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidClosed:%d, lidLocked:%d, pusherLocked:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);}
 }
 
+/** @brief write data in settings.statusFile
+ *  @param * data
+*/
 void writeStatus(char* data){
 	if (settings.debug_enabled){printf("WriteStatus\n");}
 	
@@ -2620,6 +2655,8 @@ void writeStatus(char* data){
 	if (settings.debug_enabled){printf("WriteStatus: after write\n");}
 }
 
+/** @brief update time of motor
+*/
 void updateMotorTime(){
 	//if (currentCommandValues.motorRpm>0){
 	if (i2c_motor_values.motorRpm>0){
@@ -2635,6 +2672,8 @@ void updateMotorTime(){
 	}
 }
 
+/** @brief update time of heater
+*/
 void updateHeaterTime(){
 	//if (currentCommandValues.motorRpm>0){
 	if (state.heatPowerStatus){
@@ -2650,6 +2689,8 @@ void updateHeaterTime(){
 	}
 }
 
+/** @ brief write on file settings.logFile and settings.hourCounterFile
+*/
 void writeLog(){
 	if (settings.debug_enabled){printf("writeLog\n");}
 	timeValues.nowTime = time(NULL);

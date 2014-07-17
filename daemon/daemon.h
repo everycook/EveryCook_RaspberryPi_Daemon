@@ -23,15 +23,32 @@ See GPLv3.htm in the main folder for details.
 /** @brief reset all value
  */
 void resetValues();
+
+/** @brief controle temp,press,motor,valve,beep, display
+*/
 void ProcessCommand(void);
+
+/** @brief put all value in char TotalUpdate with the good format
+ *  @param * TotalUpdate : char witch will have
+ */
 void prepareState(char* TotalUpdate);
+
+/** @brief write data in settings.statusFile
+ *  @param * data
+*/
 void writeStatus(char* data);
+
+/** @ brief write on file settings.logFile and settings.hourCounterFile
+*/
 void writeLog();
+
 void parseSockInput(char* input);
 bool ReadFile();
+
 /** @brief change the newCommandeValue with state
 */
 void evaluateInput();
+
 /** @brief read one ligne of the file fp
  *  @param keyString : name of value
  *  @param valueString : value
@@ -39,22 +56,50 @@ void evaluateInput();
  *  @return true line was read or false in a other case
  */
 bool readConfigLine(char* keyString, char* valueString, FILE *fp);
+
 /** @brief Read the configuration
  */
 void ReadConfigurationFile(void);
+
 /** @brief Read the calibration
  */
 void ReadCalibrationFile(void);
 
-
+/** @brief beep, stop beep or blinck 7segment in according to currentCommandValues.mode
+*/
 void OptionControl();
+
+/** @brief fonction is not finish
+*/
 void parseAtmelState();
+
+/** @brief Controle temperature
+*/
 void TempControl();
+
+/** @brief Controle pression
+*/
 void PressControl();
+
+/** @brief Controle Motor
+*/
 void MotorControl();
+
+/** @brief Controle Valve
+*/
 void ValveControl();
+
+/** @brief control weight
+*/
 void ScaleFunction();
+
 void setFreqTimer();
 void FreqHandler(); 
+
+/** @brief show the new status (P/O/H) or blink it
+*/
 void SegmentDisplay();
+
+/** @brief beep if doRememberBeep==1 (after 1 sec, 5 sec 30 sec...)
+*/
 void Beep();

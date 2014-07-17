@@ -160,6 +160,10 @@ bool HeatOff(struct Daemon_Values *dv){
 	}
 }
 
+/** @brief send command to the motor
+ *  @param rpm : command
+ *  @param *dv : configuration motor
+*/
 void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 	if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("setMotorRPM, rpm: %d (current: %d)\n", rpm, dv->i2c_motor_values->motorRpm );}
 	if (rpm != 0 && rpm < dv->i2c_motor_values->i2c_motor_speed_min){
@@ -367,6 +371,7 @@ double readWeightSeparate(double* values, struct Daemon_Values *dv){
 		}
 		return weightValue;
 }
+
 /** @brief display a char on 7 segment
  *  @param curSegmentDisplay : char to display
  *  @param state : state of 7 seg
@@ -542,7 +547,9 @@ void SegmentDisplayOptimized(char curSegmentDisplay, struct State *state, struct
 		*/
 	}
 }
-
+/** @brief blink one segment after one
+ *  @param *i2c_config : configuration of I2C
+*/
 void blink7Segment(struct I2C_Config *i2c_config){
 	//mitte
 	printf("center: %d\n", i2c_config->i2c_7seg_center);
