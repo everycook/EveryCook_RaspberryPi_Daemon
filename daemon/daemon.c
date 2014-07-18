@@ -801,13 +801,13 @@ int main(int argc, const char* argv[]){
 		
 		struct adc_private adc;
 		uint8_t adcChannel = 0;
-		if (settings.use_spi_dev){
+		if (settings.use_spi_dev){//SPI configuration
 			ad7794_reset(&adc);
 			delay(30);
 		
 			ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
 			ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
-		} else {
+		} else {//SPI configuration
 			SPIReset();	
 			delay(30);
 			SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_update_rate & 0x000F);
@@ -1131,18 +1131,18 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 3){
+			} else if (currentTestPart == 3){//until 40 degre
 				setMotorRPM(50, &daemon_values);
 				HeatOn(&daemon_values);
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				
-				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
+				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {//if temperature change or 5s
 					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
 					lastTemp = adc_values.Temp.valueByOffset;
 				}
-				if (adc_values.Temp.valueByOffset >= 40){
+				if (adc_values.Temp.valueByOffset >= 40){//if temp > 40
 					if (partReachedTime == 0){
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
@@ -1156,18 +1156,18 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 4){
+			} else if (currentTestPart == 4){//until 90 degre
 				setMotorRPM(50, &daemon_values);
 				HeatOn(&daemon_values);
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				
-				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
+				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {/if temperature change or 5s
 					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
 					lastTemp = adc_values.Temp.valueByOffset;
 				} 
-				if (adc_values.Temp.valueByOffset >= 90){
+				if (adc_values.Temp.valueByOffset >= 90){//if temp > 40
 					if (partReachedTime == 0){
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
@@ -1191,7 +1191,7 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 5){
+			} else if (currentTestPart == 5){// heat and motor turn off
 				HeatOff(&daemon_values);
 				setMotorRPM(0, &daemon_values);
 				if (partReachedTime == 0){
@@ -1234,7 +1234,7 @@ int main(int argc, const char* argv[]){
 			timeValues.runTime = time(NULL);
 			timeValues.runTimeMillis = millis();
 			if (settings.debug_enabled || settings.debug3_enabled){printf("time: %9d\tWeight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", timeValues.runTimeMillis,  adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}
-			if (currentTestPart == 0){
+			if (currentTestPart == 0){//put 0,5 liter of watter
 				if (!state.lidClosed){
 					if (partReachedTime == 0){
 						partReachedTime = timeValues.runTimeMillis;
@@ -1252,7 +1252,7 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 1){
+			} else if (currentTestPart == 1){// insert stirrer, close lid, add and lock pusher
 				printf("time: %5.3f\tWeight: %.0fg\n", (double)timeValues.runTimeMillis / 1000, adc_values.Weight.valueByOffset);
 				if (adc_values.Weight.valueByOffset >= 500){
 					if (partReachedTime == 0){
@@ -1271,7 +1271,7 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 2){
+			} else if (currentTestPart == 2){// verifi stirrer is in and lid is closed
 				if (state.lidClosed){
 					if (adc_values.Weight.valueByOffset - weight < 400){
 						if (partErrorTime == 0){
@@ -1295,7 +1295,7 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 3){
+			} else if (currentTestPart == 3){//until PA > 1
 				setMotorRPM(50, &daemon_values);
 				HeatOn(&daemon_values);
 				currentCommandValues.press = adc_values.Press.valueByOffset;
@@ -1322,7 +1322,7 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 4){
+			} else if (currentTestPart == 4){//until PA > 1,8
 				setMotorRPM(50, &daemon_values);
 				HeatOn(&daemon_values);
 				currentCommandValues.press = adc_values.Press.valueByOffset;
@@ -1355,7 +1355,7 @@ int main(int argc, const char* argv[]){
 				} else {
 					partReachedTime = 0;
 				}
-			} else if (currentTestPart == 5){
+			} else if (currentTestPart == 5){// heat and motor turn off
 				HeatOff(&daemon_values);
 				setMotorRPM(0, &daemon_values);
 				if (settings.shieldVersion < 3){
@@ -1414,7 +1414,7 @@ int main(int argc, const char* argv[]){
 			atmelSetMaintenance(true);
 			
 			uint8_t stepNr = 0;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//count from 0 to 255
 				printf("count from 0 to 255\n");
 				uint8_t value=0;
 				for(value=10;value<255 && state.running;value++){
@@ -1432,13 +1432,13 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//ShowPercent(100)
 				atmelShowPercent(100);
 				delay(2000);
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//show 123456789
 				//Show Text
 				printf("Show Numbers\n");
 				atmelShowText("1234567890");
@@ -1446,7 +1446,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// Show Smilly
 				printf("Show Smilly\n");
 				//Show Smilly
 										//00##############
@@ -1464,7 +1464,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// Show chess
 				printf("Show chess\n");
 				uint16_t picture2[9]  = {	0b0010101010101010,
 											0b0001010101010101,
@@ -1480,7 +1480,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// show percent 0-140
 				printf("Show percent progress\n");
 				// show percent 0-140
 				uint8_t i=0;
@@ -1493,7 +1493,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// "Hallo Welt! Ich komme vom Raspi!"
 				printf("Show text\n");
 				//Show Text
 				atmelShowText("Hallo Welt! Ich komme vom Raspi!");
@@ -1504,7 +1504,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//open solenoid valve during 5 sec
 				printf("atmelSetSolenoidOpen, for 5 seconds\n");
 				uint8_t count=0;
 				atmelSetSolenoidOpen(true);
@@ -1517,7 +1517,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//turn on heater during 10 sec
 				printf("enable heater, for 10 seconds\n");
 				uint8_t count=0;
 				atmelSetHeating(true);
@@ -1530,7 +1530,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//turn on motor in full speed during 10 sec
 				printf("enable motor in full speed, for 10 seconds\n");
 				uint8_t count=0;
 				atmelSetMotorRPM(200);
@@ -1543,7 +1543,7 @@ int main(int argc, const char* argv[]){
 			}
 			
 			stepNr++;
-			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){
+			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//read status until programm end Ctrl+C
 				printf("read status until programm end Ctrl+C\n");
 				while(state.running){
 					parseAtmelState();
