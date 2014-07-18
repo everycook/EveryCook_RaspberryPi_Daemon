@@ -1,0 +1,44 @@
+#configuration file for the EveryCook_RaspberryPi_Daemon
+#lines starting with a # are comments
+shieldVersion=4
+
+weightReachedMultiplier=0.95
+
+#values for change display
+LowTemp=40
+LowPress=10
+
+#beep time in seconds 0=no beep
+BeepWeightReached=1
+BeepStepEnd=1
+
+#logging
+DeleteLogOnStart=1
+#delete log at start saves disk space set 0 to keep log
+LogFile=/var/log/EveryCook_Daemon.log
+#interval between two log file writes in seconds
+logSaveInterval=5
+#set logLines to 0 to save all Lines
+logLines=60
+
+#motor values
+i2c_motor_speed_min=50
+i2c_motor_speed_ramp=50
+
+#servo stay open after pressure less in seconds
+i2c_servo_stay_open=8
+
+#ADC update rate setting
+ADC_update_rate=10
+
+
+#communication
+CommandFile=/run/shm/command
+StatusFile=/run/shm/status
+calibrationFile=/opt/EveryCook/daemon/calibration
+hourCounterFile=/opt/EveryCook/daemon/hourCounter
+installPath=/opt/EveryCook/
+speakLanguage=english
+
+middlewareHostname=127.0.0.1
+middlewarePortno=8000
