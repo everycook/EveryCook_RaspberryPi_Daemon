@@ -20,6 +20,7 @@ See GPLv3.htm in the main folder for details.
 
 #include "bool.h"
 #include "speaker.h"
+#include "beeper.h"
 
 /** @brief reset all value
  */
@@ -101,10 +102,11 @@ void FreqHandler();
 */
 void SegmentDisplay();
 
-/** @brief beep if doRememberBeep==1 (after 1 sec, 5 sec 30 sec...)
-*/
-void Beep();
 
+// Get function
 bool daemonGetSettingsDebug_enabled();
 bool daemonGetSettingsDebug3_enabled();
 bool daemonGetSettingsDebug4_enabled();
+uint32_t daemonGetTimeValuesRunTime();
+uint32_t daemonGetSettingsTimeValuesStepEndTime();
+uint32_t daemonGetCurrentCommandValuesMode();

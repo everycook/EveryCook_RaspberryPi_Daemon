@@ -175,7 +175,7 @@ struct Time_Values {
 	uint32_t motorStartTime; //When did we start the motor?
 	uint32_t motorStopTime; //When did we stop the motor?
 	uint32_t remainTime;
-	uint32_t beepEndTime; //when to stop the beeper
+	uint32_t beepEndTime; //when to stop the beeper// ENLEVE
 	uint32_t lastBlinkTime;
 	
 	time_t lastFileChangeTime;
@@ -217,7 +217,7 @@ struct Settings {
 	double weightReachedMultiplier;
 	
 	uint8_t BeepWeightReached;
-	uint8_t BeepStepEnd;
+	uint8_t BeepStepEnd; //ENLEVE
 	
 	//Values for change 7seg display
 	uint32_t LowTemp;
@@ -228,16 +228,16 @@ struct Settings {
 	uint32_t ShortDelay;
 	
 	//Options
-	bool doRememberBeep;
+	bool doRememberBeep;//ENLEVE
 	
 	char* middlewareHostname;
 	int middlewarePortno;
 	bool useMiddleware;
 	bool useFile;
 	
-	bool debug_enabled;
-	bool debug3_enabled;
-	bool debug4_enabled;
+	bool debug_enabled;//GET
+	bool debug3_enabled;//GET
+	bool debug4_enabled;//GET
 	bool use_spi_dev;
 
 	uint16_t test_servo_min;
@@ -269,7 +269,7 @@ struct State {
 
 	bool heatPowerStatus; //Induction heater power 0=off >0=on
 
-	bool isBuzzing; //to be sure first send a off to buzzer
+	bool isBuzzing; //to be sure first send a off to buzzer//ENLEVE
 
 	char oldSegmentDisplay;
 	bool blinkState;

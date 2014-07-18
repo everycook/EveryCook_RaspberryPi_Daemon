@@ -52,8 +52,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 
 const uint32_t MIN_STATUS_INTERVAL = 20;
 
-const uint8_t ALLWAYS_STOP_BUZZING = 0;
-
 const uint8_t dataType = TYPE_TEXT;
 
 const double SECONDS_PER_HOUR = 3600; //60*60
@@ -236,8 +234,8 @@ int main(int argc, const char* argv[]){
 	}
 		
 	timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
-	printf("runtime is now: %d \n", timeValues.runTime);
-	timeValues.stepStartTime = timeValues.runTime; //TODO WIA CHANGE THIS
+	printf("runtime is now: %d \n", daemonGetTimeValuesRunTime());
+	timeValues.stepStartTime = daemonGetTimeValuesRunTime(); //TODO WIA CHANGE THIS
 	
 	
 	if (daemonGetSettingsDebug_enabled()){printf("runningModes: normalMode:%d, calibration:%d, measure_noise:%d, test_7seg:%d, test_servo:%d, test_heat_led:%d, test_motor:%d, test_buttons:%d, test_adc:%d, test_heating_power:%d, test_heating_press:%d, test_serial:%d\n", runningMode.normalMode, runningMode.calibration, runningMode.measure_noise, runningMode.test_7seg, runningMode.test_servo, runningMode.test_heat_led, runningMode.test_motor, runningMode.test_buttons, runningMode.test_adc, runningMode.test_heating_power, runningMode.test_heating_press, runningMode.test_serial);}
@@ -269,9 +267,9 @@ int main(int argc, const char* argv[]){
 		
 		while (state.running){
 			if (daemonGetSettingsDebug_enabled()){printf("main loop...\n");}
-			if (timeValues.lastRunTime != timeValues.runTime){// if new start
+			if (timeValues.lastRunTime != daemonGetTimeValuesRunTime()){// if new start
 				state.timeChanged = true;
-				timeValues.lastRunTime = timeValues.runTime;//new time start
+				timeValues.lastRunTime = daemonGetTimeValuesRunTime();//new time start
 			}
 			bool valueChanged = checkForInput();//check if new value
 			
@@ -284,7 +282,7 @@ int main(int argc, const char* argv[]){
 				evaluateInput();//look what have change
 			}
 			ProcessCommand();//control all output electronique system
-			currentCommandValues.time = timeValues.runTime - timeValues.stepStartTime;
+			currentCommandValues.time = daemonGetTimeValuesRunTime() - timeValues.stepStartTime;
 			
 			doOutput();// control all output for web
 			
@@ -415,23 +413,23 @@ int main(int argc, const char* argv[]){
 				bool different = false;
 				
 				if (led[3] == 0){
-					heaterStatus.isOnLastTime = timeValues.runTime;
+					heaterStatus.isOnLastTime = daemonGetTimeValuesRunTime();
 					if (!heaterStatus.isOn){
 						heaterStatus.isOn = true;
 						different = true;
 					}
-				} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 3 < timeValues.runTime){
+				} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 3 < daemonGetTimeValuesRunTime()){
 					heaterStatus.isOn = false;
 						different = true;
 				}
 				
 				if (led[0] == 1 && led[1] == 1 && led[2] == 1 && led[3] == 1 && led[4] == 1 && led[5] == 1){
-					if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < timeValues.runTime){
+					if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < daemonGetTimeValuesRunTime()){
 						heaterStatus.hasPower = false;
 						different = true;
 					}
 				} else {
-					heaterStatus.hasPowerLedOnLastTime = timeValues.runTime;
+					heaterStatus.hasPowerLedOnLastTime = daemonGetTimeValuesRunTime();
 					if (!heaterStatus.hasPower){
 						heaterStatus.hasPower = true;
 						different = true;
@@ -439,13 +437,13 @@ int main(int argc, const char* argv[]){
 				}
 				
 				if (led[0] == 0 && led[1] == 0 && led[2] == 0 && led[3] == 0 && led[4] == 0 && led[5] == 0){
-					noPanLedLastTime = timeValues.runTime;
+					noPanLedLastTime = daemonGetTimeValuesRunTime();
 					if (!heaterStatus.noPanError){
 						heaterStatus.noPanError = true;
 						different = true;
 					}
 				} else {
-					if (heaterStatus.noPanError && noPanLedLastTime + 1 < timeValues.runTime){
+					if (heaterStatus.noPanError && noPanLedLastTime + 1 < daemonGetTimeValuesRunTime()){
 						heaterStatus.noPanError = false;
 						different = true;
 					}
@@ -480,9 +478,9 @@ int main(int argc, const char* argv[]){
 					}
 					if (errorFound){
 						heaterStatus.errorMsg = errorMsg;
-						printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d\tprev amount:%d\t\tError:%s\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, timeValues.runTime - lastHeatLedTime, heatLedValuesSameCount, errorMsg);
+						printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d\tprev amount:%d\t\tError:%s\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, daemonGetTimeValuesRunTime() - lastHeatLedTime, heatLedValuesSameCount, errorMsg);
 					} else {
-						printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d\tprev amount:%d\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, timeValues.runTime - lastHeatLedTime, heatLedValuesSameCount);
+						printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d\tprev amount:%d\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, daemonGetTimeValuesRunTime() - lastHeatLedTime, heatLedValuesSameCount);
 						heaterStatus.errorMsg = NULL;
 					}
 					i = 0;
@@ -1051,7 +1049,7 @@ int main(int argc, const char* argv[]){
 		double lastTemp = 0;
 		uint32_t lastOutputTime = 0;
 		
-		Beep();
+		beeperBeep();
 		//time for initialize weight
 		currentCommandValues.mode = MODE_SCALE;
 		delay(2000);
@@ -1084,8 +1082,7 @@ int main(int argc, const char* argv[]){
 				printf("time: %5.3f\tWeight: %.0fg\n", (double)timeValues.runTimeMillis / 1000, adc_values.Weight.valueByOffset);
 				if (adc_values.Weight.valueByOffset >= 2000){
 					if (partReachedTime == 0){
-						timeValues.beepEndTime = timeValues.runTime+1;
-						Beep();
+						void beeperBeepSeconde(1);
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
 						weight = adc_values.Weight.valueByOffset;
@@ -1215,7 +1212,7 @@ int main(int argc, const char* argv[]){
 		double lastPress = 0;
 		uint32_t lastOutputTime = 0;
 		
-		Beep();
+		beeperBeep();
 		//time for initialize weight
 		currentCommandValues.mode = MODE_SCALE;
 		delay(2000);
@@ -1248,8 +1245,7 @@ int main(int argc, const char* argv[]){
 				printf("time: %5.3f\tWeight: %.0fg\n", (double)timeValues.runTimeMillis / 1000, adc_values.Weight.valueByOffset);
 				if (adc_values.Weight.valueByOffset >= 500){
 					if (partReachedTime == 0){
-						timeValues.beepEndTime = timeValues.runTime+1;
-						Beep();
+						void beeperBeepSeconde(1);
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
 						weight = adc_values.Weight.valueByOffset;
@@ -1359,9 +1355,9 @@ int main(int argc, const char* argv[]){
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				if (currentCommandValues.press < settings.LowPress) {
 					if (timeValues.servoStayEndTime == 0){
-						timeValues.servoStayEndTime = timeValues.runTime + i2c_servo_values.i2c_servo_stay_open;
+						timeValues.servoStayEndTime = daemonGetTimeValuesRunTime() + i2c_servo_values.i2c_servo_stay_open;
 					}
-					if (timeValues.servoStayEndTime < timeValues.runTime){
+					if (timeValues.servoStayEndTime < daemonGetTimeValuesRunTime()){
 						currentCommandValues.mode=MODE_PRESSURELESS;
 						timeValues.servoStayEndTime = 0;
 						
@@ -1865,7 +1861,7 @@ void initOutputFile(void){
 /** @brief reset all value
  */
 void resetValues(){
-	state.isBuzzing = true; //to be sure first send a off to buzzer
+	beeperSetIsBuzzing(true); //to be sure first send a off to buzzer
 	state.oldSegmentDisplay = ' ';
 	newCommandValues.stepId=-2;
 	currentCommandValues.stepId=-2;
@@ -1906,9 +1902,9 @@ bool checkForInput(){
 	if (settings.useMiddleware){
 		uint8_t recivedDataType = 0;
 		if (state.sockfd < 0){
-			if (timeValues.runTime - timeValues.middlewareConnectTime > 5){
+			if (daemonGetTimeValuesRunTime() - timeValues.middlewareConnectTime > 5){
 				//only try to connect to middleware every 5 sec.
-				timeValues.middlewareConnectTime = timeValues.runTime;
+				timeValues.middlewareConnectTime = daemonGetTimeValuesRunTime();
 				state.sockfd = connectToMiddleware(settings.middlewareHostname, settings.middlewarePortno);
 			}
 		}
@@ -1963,7 +1959,7 @@ bool checkForInput(){
 */
 void doOutput(){
 	prepareState(state.TotalUpdate);// state.TotalUpdate contain all value
-	if (state.dataChanged || timeValues.lastStatusTime+MIN_STATUS_INTERVAL<timeValues.runTime){// || state.timeChanged){
+	if (state.dataChanged || timeValues.lastStatusTime+MIN_STATUS_INTERVAL<daemonGetTimeValuesRunTime()){// || state.timeChanged){
 		if (daemonGetSettingsDebug_enabled()){printf("dataChanged=%d\n",state.dataChanged);}
 		if (settings.useMiddleware && state.sockfd>=0){
 			if (!sendToSock(state.sockfd, state.TotalUpdate, dataType)){
@@ -1977,7 +1973,7 @@ void doOutput(){
 		if (daemonGetSettingsDebug_enabled() || daemonGetSettingsDebug3_enabled()){printf("%s\n",state.TotalUpdate);}
 		state.dataChanged = false;
 		state.timeChanged = false;
-		timeValues.lastStatusTime=timeValues.runTime;
+		timeValues.lastStatusTime=daemonGetTimeValuesRunTime();
 	}
 	writeLog();
 }
@@ -1999,27 +1995,27 @@ void ProcessCommand(void){
 				newCommandValues.stepId=0;
 			}
 		}
-		oldCommandValues.mode = currentCommandValues.mode;//save old mode
+		oldCommandValues.mode = daemonGetCurrentCommandValuesMode();//save old mode
 		currentCommandValues.mode = newCommandValues.mode;//save new mode
 		currentCommandValues.stepId = newCommandValues.stepId;//save new stepId
-		timeValues.stepStartTime = timeValues.runTime;//save time
+		timeValues.stepStartTime = daemonGetTimeValuesRunTime();//save time
 		state.dataChanged = true;// save the fact that the date have changed
 		timeValues.stepEndTime = timeValues.stepStartTime + newCommandValues.time;
 		
 		state.scaleReady = false;
-		if (state.Delay == settings.ShortDelay || (oldCommandValues.mode == MODE_SCALE && currentCommandValues.mode == MODE_SCALE)) {
+		if (state.Delay == settings.ShortDelay || (oldCommandValues.mode == MODE_SCALE && daemonGetCurrentCommandValuesMode() == MODE_SCALE)) {
 			if(daemonGetSettingsDebug3_enabled()){printf("new and old step is scale mode, reset values\n");}
 			state.referenceForce=0;
 			state.Delay=settings.LongDelay;
 			currentCommandValues.weight = 0.0;
 		}
 		
-		if (daemonGetSettingsDebug_enabled()){printf("stepId changed, new mode is: %d\n", currentCommandValues.mode);}
+		if (daemonGetSettingsDebug_enabled()){printf("stepId changed, new mode is: %d\n", daemonGetCurrentCommandValuesMode());}
 		if (daemonGetSettingsDebug_enabled() || runningMode.simulationMode || daemonGetSettingsDebug3_enabled()){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 		
 		OptionControl();//bep and blink 7seg
 		if (settings.shieldVersion >= 4){// if display, show image per mode
-			if (currentCommandValues.mode==MODE_STANDBY) {
+			if (daemonGetCurrentCommandValuesMode()==MODE_STANDBY) {
 				/*
 										//00##############
 				uint16_t picture[9] = {	0b0000000111110000,
@@ -2034,7 +2030,7 @@ void ProcessCommand(void){
 				atmelShowPicture(&picture[0]);
 				*/
 				atmelClear();
-			} else if (currentCommandValues.mode==MODE_CUT) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_CUT) {
 										//00##############
 				uint16_t picture[9] = {	0b0000000000000000,
 										0b0000000000000000,
@@ -2046,7 +2042,7 @@ void ProcessCommand(void){
 										0b0000000000000000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_SCALE) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_SCALE) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
 										0b0000000000000000,
@@ -2058,7 +2054,7 @@ void ProcessCommand(void){
 										0b0000001111100000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_HEATUP) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
 										0b0000000000000000,
@@ -2070,7 +2066,7 @@ void ProcessCommand(void){
 										0b0000100010001000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_COOK) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_COOK) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
 										0b0000001010000000,
@@ -2082,7 +2078,7 @@ void ProcessCommand(void){
 										0b0000011111100000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_COOLDOWN) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_COOLDOWN) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
 										0b0000000000000000,
@@ -2094,7 +2090,7 @@ void ProcessCommand(void){
 										0b0000011111100000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_PRESSUP) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000010000000,
 										0b0000000111000000,
@@ -2106,7 +2102,7 @@ void ProcessCommand(void){
 										0b0000001111100000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_PRESSHOLD) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSHOLD) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
 										0b0000100010001000,
@@ -2118,7 +2114,7 @@ void ProcessCommand(void){
 										0b0001110011111000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_PRESSDOWN) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSDOWN) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
 										0b0000000000000000,
@@ -2130,7 +2126,7 @@ void ProcessCommand(void){
 										0b0000001111100000,
 										0b0000000000000000};
 				atmelShowPicture(&picture[0]);
-			} else if (currentCommandValues.mode==MODE_PRESSVENT) {
+			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSVENT) {
 										//00##############
 				uint16_t picture[9] = { 0b001000000000100,
 										0b000100000001000,
@@ -2172,7 +2168,7 @@ void ProcessCommand(void){
 		printf("after ValveControl\n");
 	}
 	ScaleFunction();//weight
-	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
+	if (daemonGetCurrentCommandValuesMode()==MODE_SCALE || daemonGetCurrentCommandValuesMode()==MODE_WEIGHT_REACHED){
 		if (state.dataChanged){
 			if (settings.shieldVersion >= 4){
 				atmelShowPercent(state.weightPercent);// show percent on display
@@ -2180,38 +2176,38 @@ void ProcessCommand(void){
 		}
 	}
 	
-	if (timeValues.stepEndTime > timeValues.runTime) {
-		timeValues.remainTime=timeValues.stepEndTime-timeValues.runTime;
-	} else if (currentCommandValues.mode<MIN_STATUS_MODE) {
+	if (daemonGetSettingsTimeValuesStepEndTime() > daemonGetTimeValuesRunTime()) {
+		timeValues.remainTime=daemonGetSettingsTimeValuesStepEndTime()-daemonGetTimeValuesRunTime();
+	} else if (daemonGetCurrentCommandValuesMode()<MIN_STATUS_MODE) {
 		timeValues.remainTime=0;
-		if (currentCommandValues.mode==MODE_COOK || currentCommandValues.mode == MODE_PRESSHOLD){
+		if (daemonGetCurrentCommandValuesMode()==MODE_COOK || daemonGetCurrentCommandValuesMode() == MODE_PRESSHOLD){
 			currentCommandValues.mode=MODE_COOK_TIMEEND;
 			state.dataChanged=true;
-			if (settings.BeepStepEnd>0){
-				timeValues.beepEndTime = timeValues.runTime+settings.BeepStepEnd;
+			if (beeperSetSettingsBeepStepEnd()>0){
+				beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+beeperSetSettingsBeepStepEnd());
 			}
-		} else if (currentCommandValues.mode != MODE_STANDBY){
+		} else if (daemonGetCurrentCommandValuesMode() != MODE_STANDBY){
 			currentCommandValues.mode=MODE_STANDBY;
 			state.dataChanged=true;
-			if (settings.BeepStepEnd>0){
-				timeValues.beepEndTime = timeValues.runTime+settings.BeepStepEnd;
+			if (beeperSetSettingsBeepStepEnd()>0){
+				beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+beeperSetSettingsBeepStepEnd());
 			}
 		}
 	}
 	SegmentDisplay();
-	Beep();
+	beeperBeep();
 }
 
 /******************* processing functions **********************/
 /** @brief beep, stop beep or blinck 7segment in according to currentCommandValues.mode
 */
 void OptionControl(){
-    if (currentCommandValues.mode>=MODE_OPTIONS_BEGIN){
-		if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_ON){
-			settings.doRememberBeep=true;
-		} else if (currentCommandValues.mode==MODE_OPTION_REMEMBER_BEEP_OFF){
-			settings.doRememberBeep=false;
-		} else if (currentCommandValues.mode==MODE_OPTION_7SEGMENT_BLINK){
+    if (daemonGetCurrentCommandValuesMode()>=MODE_OPTIONS_BEGIN){
+		if (daemonGetCurrentCommandValuesMode()==MODE_OPTION_REMEMBER_BEEP_ON){
+			beeperSetDoRememberBeep(true)
+		} else if (daemonGetCurrentCommandValuesMode()==MODE_OPTION_REMEMBER_BEEP_OFF){
+			beeperSetDoRememberBeep(false);
+		} else if (daemonGetCurrentCommandValuesMode()==MODE_OPTION_7SEGMENT_BLINK){
 			if(settings.shieldVersion < 4){
 				SegmentDisplaySimple(' ', &state, &i2c_config);
 				blink7Segment(&i2c_config);
@@ -2307,8 +2303,8 @@ void parseAtmelState(){
 /** @brief Controle temperature
 */
 void TempControl(){
-	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
-	if (currentCommandValues.mode>=MIN_TEMP_MODE && currentCommandValues.mode<=MAX_TEMP_MODE) {
+	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) HeatOff(&daemon_values);
+	if (daemonGetCurrentCommandValuesMode()>=MIN_TEMP_MODE && daemonGetCurrentCommandValuesMode()<=MAX_TEMP_MODE) {
 		oldCommandValues.temp = currentCommandValues.temp;
 		currentCommandValues.temp = adc_values.Temp.valueByOffset;
 		if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled()){printf("Temp %d dig %.0f °C | ", adc_values.Temp.adc_value, adc_values.Temp.valueByOffset);}
@@ -2319,11 +2315,11 @@ void TempControl(){
 		}
 		
 		int deltaT=newCommandValues.temp-currentCommandValues.temp;
-		if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
+		if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP || daemonGetCurrentCommandValuesMode()==MODE_COOK) {
 			if (deltaT<=0) {
 				HeatOff(&daemon_values);
-				if (currentCommandValues.mode==MODE_HEATUP) {//heatup function
-					timeValues.stepEndTime=timeValues.runTime-2;
+				if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP) {//heatup function
+					timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
 					currentCommandValues.mode=MODE_HOT; //we are hot
 					state.dataChanged=true;
 				}
@@ -2332,14 +2328,14 @@ void TempControl(){
 		} else {
 			HeatOff(&daemon_values);
 		}
-		if (currentCommandValues.mode==MODE_HEATUP && state.heatPowerStatus) { //heatup
-			timeValues.stepEndTime=timeValues.runTime+1;
-		} else if (currentCommandValues.mode==MODE_COOLDOWN && deltaT>=0) { //cooldown function
-			timeValues.stepEndTime=timeValues.runTime-2;
+		if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP && state.heatPowerStatus) { //heatup
+			timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
+		} else if (daemonGetCurrentCommandValuesMode()==MODE_COOLDOWN && deltaT>=0) { //cooldown function
+			timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
 			currentCommandValues.mode=MODE_COLD;
 			state.dataChanged=true;
-		} else if (currentCommandValues.mode==MODE_COOLDOWN) {
-			timeValues.stepEndTime=timeValues.runTime+1;
+		} else if (daemonGetCurrentCommandValuesMode()==MODE_COOLDOWN) {
+			timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
 		}
 	} else {
 		oldCommandValues.temp = currentCommandValues.temp;
@@ -2355,8 +2351,8 @@ void TempControl(){
 /** @brief Controle pression
 */
 void PressControl(){
-	if (currentCommandValues.mode<MIN_COOK_MODE || currentCommandValues.mode>MAX_COOK_MODE) HeatOff(&daemon_values);
-	if (currentCommandValues.mode>=MIN_PRESS_MODE && currentCommandValues.mode<=MAX_PRESS_MODE) {
+	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) HeatOff(&daemon_values);
+	if (daemonGetCurrentCommandValuesMode()>=MIN_PRESS_MODE && daemonGetCurrentCommandValuesMode()<=MAX_PRESS_MODE) {
 		oldCommandValues.press = currentCommandValues.press;
 		currentCommandValues.press = adc_values.Press.valueByOffset;
 		if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled()){printf("Press %d digits %.0f kPa | ", adc_values.Press.adc_value, adc_values.Press.valueByOffset);}
@@ -2367,11 +2363,11 @@ void PressControl(){
 		}
 		
 		int deltaP=newCommandValues.press-currentCommandValues.press;
-		if (currentCommandValues.mode==MODE_PRESSUP || currentCommandValues.mode==MODE_PRESSHOLD) {
+		if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP || daemonGetCurrentCommandValuesMode()==MODE_PRESSHOLD) {
 			if (deltaP<=0) {
 				HeatOff(&daemon_values);
-				if (currentCommandValues.mode==MODE_PRESSUP) {//pressup function
-					timeValues.stepEndTime=timeValues.runTime-2;
+				if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP) {//pressup function
+					timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
 					currentCommandValues.mode=MODE_PRESSURIZED; //we are pressurized
 					state.dataChanged=true;
 				}
@@ -2380,14 +2376,14 @@ void PressControl(){
 		} else {
 			HeatOff(&daemon_values);
 		}
-		if (currentCommandValues.mode==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
-			timeValues.stepEndTime=timeValues.runTime+1;;
-		} else if (currentCommandValues.mode==MODE_PRESSDOWN && deltaP>=0) { //pressure down function
-			timeValues.stepEndTime=timeValues.runTime-2;
+		if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
+			timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;;
+		} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSDOWN && deltaP>=0) { //pressure down function
+			timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
 			currentCommandValues.mode=MODE_PRESSURELESS;
 			state.dataChanged=true;
-		} else if (currentCommandValues.mode==MODE_PRESSDOWN) {
-			timeValues.stepEndTime=timeValues.runTime+1;
+		} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSDOWN) {
+			timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
 		}
 	} else {
 		oldCommandValues.press = currentCommandValues.press;
@@ -2404,21 +2400,21 @@ void PressControl(){
 /** @brief Controle Motor
 */
 void MotorControl(){
-	if (currentCommandValues.mode==MODE_CUT || currentCommandValues.mode>=MIN_TEMP_MODE){
-		if (currentCommandValues.mode==MODE_CUT) timeValues.stepEndTime=timeValues.runTime+1;
-		if (newCommandValues.motorRpm > 0 && currentCommandValues.mode<=MAX_STATUS_MODE) {
+	if (daemonGetCurrentCommandValuesMode()==MODE_CUT || daemonGetCurrentCommandValuesMode()>=MIN_TEMP_MODE){
+		if (daemonGetCurrentCommandValuesMode()==MODE_CUT) timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
+		if (newCommandValues.motorRpm > 0 && daemonGetCurrentCommandValuesMode()<=MAX_STATUS_MODE) {
 			if  (newCommandValues.motorOn > 0 && newCommandValues.motorOff > 0) {
-				if (timeValues.runTime >= timeValues.motorStartTime+newCommandValues.motorOn && timeValues.runTime < timeValues.motorStartTime+newCommandValues.motorOn+newCommandValues.motorOff) { 
+				if (daemonGetTimeValuesRunTime() >= timeValues.motorStartTime+newCommandValues.motorOn && daemonGetTimeValuesRunTime() < timeValues.motorStartTime+newCommandValues.motorOn+newCommandValues.motorOff) { 
 					currentCommandValues.motorRpm = 0; 
 				} else if (currentCommandValues.motorRpm==0){
 					currentCommandValues.motorRpm = newCommandValues.motorRpm;
-					timeValues.motorStartTime=timeValues.runTime;
+					timeValues.motorStartTime=daemonGetTimeValuesRunTime();
 				} else if (currentCommandValues.motorRpm != newCommandValues.motorRpm){
 					currentCommandValues.motorRpm = newCommandValues.motorRpm;
 				}
 			} else {
 				currentCommandValues.motorRpm = newCommandValues.motorRpm;
-				timeValues.motorStartTime=timeValues.runTime;
+				timeValues.motorStartTime=daemonGetTimeValuesRunTime();
 			}
 		} else {
 			currentCommandValues.motorRpm = 0;
@@ -2430,7 +2426,7 @@ void MotorControl(){
 	
 	if (i2c_motor_values.motorRpm == 0){
 		if(timeValues.motorStopTime < timeValues.motorStartTime){
-			timeValues.motorStopTime = timeValues.runTime;
+			timeValues.motorStopTime = daemonGetTimeValuesRunTime();
 		}
 	}
 }
@@ -2439,19 +2435,19 @@ void MotorControl(){
 /** @brief Controle Valve
 */
 void ValveControl(){
-	if (currentCommandValues.mode==MODE_PRESSVENT) {
+	if (daemonGetCurrentCommandValuesMode()==MODE_PRESSVENT) {
 		HeatOff(&daemon_values);
 		if (settings.shieldVersion < 3){
 			setServoOpen(100, 10, 1000, &daemon_values);
 		} else {
 			setSolenoidOpen(true, &daemon_values);
 		}
-		timeValues.stepEndTime=timeValues.runTime+1;
+		timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
 		if (currentCommandValues.press < settings.LowPress) {
 			if (timeValues.servoStayEndTime == 0){
-				timeValues.servoStayEndTime = timeValues.runTime + i2c_servo_values.i2c_servo_stay_open;
+				timeValues.servoStayEndTime = daemonGetTimeValuesRunTime() + i2c_servo_values.i2c_servo_stay_open;
 			}
-			if (timeValues.servoStayEndTime < timeValues.runTime){
+			if (timeValues.servoStayEndTime < daemonGetTimeValuesRunTime()){
 				currentCommandValues.mode=MODE_PRESSURELESS;
 				state.dataChanged=true;
 				timeValues.servoStayEndTime = 0;
@@ -2472,8 +2468,8 @@ void ValveControl(){
 /** @brief control weight
 */
 void ScaleFunction(){
-	if (currentCommandValues.mode==MODE_SCALE || currentCommandValues.mode==MODE_WEIGHT_REACHED){
-		timeValues.stepEndTime=timeValues.runTime+2;
+	if (daemonGetCurrentCommandValuesMode()==MODE_SCALE || daemonGetCurrentCommandValuesMode()==MODE_WEIGHT_REACHED){
+		timeValues.stepEndTime=daemonGetTimeValuesRunTime()+2;
 		oldCommandValues.weight = currentCommandValues.weight;
 		double sumOfForces = adc_values.Weight.value;
 		if (daemonGetSettingsDebug_enabled() || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}			
@@ -2508,15 +2504,15 @@ void ScaleFunction(){
 				}
 			}
 			if (currentCommandValues.weight>=(newCommandValues.weight*settings.weightReachedMultiplier)) {//If we have reached the required mass
-				if (currentCommandValues.mode != MODE_WEIGHT_REACHED){
+				if (daemonGetCurrentCommandValuesMode() != MODE_WEIGHT_REACHED){
 					if(settings.BeepWeightReached > 0){
-						timeValues.beepEndTime=timeValues.runTime+settings.BeepWeightReached;
+						beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+settings.BeepWeightReached);
 					}
 					if (daemonGetSettingsDebug_enabled() || daemonGetSettingsDebug3_enabled()){printf("\tweight reached!\n");}
 				} else {
 					if (daemonGetSettingsDebug_enabled()){printf("\tweight reached...\n");}
 				}
-				if (currentCommandValues.mode != MODE_WEIGHT_REACHED){
+				if (daemonGetCurrentCommandValuesMode() != MODE_WEIGHT_REACHED){
 					currentCommandValues.mode=MODE_WEIGHT_REACHED;
 					state.dataChanged=true;
 				}
@@ -2559,8 +2555,8 @@ void SegmentDisplay(){
 		}
 	}
 	if (!runningMode.simulationMode || runningMode.simulationModeShow7Segment){
-		if (timeValues.lastBlinkTime != timeValues.runTime){//if no change, blink 7seg
-			timeValues.lastBlinkTime = timeValues.runTime;
+		if (timeValues.lastBlinkTime != daemonGetTimeValuesRunTime()){//if no change, blink 7seg
+			timeValues.lastBlinkTime = daemonGetTimeValuesRunTime();
 			//togglePin(i2c_7seg_period);
 			if (state.blinkState){
 				writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_OFF);
@@ -2575,45 +2571,6 @@ void SegmentDisplay(){
 	}
 }
 
-/** @brief beep if doRememberBeep==1 (after 1 sec, 5 sec 30 sec...)
-*/
-void Beep(){
-	if(settings.doRememberBeep==1){
-		if (timeValues.runTime>timeValues.stepEndTime){//if step is ended
-			if (currentCommandValues.mode>=MIN_STATUS_MODE && currentCommandValues.mode<=MAX_STATUS_MODE){
-				int toLateTime = timeValues.runTime-timeValues.stepEndTime;
-				if (toLateTime==1){
-					timeValues.beepEndTime=timeValues.runTime+1;
-				} else if (toLateTime==5){
-					timeValues.beepEndTime=timeValues.runTime+1;
-				} else if (toLateTime==30){
-					timeValues.beepEndTime=timeValues.runTime+1;
-				} else if (toLateTime==60){
-					timeValues.beepEndTime=timeValues.runTime+1;
-				} else if (toLateTime>0 && toLateTime%300==0){ //each 5 min
-					timeValues.beepEndTime=timeValues.runTime+5;
-				}
-			}
-		}
-	}
-	if (timeValues.runTime<timeValues.beepEndTime){
-		if (!state.isBuzzing){
-			state.isBuzzing = true;
-			uint32_t duration = timeValues.beepEndTime-timeValues.runTime;
-			char command[100];
-			sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d 1>/dev/null 2>&1 &", duration);
-			//char command[200];
-			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir /opt/EveryCook/daemon/sounds --wavfile ding.wav &", duration);
-			//sprintf(command, "speaker-test -f 500 -t sine -p 1000 -l %d --wavdir %s --wavfile %s &", duration, settings.wavdir, settings.wavfile);
-			printf("%s\n",command);
-			system(command);
-		}
-	} else {
-		if (state.isBuzzing || ALLWAYS_STOP_BUZZING){
-			state.isBuzzing = false;
-		}
-	}
-}
 
 /*******************PI File read/write Code**********************/
 //format: {"T0":000,"P0":000,"M0RPM":0000,"M0ON":000,"M0OFF":000,"W0":0000,"STIME":000000,"SMODE":00,"SID":000}
@@ -2628,8 +2585,8 @@ void prepareState(char* TotalUpdate){
 	} else {
 		press = 0;
 	}
-	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidClosed\":%d,\"lidLocked\":%d,\"pusherLocked\":%d}",	currentCommandValues.temp, 						press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
-	if (daemonGetSettingsDebug_enabled()){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidClosed:%d, lidLocked:%d, pusherLocked:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, currentCommandValues.mode, currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);}
+	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidClosed\":%d,\"lidLocked\":%d,\"pusherLocked\":%d}",	currentCommandValues.temp, 						press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, daemonGetCurrentCommandValuesMode(), currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
+	if (daemonGetSettingsDebug_enabled()){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidClosed:%d, lidLocked:%d, pusherLocked:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, daemonGetCurrentCommandValuesMode(), currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);}
 }
 
 /** @brief write data in settings.statusFile
@@ -2653,9 +2610,9 @@ void updateMotorTime(){
 	//if (currentCommandValues.motorRpm>0){
 	if (i2c_motor_values.motorRpm>0){
 		if (timeValues.motorStartTime < timeValues.lastLogSaveTime){
-			hourCounter.motor = hourCounter.motor + (timeValues.runTime - timeValues.lastLogSaveTime);
+			hourCounter.motor = hourCounter.motor + (daemonGetTimeValuesRunTime() - timeValues.lastLogSaveTime);
 		} else {
-			hourCounter.motor = hourCounter.motor + (timeValues.runTime - timeValues.motorStartTime);
+			hourCounter.motor = hourCounter.motor + (daemonGetTimeValuesRunTime() - timeValues.motorStartTime);
 		}
 	} else if (i2c_motor_values.motorRpm == 0){
 		if (timeValues.motorStopTime > timeValues.lastLogSaveTime){
@@ -2670,9 +2627,9 @@ void updateHeaterTime(){
 	//if (currentCommandValues.motorRpm>0){
 	if (state.heatPowerStatus){
 		if (timeValues.heaterStartTime < timeValues.lastLogSaveTime){
-			hourCounter.heater = hourCounter.heater + (timeValues.runTime - timeValues.lastLogSaveTime);
+			hourCounter.heater = hourCounter.heater + (daemonGetTimeValuesRunTime() - timeValues.lastLogSaveTime);
 		} else {
-			hourCounter.heater = hourCounter.heater + (timeValues.runTime - timeValues.heaterStartTime);
+			hourCounter.heater = hourCounter.heater + (daemonGetTimeValuesRunTime() - timeValues.heaterStartTime);
 		}
 	} else {
 		if (timeValues.heaterStopTime > timeValues.lastLogSaveTime){
@@ -2688,12 +2645,12 @@ void writeLog(){
 	timeValues.nowTime = time(NULL);
 	timeValues.localTime=localtime(&timeValues.nowTime);
 	
-	if (timeValues.runTime>=timeValues.lastLogSaveTime+settings.logSaveInterval){
+	if (daemonGetTimeValuesRunTime()>=timeValues.lastLogSaveTime+settings.logSaveInterval){
 		char tempString[20];
 		StringClean(tempString, 20);
 		strftime(tempString, 20,"%F %T",timeValues.localTime);
 		char logline[200];
-		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, i2c_motor_values.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, currentCommandValues.mode, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
+		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, i2c_motor_values.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, daemonGetCurrentCommandValuesMode(), heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
 		
 		if (settings.logLines == 0){
 			fputs(logline, state.logFilePointer);
@@ -2729,7 +2686,7 @@ void writeLog(){
 		}
 		
 		if (timeValues.lastLogSaveTime>0){
-			hourCounter.daemon = hourCounter.daemon + (timeValues.runTime - timeValues.lastLogSaveTime);
+			hourCounter.daemon = hourCounter.daemon + (daemonGetTimeValuesRunTime() - timeValues.lastLogSaveTime);
 			updateHeaterTime();
 			updateMotorTime();
 			
@@ -2739,7 +2696,7 @@ void writeLog(){
 			//fprintf(hourCounterFilePointer, "\nhours on: %d\nmotor hours: %d\nheater hours: %d\n", hourCounter.daemon, hourCounter.motor, hourCounter.heater);
 			fclose(hourCounterFilePointer);
 		}
-		timeValues.lastLogSaveTime=timeValues.runTime;
+		timeValues.lastLogSaveTime=daemonGetTimeValuesRunTime();
 	}
 	if (daemonGetSettingsDebug_enabled()){printf("writeLog: after write\n");}
 }
@@ -3025,11 +2982,11 @@ void ReadConfigurationFile(void){
 				settings.BeepWeightReached = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tBeepWeightReached: %d\n", settings.BeepWeightReached);} // (old: %d)
 			} else if(strcmp(keyString, "BeepStepEnd") == 0){
-				settings.BeepStepEnd = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", settings.BeepStepEnd);} // (old: %d)
+				beeperSetSettingsBeepStepEnd(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", beeperSetSettingsBeepStepEnd());} // (old: %d)
 			} else if(strcmp(keyString, "doRememberBeep") == 0){
-				settings.doRememberBeep = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\tdoRememberBeep: %d\n", settings.doRememberBeep);} // (old: %d)
+				beeperSetDoRememberBeep(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\tdoRememberBeep: %d\n", beeperGetDoRememberBeep());} // (old: %d)
 			} else if(strcmp(keyString, "DeleteLogOnStart") == 0){
 				settings.DeleteLogOnStart = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tDeleteLogOnStart: %d\n", settings.DeleteLogOnStart);} // (old: %d)
@@ -3449,22 +3406,22 @@ void *heaterLedEvaluation(void *ptr){
 			heaterStatus.ledValues[5] = readSignPin(5);
 			
 			if (heaterStatus.ledValues[0] && heaterStatus.ledValues[1] && heaterStatus.ledValues[2]  && heaterStatus.ledValues[3] && heaterStatus.ledValues[4]  && heaterStatus.ledValues[5]){ //all leds are turn on
-				if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < timeValues.runTime){
+				if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < daemonGetTimeValuesRunTime()){
 					heaterStatus.hasPower = false;
 				}
 			} else {// all leds are not turn on
-				heaterStatus.hasPowerLedOnLastTime = timeValues.runTime;//initialization of time
+				heaterStatus.hasPowerLedOnLastTime = daemonGetTimeValuesRunTime();//initialization of time
 				if (!heaterStatus.hasPower){
 					heaterStatus.hasPower = true;
 				}
 			}
 			
 			if (heaterStatus.ledValues[3] == 0){
-				heaterStatus.isOnLastTime = timeValues.runTime;//initialization of time
+				heaterStatus.isOnLastTime = daemonGetTimeValuesRunTime();//initialization of time
 				if (!heaterStatus.isOn){
 					heaterStatus.isOn = true;
 				}
-			} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 4 < timeValues.runTime){
+			} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 4 < daemonGetTimeValuesRunTime()){
 				heaterStatus.isOn = false;
 			}
 			
@@ -3728,12 +3685,12 @@ void *readADCValues(void *ptr){
 		delayWeight = 300;
 		delayTempPess = 1000;
 		while (state.running){		
-			if (currentCommandValues.mode == MODE_SCALE){
+			if (daemonGetCurrentCommandValuesMode() == MODE_SCALE){
 				double weightValue;
 				if (!state.scaleReady) {
 					weightValue = 0.0;
 				} else {
-					if (timeValues.runTime <= timeValues.simulationUpdateTime){
+					if (daemonGetTimeValuesRunTime() <= timeValues.simulationUpdateTime){
 						delay(delayWeight);
 						continue;
 					} else {
@@ -3751,7 +3708,7 @@ void *readADCValues(void *ptr){
 							weightValue = weightValue + 10;
 						}
 						weightValue += state.referenceForce;
-						timeValues.simulationUpdateTime = timeValues.runTime;
+						timeValues.simulationUpdateTime = daemonGetTimeValuesRunTime();
 					}
 				}
 				if (adc_values.Weight.valueByOffset != weightValue){
@@ -3777,10 +3734,10 @@ void *readADCValues(void *ptr){
 				}
 				delay(delayWeight);
 			}
-			if (currentCommandValues.mode != MODE_SCALE){
+			if (daemonGetCurrentCommandValuesMode() != MODE_SCALE){
 				double tempValue = oldCommandValues.temp;
 				int deltaT=newCommandValues.temp-oldCommandValues.temp;
-				if (currentCommandValues.mode==MODE_HEATUP || currentCommandValues.mode==MODE_COOK) {
+				if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP || daemonGetCurrentCommandValuesMode()==MODE_COOK) {
 					if (deltaT<0) {
 						--tempValue;
 					} else if (deltaT==0) {
@@ -3794,7 +3751,7 @@ void *readADCValues(void *ptr){
 					} else {
 						tempValue = tempValue+40;
 					}
-				} else if (currentCommandValues.mode==MODE_COOLDOWN){
+				} else if (daemonGetCurrentCommandValuesMode()==MODE_COOLDOWN){
 					tempValue = tempValue-1;
 				}
 				adc_values.Temp.valueByOffset = tempValue;
@@ -3803,7 +3760,7 @@ void *readADCValues(void *ptr){
 				
 				int32_t pressValue = oldCommandValues.press;
 				int deltaP=newCommandValues.press - oldCommandValues.press;
-				if (currentCommandValues.mode == MODE_PRESSUP || currentCommandValues.mode == MODE_PRESSHOLD) {
+				if (daemonGetCurrentCommandValuesMode() == MODE_PRESSUP || daemonGetCurrentCommandValuesMode() == MODE_PRESSHOLD) {
 					if (deltaP<0) {
 						--pressValue;
 					} else if (deltaP==0) {
@@ -3815,7 +3772,7 @@ void *readADCValues(void *ptr){
 					} else {
 						pressValue = pressValue+10;
 					}
-				} else if (currentCommandValues.mode == MODE_PRESSDOWN){
+				} else if (daemonGetCurrentCommandValuesMode() == MODE_PRESSDOWN){
 					pressValue = pressValue-1;
 				}
 				adc_values.Press.valueByOffset = pressValue;
@@ -3830,7 +3787,7 @@ void *readADCValues(void *ptr){
 	delayWeight = 10;
 	delayTempPess = 100;
 	while (state.running){
-		if (currentCommandValues.mode == MODE_SCALE || millis() - timeValues.lastWeightUpdateTime > 2000 || runningMode.calibration || runningMode.measure_noise){
+		if (daemonGetCurrentCommandValuesMode() == MODE_SCALE || millis() - timeValues.lastWeightUpdateTime > 2000 || runningMode.calibration || runningMode.measure_noise){
 			adc_values.LoadCellFrontLeft.adc_value = readADC(adc_config.ADC_LoadCellFrontLeft);
 			if (adc_config.inverse[adc_config.ADC_LoadCellFrontLeft]){
 				adc_values.LoadCellFrontLeft.adc_value = 0x00FFFFFF - adc_values.LoadCellFrontLeft.adc_value;
@@ -3871,7 +3828,7 @@ void *readADCValues(void *ptr){
 			timeValues.lastWeightUpdateTime = millis();
 			
 			if (settings.shieldVersion < 4){//if shield Version 1, 2 or 3
-				if (currentCommandValues.mode != MODE_SCALE){
+				if (daemonGetCurrentCommandValuesMode() != MODE_SCALE){
 					//check isLidClosed
 					double front = (adc_values.LoadCellFrontLeft.valueByOffset + adc_values.LoadCellFrontRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
 					double back = (adc_values.LoadCellBackLeft.valueByOffset + adc_values.LoadCellBackRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
@@ -3902,7 +3859,7 @@ void *readADCValues(void *ptr){
 			
 			delay(delayWeight);
 		}
-		if (currentCommandValues.mode != MODE_SCALE || runningMode.calibration || runningMode.measure_noise){
+		if (daemonGetCurrentCommandValuesMode() != MODE_SCALE || runningMode.calibration || runningMode.measure_noise){
 			adc_values.Temp.adc_value = readADC(adc_config.ADC_Temp);
 			if (adc_config.inverse[adc_config.ADC_Temp]){
 				adc_values.Temp.adc_value = 0x00FFFFFF - adc_values.Temp.adc_value;
@@ -4129,4 +4086,12 @@ bool daemonGetSettingsDebug3_enabled(){
 bool daemonGetSettingsDebug4_enabled(){
 	return settings.debug4_enabled;
 }
-
+uint32_t daemonGetTimeValuesRunTime(){
+	return timeValues.runTime;
+}
+uint32_t daemonGetSettingsTimeValuesStepEndTime(){
+	return timeValues.stepEndTime
+}
+uint32_t daemonGetCurrentCommandValuesMode(){
+	return currentCommandValues.mode;
+}
