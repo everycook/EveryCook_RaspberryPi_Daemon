@@ -298,7 +298,7 @@ int main(int argc, const char* argv[]){
 		if (settings.shieldVersion < 3){
 			setServoOpen(0, 1, 0, &daemon_values);//open valve with servo 
 		} else {
-			setSolenoidOpen(false, &daemon_values);//open solenoide valve
+			solenoidSetOpen(false);//open solenoide valve
 		}
 		if(settings.shieldVersion != 1){
 			pthread_join(threadHandleButtons, NULL);// wait end of thread
@@ -379,7 +379,7 @@ int main(int argc, const char* argv[]){
 			delay(2000);
 		} else {
 			printf("There is no servo in shieldVersion %d, so open/close solenoid if min value is >0/=0\n", settings.shieldVersion);
-			setSolenoidOpen(settings.test_servo_min>0, &daemon_values);
+			solenoidSetOpen(settings.test_servo_min>0);
 		}
 	} else if (runningMode.test_heat_led){
 		state.Delay = 10;//delay's initialization
@@ -1349,7 +1349,7 @@ int main(int argc, const char* argv[]){
 				if (settings.shieldVersion < 3){
 					setServoOpen(100, 10, 1000, &daemon_values);
 				} else {
-					setSolenoidOpen(false, &daemon_values);
+					solenoidSetOpen(false);
 				}
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
@@ -1364,7 +1364,7 @@ int main(int argc, const char* argv[]){
 						if (settings.shieldVersion < 3){
 							setServoOpen(0, 1, 0, &daemon_values);
 						} else {
-							setSolenoidOpen(false, &daemon_values);
+							solenoidSetOpen(false);
 						}
 						delay(500);
 						state.running = false;
@@ -1379,7 +1379,7 @@ int main(int argc, const char* argv[]){
 					if (settings.shieldVersion < 3){
 						setServoOpen(0, 1, 0, &daemon_values);
 					} else {
-						setSolenoidOpen(false, &daemon_values);
+						solenoidSetOpen(false);
 					}
 					delay(500);
 					state.running = false;
@@ -1495,13 +1495,13 @@ int main(int argc, const char* argv[]){
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//open solenoid valve during 5 sec
 				printf("atmelSetSolenoidOpen, for 5 seconds\n");
 				uint8_t count=0;
-				atmelSetSolenoidOpen(true);
+				solenoidSetOpen(true);
 				while(state.running && count<10){
 					parseAtmelState();
 					delay(500);
 					count++;
 				}
-				atmelSetSolenoidOpen(false);
+				solenoidSetOpen(false);
 			}
 			
 			stepNr++;
@@ -2440,7 +2440,7 @@ void ValveControl(){
 		if (settings.shieldVersion < 3){
 			setServoOpen(100, 10, 1000, &daemon_values);
 		} else {
-			setSolenoidOpen(true, &daemon_values);
+			solenoidSetOpen(true);
 		}
 		timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
 		if (currentCommandValues.press < settings.LowPress) {
@@ -2459,7 +2459,7 @@ void ValveControl(){
 		if (settings.shieldVersion < 3){
 			setServoOpen(0, 1, 0, &daemon_values);
 		} else {
-			setSolenoidOpen(false, &daemon_values);
+			solenoidSetOpen(false);
 		}
 	}
 }
@@ -4094,4 +4094,10 @@ uint32_t daemonGetSettingsTimeValuesStepEndTime(){
 }
 uint32_t daemonGetCurrentCommandValuesMode(){
 	return currentCommandValues.mode;
+}
+uint32_t daemonGetSettingsShieldVersion(){
+	return settings.shieldVersion;
+}
+bool daemonGetRunningModeSimulationMode(){
+	return runningMode.simulationMode;
 }

@@ -22,6 +22,7 @@ See GPLv3.htm in the main folder for details.
 #include "speaker.h"
 #include "beeper.h"
 #include "display.h"
+#include "solenoid.h"
 
 /** @brief reset all value
  */
@@ -111,3 +112,5 @@ bool daemonGetSettingsDebug4_enabled();
 uint32_t daemonGetTimeValuesRunTime();
 uint32_t daemonGetSettingsTimeValuesStepEndTime();
 uint32_t daemonGetCurrentCommandValuesMode();
+uint32_t daemonGetSettingsShieldVersion();
+bool daemonGetRunningModeSimulationMode();

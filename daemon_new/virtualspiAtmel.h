@@ -84,15 +84,9 @@ uint8_t SPIAtmelWrite(uint8_t data);
 uint8_t SPIAtmelRead(void);
 
 uint8_t atmelGetStatus();
-void atmelClear();
-void atmelShowText(char* text);
-void atmelShowPercent(uint8_t percent);
-void atmelShowPicture(uint16_t* picture);
-void atmelShowPercentText(uint8_t percent, char* text);
 
 void atmelSetHeating(bool on);
 void atmelSetMotorRPM(uint8_t rpm);
-void atmelSetSolenoidOpen(bool open);
 void atmelSetMaintenance(bool on);
 
 uint8_t atmelGetMotorSpeed();

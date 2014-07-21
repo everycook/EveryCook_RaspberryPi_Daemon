@@ -113,7 +113,7 @@ struct I2C_Servo_Values {
 	uint8_t i2c_servo_stay_open;
 };
 
-struct I2C_solenoid_Values {
+struct I2C_solenoid_Values {//ENLEVE
 	uint16_t i2c_solenoid_open;
 	uint16_t i2c_solenoid_closed;
 	
@@ -203,12 +203,12 @@ struct Running_Mode {
 	bool test_heating_press;
 	bool test_serial;
 	
-	bool simulationMode;
+	bool simulationMode;//GET
 	bool simulationModeShow7Segment;
 };
 
 struct Settings {
-	uint32_t shieldVersion;
+	uint32_t shieldVersion;//GET
 
 	uint8_t logSaveInterval; //setting for logging interval in seconds
 	uint32_t logLines; //setting for amount of rows logging

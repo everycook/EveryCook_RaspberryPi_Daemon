@@ -16,7 +16,7 @@ See GPLv3.htm in the main folder for details.
 #include <stdio.h>
 #include <math.h>
 
-#include <wiringPi.h>
+//#include <wiringPi.h>
 
 #include "bool.h"
 #include "modes.h"
@@ -259,31 +259,6 @@ void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv){
 	}
 }
 
-void setSolenoidOpen(bool open, struct Daemon_Values *dv){
-	if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("setSolenoidOpen, open: %d\n", open);}
-	if (dv->i2c_solenoid_values->solenoidOpen != open){
-		if(dv->settings->shieldVersion < 4){
-			if (open){
-				dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_open;
-			} else {
-				dv->i2c_solenoid_values->currentValue = dv->i2c_solenoid_values->i2c_solenoid_closed;
-			}
-			dv->i2c_solenoid_values->i2c_solenoid_value = (int)(dv->i2c_solenoid_values->currentValue);
-			
-			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setSolonoidOpen: value:%.2f, solonoid_value:%d\n", dv->i2c_solenoid_values->currentValue, dv->i2c_solenoid_values->i2c_solenoid_value);}
-			if (!dv->runningMode->simulationMode){
-				writeI2CPin(dv->i2c_config->i2c_servo, dv->i2c_solenoid_values->i2c_solenoid_value);
-			}
-		} else {
-			if (dv->runningMode->simulationMode || dv->settings->debug3_enabled){printf("setSolonoidOpen: old: %d, new: %d\n",dv->i2c_solenoid_values->solenoidOpen, open);}
-			if (!dv->runningMode->simulationMode){
-				atmelSetSolenoidOpen(open);
-			}
-
-		}
-		dv->i2c_solenoid_values->solenoidOpen = open;
-	}
-}
 
 void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct Daemon_Values *dv){
 	if (dv->settings->debug_enabled || dv->settings->debug3_enabled){printf("setServoOpen, open: %d\n", openPercent);}

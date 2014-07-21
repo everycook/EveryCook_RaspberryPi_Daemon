@@ -174,17 +174,6 @@ void atmelSetMotorRPM(uint8_t rpm){
 	getValidResultOrReset();
 }
 
-void atmelSetSolenoidOpen(bool open){
-	if (debug2) {printf("--->atmelSetSolenoidOpen\n");}
-	SPIAtmelWrite(SPI_MODE_VENTIL);
-	if(open){
-		SPIAtmelWrite(0x01);
-	} else{
-		SPIAtmelWrite(0x00);
-	}
-	getValidResultOrReset();
-}
-
 void atmelSetMaintenance(bool on){
 	if (debug2) {printf("--->atmelSetMaintenance\n");}
 	SPIAtmelWrite(SPI_MODE_MAINTENANCE);
