@@ -262,7 +262,7 @@ int main(int argc, const char* argv[]){
 									0b0000010011100100,
 									0b0000001000001000,
 									0b0000000111110000};
-			atmelShowPicture(&picture[0]);
+			displayShowPicture(&picture[0]);
 		}
 		
 		while (state.running){
@@ -1421,7 +1421,7 @@ int main(int argc, const char* argv[]){
 			
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//ShowPercent(100)
-				atmelShowPercent(100);
+				displayShowPercent(100);
 				delay(2000);
 			}
 			
@@ -1429,7 +1429,7 @@ int main(int argc, const char* argv[]){
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//show 123456789
 				//Show Text
 				printf("Show Numbers\n");
-				atmelShowText("1234567890");
+				displayShowText("1234567890");
 				delay(6000);
 			}
 			
@@ -1447,7 +1447,7 @@ int main(int argc, const char* argv[]){
 										0b0000010011100100,
 										0b0000001000001000,
 										0b0000000111110000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 				delay(2000);
 			}
 			
@@ -1463,7 +1463,7 @@ int main(int argc, const char* argv[]){
 											0b0010101010101010,
 											0b0001010101010101,
 											0b0010101010101010};
-				atmelShowPicture(&picture2[0]);
+				displayShowPicture(&picture2[0]);
 				delay(2000);
 			}
 			
@@ -1473,22 +1473,22 @@ int main(int argc, const char* argv[]){
 				// show percent 0-140
 				uint8_t i=0;
 				for (; i<140 && state.running; i=i+10) {
-					atmelShowPercent(i);
+					displayShowPercent(i);
 				}
 				delay(2000);
 				printf("clear\n");
-				atmelClear();
+				displayClear();
 			}
 			
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// "Hallo Welt! Ich komme vom Raspi!"
 				printf("Show text\n");
 				//Show Text
-				atmelShowText("Hallo Welt! Ich komme vom Raspi!");
+				displayShowText("Hallo Welt! Ich komme vom Raspi!");
 				//delay(18400);
 				delay(14000);
 				printf("clear\n");
-				atmelClear();
+				displayClear();
 			}
 			
 			stepNr++;
@@ -1556,7 +1556,7 @@ int main(int argc, const char* argv[]){
 			0b01110001001110,
 			0b00000000000000
 		};
-		atmelShowPicture(&picture_bye[0]);
+		displayShowPicture(&picture_bye[0]);
 	}
 	if (settings.logLines == 0 || state.logLineNr<settings.logLines){
 		fclose(state.logFilePointer);
@@ -2027,9 +2027,9 @@ void ProcessCommand(void){
 										0b0000010011100100,
 										0b0000001000001000,
 										0b0000000111110000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 				*/
-				atmelClear();
+				displayClear();
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_CUT) {
 										//00##############
 				uint16_t picture[9] = {	0b0000000000000000,
@@ -2041,7 +2041,7 @@ void ProcessCommand(void){
 										0b0000000000000000,
 										0b0000000000000000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_SCALE) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -2053,7 +2053,7 @@ void ProcessCommand(void){
 										0b0000000010000000,
 										0b0000001111100000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -2065,7 +2065,7 @@ void ProcessCommand(void){
 										0b0001110111011100,
 										0b0000100010001000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_COOK) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -2077,7 +2077,7 @@ void ProcessCommand(void){
 										0b0000111111111110,
 										0b0000011111100000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_COOLDOWN) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -2089,7 +2089,7 @@ void ProcessCommand(void){
 										0b0000111111111110,
 										0b0000011111100000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000010000000,
@@ -2101,7 +2101,7 @@ void ProcessCommand(void){
 										0b0000001111100000,
 										0b0000001111100000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSHOLD) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -2113,7 +2113,7 @@ void ProcessCommand(void){
 										0b0001110111111110,
 										0b0001110011111000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSDOWN) {
 										//00##############
 				uint16_t picture[9] = { 0b0000000000000000,
@@ -2125,7 +2125,7 @@ void ProcessCommand(void){
 										0b0000001111100000,
 										0b0000001111100000,
 										0b0000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSVENT) {
 										//00##############
 				uint16_t picture[9] = { 0b001000000000100,
@@ -2137,7 +2137,7 @@ void ProcessCommand(void){
 										0b000001111100000,
 										0b000001111100000,
 										0b000000000000000};
-				atmelShowPicture(&picture[0]);
+				displayShowPicture(&picture[0]);
 			}
 			/* TODO
 			MODE_HOT
@@ -2171,7 +2171,7 @@ void ProcessCommand(void){
 	if (daemonGetCurrentCommandValuesMode()==MODE_SCALE || daemonGetCurrentCommandValuesMode()==MODE_WEIGHT_REACHED){
 		if (state.dataChanged){
 			if (settings.shieldVersion >= 4){
-				atmelShowPercent(state.weightPercent);// show percent on display
+				displayShowPercent(state.weightPercent);// show percent on display
 			}
 		}
 	}

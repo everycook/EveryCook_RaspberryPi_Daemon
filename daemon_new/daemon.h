@@ -21,6 +21,7 @@ See GPLv3.htm in the main folder for details.
 #include "bool.h"
 #include "speaker.h"
 #include "beeper.h"
+#include "display.h"
 
 /** @brief reset all value
  */

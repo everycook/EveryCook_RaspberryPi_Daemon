@@ -55,8 +55,8 @@ void SPIAtmelReset(void){
 	delay(250);
 }
 
-/* SPIAtmelWrite: Write one byte data to teh atmel
- * data:datas write
+/** @brief Write one byte data to teh atmel
+ *  @param data:datas write
  */
 uint8_t SPIAtmelWrite(uint8_t data){
 	int i = 7;
@@ -155,56 +155,6 @@ uint8_t atmelGetStatus(){
 	return getValidResultOrReset();
 }
 
-void atmelClear(){
-	SPIAtmelWrite(SPI_MODE_DISPLAY_CLEAR);
-	getValidResultOrReset();
-}
-
-void atmelShowText(char* text){
-	if (debug2) {printf("--->atmelShowText\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_TEXT);
-	uint8_t len = strlen(text);
-	SPIAtmelWrite(len);
-	uint8_t i;
-	for(i=0;i<len;i++){
-		SPIAtmelWrite(text[i]);
-	}
-	SPIAtmelWrite(0x00);
-	getValidResultOrResetAdditionalValid(SPI_Error_Text_Invalid);
-}
-
-void atmelShowPercent(uint8_t percent){
-	if (debug2) {printf("--->atmelShowPercent\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_PERCENT);
-	SPIAtmelWrite(percent);
-	getValidResultOrReset();
-}
-
-void atmelShowPicture(uint16_t* picture){
-	if (debug2) {printf("--->atmelShowPicture\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_PICTURE);
-	uint8_t i=0;
-	for(; i<9;++i){
-		SPIAtmelWrite((picture[i] >> 8) & 0xFF);
-		SPIAtmelWrite(picture[i] & 0xFF);
-	}
-	SPIAtmelWrite(0x00);
-	getValidResultOrResetAdditionalValid(SPI_Error_Picture_Invalid);
-}
-
-void atmelShowPercentText(uint8_t percent, char* text){
-	if (debug2) {printf("--->atmelShowPercentText\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_PERCENT_TEXT);
-	SPIAtmelWrite(percent);
-	uint8_t len = strlen(text);
-	SPIAtmelWrite(len);
-	uint8_t i;
-	for(i=0;i<len;i++){
-		SPIAtmelWrite(text[i]);
-	}
-	SPIAtmelWrite(0x00);
-	getValidResultOrResetAdditionalValid(SPI_Error_Text_Invalid);
-}
 
 void atmelSetHeating(bool on){
 	if (debug2) {printf("--->atmelSetHeating\n");}
@@ -278,4 +228,12 @@ bool atmelGetMotorPosSensor(){
 uint8_t atmelGetMotorRPM(){
 	SPIAtmelWrite(SPI_MODE_GET_MOTOR_RPM);
 	return getResult();
+}
+
+bool atmelGetDebug(){
+	return debug;
+}
+
+bool atmelGetDebug2(){
+	return debug2;
 }

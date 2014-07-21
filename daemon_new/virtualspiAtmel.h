@@ -62,12 +62,6 @@ See GPLv3.htm in the main folder for details.
 #define SPI_MODE_GET_STATUS					1
 #define SPI_MODE_MOTOR						2
 #define SPI_MODE_HEATING					3
-#define SPI_MODE_DISPLAY_TEXT				4
-#define SPI_MODE_DISPLAY_TEXT_SMALL			5
-#define SPI_MODE_DISPLAY_PERCENT			6
-#define SPI_MODE_DISPLAY_PERCENT_TEXT		7
-#define SPI_MODE_DISPLAY_CLEAR				8
-#define SPI_MODE_DISPLAY_PICTURE			9
 #define SPI_MODE_VENTIL						10
 #define SPI_MODE_MAINTENANCE				11
 #define SPI_MODE_GET_MOTOR_SPEED			12
@@ -106,6 +100,14 @@ uint8_t atmelGetIGBTTemp();
 uint8_t atmelGetHeatingOutputLevel();
 bool atmelGetMotorPosSensor();
 uint8_t atmelGetMotorRPM();
+
+uint8_t getResult();
+uint8_t getValidResultOrReset();
+uint8_t getValidResultOrResetAdditionalValid(uint8_t validByte);
+
+bool atmelGetDebug();
+bool atmelGetDebug2();
+
 
 #ifdef __cplusplus
 }
