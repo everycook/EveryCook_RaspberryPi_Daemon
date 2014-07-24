@@ -1162,7 +1162,7 @@ int main(int argc, const char* argv[]){
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				
-				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {/if temperature change or 5s
+				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {//if temperature change or 5s
 					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
 					lastTemp = adc_values.Temp.valueByOffset;
@@ -2265,7 +2265,7 @@ void parseAtmelState(){
 
 	uint8_t atmelMotorSpeed = atmelGetMotorSpeed();
 	uint8_t atmelIGBTTemp = atmelGetIGBTTemp();
-	uint8_t atmelHeatingOutputLevel = heaterAtmelGetHeatingOutputLevel();
+	uint8_t atmelHeatingOutputLevel = atmelGetHeatingOutputLevel();
 	bool atmelMotorPosSensor = atmelGetMotorPosSensor();
 	uint8_t atmelMotorRPM = atmelGetMotorRPM();
 
