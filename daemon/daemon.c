@@ -2265,7 +2265,7 @@ void parseAtmelState(){
 
 	uint8_t atmelMotorSpeed = atmelGetMotorSpeed();
 	uint8_t atmelIGBTTemp = atmelGetIGBTTemp();
-	uint8_t atmelHeatingOutputLevel = atmelGetHeatingOutputLevel();
+	uint8_t atmelHeatingOutputLevel = heaterAtmelGetHeatingOutputLevel();
 	bool atmelMotorPosSensor = atmelGetMotorPosSensor();
 	uint8_t atmelMotorRPM = atmelGetMotorRPM();
 
