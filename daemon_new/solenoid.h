@@ -29,7 +29,7 @@ See GPLv3.htm in the main folder for details.
 
 #define I2C_SERVO				1
 
-struct I2C_solenoid_Values {
+struct Solenoid_I2c_Values {
 	uint16_t i2c_solenoid_open;
 	uint16_t i2c_solenoid_closed;
 	

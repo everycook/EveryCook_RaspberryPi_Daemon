@@ -31,8 +31,8 @@ See GPLv3.htm in the main folder for details.
 #define IND_LED_TEMP_MIDDLE		4
 #define IND_LED_TEMP_MIN		5
 
-#define I2C_MOTOR				0
-#define I2C_SERVO				1
+#define I2C_MOTOR				0	//ENLEVE
+
 #define I2C_7SEG_TOP			4	//SegAPin
 #define I2C_7SEG_TOP_LEFT		3	//SegBPin
 #define I2C_7SEG_TOP_RIGHT		5	//SegFPin
@@ -48,8 +48,7 @@ See GPLv3.htm in the main folder for details.
 #define I2C_7SEG_ON				0
 #define I2C_7SEG_OFF			4095
 
-#define I2C_VALVE_OPEN_VALUE	210
-#define I2C_VALVE_CLOSED_VALUE	350
+
 /** @brief modifie debug_enabled2 avec value
  *  @param value
 */

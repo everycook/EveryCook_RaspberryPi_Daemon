@@ -155,25 +155,6 @@ uint8_t atmelGetStatus(){
 	return getValidResultOrReset();
 }
 
-
-void atmelSetHeating(bool on){
-	if (debug2) {printf("--->atmelSetHeating\n");}
-	SPIAtmelWrite(SPI_MODE_HEATING);
-	if(on){
-		SPIAtmelWrite(0x01);
-	} else{
-		SPIAtmelWrite(0x00);
-	}
-	getValidResultOrReset();
-}
-
-void atmelSetMotorRPM(uint8_t rpm){
-	if (debug2) {printf("--->atmelSetMotorRPM\n");}
-	SPIAtmelWrite(SPI_MODE_MOTOR);
-	SPIAtmelWrite(rpm);
-	getValidResultOrReset();
-}
-
 void atmelSetMaintenance(bool on){
 	if (debug2) {printf("--->atmelSetMaintenance\n");}
 	SPIAtmelWrite(SPI_MODE_MAINTENANCE);
@@ -194,30 +175,11 @@ void atmelSetMaintenance(bool on){
 	getValidResultOrReset();
 }
 
-uint8_t atmelGetMotorSpeed(){
-	SPIAtmelWrite(SPI_MODE_GET_MOTOR_SPEED);
-	return getResult();
-}
-
 uint8_t atmelGetIGBTTemp(){
 	SPIAtmelWrite(SPI_MODE_GET_IGBT_TEMP);
 	return getResult();
 }
 
-uint8_t atmelGetHeatingOutputLevel(){
-	SPIAtmelWrite(SPI_MODE_GET_HEATING_OUTPUT_LEVEL);
-	return getResult();
-}
-
-bool atmelGetMotorPosSensor(){
-	SPIAtmelWrite(SPI_MODE_GET_MOTOR_POS_SENSOR);
-	return getResult();
-}
-
-uint8_t atmelGetMotorRPM(){
-	SPIAtmelWrite(SPI_MODE_GET_MOTOR_RPM);
-	return getResult();
-}
 
 bool atmelGetDebug(){
 	return debug;

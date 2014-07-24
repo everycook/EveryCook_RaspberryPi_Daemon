@@ -14,7 +14,7 @@ See GPLv3.htm in the main folder for details.
 */
 #include "solenoid.h"
 uint8_t i2c_servo_config=I2C_SERVO;
-struct I2C_solenoid_Values solenoid = {I2C_VALVE_OPEN_VALUE, I2C_VALVE_CLOSED_VALUE, I2C_VALVE_CLOSED_VALUE, 0, 0};
+struct Solenoid_I2c_Values solenoid = {I2C_VALVE_OPEN_VALUE, I2C_VALVE_CLOSED_VALUE, I2C_VALVE_CLOSED_VALUE, 0, 0};
 
 void atmelSetSolenoidOpen(bool open);
 

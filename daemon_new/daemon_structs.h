@@ -84,7 +84,7 @@ struct ADC_Values {
 };
 
 struct I2C_Config {
-	uint8_t i2c_motor;
+	uint8_t i2c_motor;				//ENLEVE
 	uint8_t i2c_servo;
 	uint8_t i2c_7seg_top;			//SegAPin
 	uint8_t i2c_7seg_top_left;		//SegBPin
@@ -122,7 +122,7 @@ struct I2C_solenoid_Values {//ENLEVE
 	uint8_t solenoidOpen;
 };
 
-struct I2C_Motor_Values {
+struct I2C_Motor_Values {//ENLEVE
 	uint16_t i2c_motor_speed_min;
 	uint16_t i2c_motor_speed_ramp;
 	
@@ -152,9 +152,9 @@ struct Button_Values {
 struct Command_Values {
 	double temp;
 	int32_t press;
-	uint8_t motorRpm; //0-255 
-	uint32_t motorOn;
-	uint32_t motorOff;
+	uint8_t motorRpm; //0-255 ENLEVE
+	uint32_t motorOn; // ENLEVE
+	uint32_t motorOff;// ENLEVE
 	double weight;
 	uint32_t time;
 	uint32_t mode;
@@ -172,18 +172,18 @@ struct Time_Values {
 	uint32_t stepEndTime;
 	uint32_t stepStartTime;
 	uint32_t middlewareConnectTime;
-	uint32_t motorStartTime; //When did we start the motor?
-	uint32_t motorStopTime; //When did we stop the motor?
+	uint32_t motorStartTime; //When did we start the motor? ENLEVE
+	uint32_t motorStopTime; //When did we stop the motor? ENLEVE
 	uint32_t remainTime;
 	uint32_t beepEndTime; //when to stop the beeper// ENLEVE
 	uint32_t lastBlinkTime;
 	
 	time_t lastFileChangeTime;
 	uint32_t simulationUpdateTime;
-	uint32_t lastLogSaveTime;
+	uint32_t lastLogSaveTime; //GET
 	uint32_t lastStatusTime;
-	uint32_t heaterStartTime; //when did we start the heater
-	uint32_t heaterStopTime; //when did we stop the heater
+	uint32_t heaterStartTime; //when did we start the heater //ENLEVE
+	uint32_t heaterStopTime; //when did we stop the heater  //ENLEVE
 	
 	uint32_t servoStayEndTime; //when to close the servo
 	int32_t lastWeightUpdateTime; //when to close the servo
@@ -224,7 +224,7 @@ struct Settings {
 	int32_t LowPress;
 
 	//delay for normal operation and scale mode
-	uint32_t LongDelay;
+	uint32_t LongDelay;//GET
 	uint32_t ShortDelay;
 	
 	//Options
@@ -267,7 +267,7 @@ struct State {
 	double referenceForce; //the reference to get the zero of the scale
 	bool scaleReady;
 
-	bool heatPowerStatus; //Induction heater power 0=off >0=on
+	bool heatPowerStatus; //Induction heater power 0=off >0=on //ENELVE
 
 	bool isBuzzing; //to be sure first send a off to buzzer//ENLEVE
 
@@ -297,7 +297,7 @@ struct State {
 	bool pusherLocked;
 };
 
-struct Heater_Led_Values {
+struct Heater_Led_Values {//ENELVE
 	bool hasPower;
 	bool isOn;
 	bool isModeHeating;
@@ -330,8 +330,8 @@ struct Heater_Led_Values {
 struct HourCounter {
 	char identifier[4];
 	uint32_t daemon;
-	uint32_t heater;
-	uint32_t motor;
+	uint32_t heater;//ENLEVE
+	uint32_t motor;//ENLEVE
 };
 
 struct Daemon_Values {

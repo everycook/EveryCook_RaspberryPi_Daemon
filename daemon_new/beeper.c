@@ -23,7 +23,7 @@ bool beeperisBuzzing;//if beeping
 uint8_t beeperBeepStepEnd;
 
 
-void beeperBeep(){
+void beeperBeepEndStep(){
 	if(beeperGetDoRememberBeep()==1){
 		if (daemonGetTimeValuesRunTime()>daemonGetSettingsTimeValuesStepEndTime()){//if step is ended
 			if (daemonGetCurrentCommandValuesMode()>=MIN_STATUS_MODE && daemonGetCurrentCommandValuesMode()<=MAX_STATUS_MODE){

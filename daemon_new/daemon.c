@@ -94,14 +94,10 @@ struct HourCounter hourCounter = {"HCV\0", 0.0, 0.0, 0.0};
 struct Button_Config buttonConfig = {{17,27,22},{0,0,0}};
 struct Button_Values buttonValues;
 
-pthread_t threadHeaterLedReader;
+
 pthread_t threadReadADCValues;
 pthread_t threadHandleButtons;
 
-
-uint8_t HeaterErrorPattern[7][6] = {{0, 0, 0, 0, 0, 0},{0, 0, 1, 1, 1, 1},{1, 0, 1, 1, 1, 1},{0, 1, 1, 1, 1, 1},{1, 0, 0, 1, 1, 1},{0, 0, 0, 1, 1, 1}};
-char* HeaterErrorCodes[] = {"No Pan", "Temperature Sensor out of work", "IGBT Sensor out of work","Voltage To High(>260V)", "Voltage to Low(<85V)","The bow out of water","IGBT Temperature To High"};
-uint8_t HeaterErrorTimeout[7] = {1, 4, 4, 2, 2, 3, 2};
 
 /** @brief program different mode according to what is chosen during the launch
  *  @param argc : mode number selected
@@ -128,28 +124,10 @@ bool checkForInput();
 */
 void doOutput();
 
-/** @brief update time of motor
-*/
-void updateMotorTime();
 
-/** @brief update time of heater
-*/
-void updateHeaterTime();
-
-/** @brief check something
- * 	@param * leds :
- *  @param errNo
- *  @param * state
- *  @param * lastTime
- *  @param runTime
- @return true if no probleme
-*/
-bool checkIsHeaterState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* lastTime, uint32_t runTime);
 /** @brief calculate the status of heater in according to the shield Version
 */
-void *heaterLedEvaluation(void *ptr);
-/** @brief return the valu of temperaure, pression and loadcell
-*/
+
 void *readADCValues(void *ptr);
 /** @brief return the value of buttons and speak
 */
@@ -243,7 +221,7 @@ int main(int argc, const char* argv[]){
 	
 	if (runningMode.normalMode){
 		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
-			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); // calculate the heater status in according to the shield version
+			heaterThreadLedReader();
 		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		if(settings.shieldVersion != 1){// only if shield version is not 1
@@ -289,11 +267,11 @@ int main(int argc, const char* argv[]){
 			if (daemonGetSettingsDebug_enabled()){printf("main loop end.\n");}
 			delay(state.Delay);
 		}
-		HeatOff(&daemon_values);
+		heaterOff();
 		//cheating so it will realy stop motor
-		i2c_motor_values.motorRpm = i2c_motor_values.i2c_motor_speed_min;
-		i2c_motor_values.destRpm = i2c_motor_values.motorRpm;
-		setMotorRPM(0, &daemon_values);
+		motorSetI2cValuesMotorRpm(motorGetI2cValuesSpeedMin());
+		motorSetI2cValuesDestRpm(motorGetI2cValuesMotorRpm());
+		motorSetCommandRPM(0);
 		
 		if (settings.shieldVersion < 3){
 			setServoOpen(0, 1, 0, &daemon_values);//open valve with servo 
@@ -305,18 +283,18 @@ int main(int argc, const char* argv[]){
 		}
 		pthread_join(threadReadADCValues, NULL);// wait end of thread
 		if (settings.shieldVersion < 4){
-			pthread_join(threadHeaterLedReader, NULL);// wait end of thread
+			heaterStoptThreadLedReader();// wait end of thread
 		}
 	} else if (runningMode.calibration || runningMode.measure_noise){
 		if (runningMode.calibration) {
-			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //read status of heater
+			heaterStartThreadLedReader();
 		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		while (state.running){
 			timeValues.runTime = time(NULL);
 			timeValues.runTimeMillis = millis();
 			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
-			if (runningMode.calibration) HeatOn(&daemon_values);// heat turn on
+			if (runningMode.calibration) heaterOn();// heat turn on
 			if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled() || runningMode.measure_noise) {	
 				printf("time %8d | ", timeValues.runTimeMillis);
 			}
@@ -339,8 +317,8 @@ int main(int argc, const char* argv[]){
 		}
 		pthread_join(threadReadADCValues, NULL);// wait he end of thread
 		if (runningMode.calibration){
-			if (runningMode.calibration) HeatOff(&daemon_values);
-			pthread_join(threadHeaterLedReader, NULL);
+			if (runningMode.calibration) heaterOff();
+			heaterStoptThreadLedReader();
 		}
 	} else if (runningMode.test_7seg){
 		if (settings.shieldVersion < 4){//there is a 7 seg
@@ -382,357 +360,20 @@ int main(int argc, const char* argv[]){
 			solenoidSetOpen(settings.test_servo_min>0);
 		}
 	} else if (runningMode.test_heat_led){
-		state.Delay = 10;//delay's initialization
-		uint32_t led[6];//leds' initilazation
-		led[0] = 0;
-		led[1] = 0;
-		led[2] = 0;
-		led[3] = 0;
-		led[4] = 0;
-		led[5] = 0;
-		
-		heaterStatus.errorMsg = NULL;
-		heaterStatus.isOn = false;
-		heaterStatus.hasError = false;
-		state.heatPowerStatus = false;
-		HeatOn(&daemon_values);
-		
-		if (settings.shieldVersion == 1){
-			uint32_t lastHeatLedTime = time(NULL);
-			uint32_t heatLedValuesSameCount = 0;
-			uint32_t noPanLedLastTime = 0;
-			while(state.running){
-				timeValues.runTime = time(NULL);
-				led[0] = readSignPin(0);
-				led[1] = readSignPin(1);
-				led[2] = readSignPin(2);
-				led[3] = readSignPin(3);
-				led[4] = readSignPin(4);
-				led[5] = readSignPin(5);
-				
-				bool different = false;
-				
-				if (led[3] == 0){
-					heaterStatus.isOnLastTime = daemonGetTimeValuesRunTime();
-					if (!heaterStatus.isOn){
-						heaterStatus.isOn = true;
-						different = true;
-					}
-				} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 3 < daemonGetTimeValuesRunTime()){
-					heaterStatus.isOn = false;
-						different = true;
-				}
-				
-				if (led[0] == 1 && led[1] == 1 && led[2] == 1 && led[3] == 1 && led[4] == 1 && led[5] == 1){
-					if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < daemonGetTimeValuesRunTime()){
-						heaterStatus.hasPower = false;
-						different = true;
-					}
-				} else {
-					heaterStatus.hasPowerLedOnLastTime = daemonGetTimeValuesRunTime();
-					if (!heaterStatus.hasPower){
-						heaterStatus.hasPower = true;
-						different = true;
-					}
-				}
-				
-				if (led[0] == 0 && led[1] == 0 && led[2] == 0 && led[3] == 0 && led[4] == 0 && led[5] == 0){
-					noPanLedLastTime = daemonGetTimeValuesRunTime();
-					if (!heaterStatus.noPanError){
-						heaterStatus.noPanError = true;
-						different = true;
-					}
-				} else {
-					if (heaterStatus.noPanError && noPanLedLastTime + 1 < daemonGetTimeValuesRunTime()){
-						heaterStatus.noPanError = false;
-						different = true;
-					}
-				}
-				
-				uint8_t i = 0;
-				for (; i<6; ++i){
-					if (heaterStatus.ledValues[i] != led[i]){
-						different = true;
-						break;
-					}
-				}
-				
-				if (different){
-					char* errorMsg;
-					bool errorFound = false;
-					
-					uint8_t errNr = 1;
-					for (; errNr<7; ++errNr){
-						bool isSame = true;
-						for (i = 0; i<6; ++i){
-							if (HeaterErrorPattern[errNr][i] != led[i]){
-								isSame = false;
-								break;
-							}
-						}
-						if (isSame){
-							errorFound = true;
-							errorMsg = HeaterErrorCodes[errNr];
-							break;
-						}
-					}
-					if (errorFound){
-						heaterStatus.errorMsg = errorMsg;
-						printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d\tprev amount:%d\t\tError:%s\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, daemonGetTimeValuesRunTime() - lastHeatLedTime, heatLedValuesSameCount, errorMsg);
-					} else {
-						printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d\tprev amount:%d\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, daemonGetTimeValuesRunTime() - lastHeatLedTime, heatLedValuesSameCount);
-						heaterStatus.errorMsg = NULL;
-					}
-					i = 0;
-					for (; i<6; ++i){
-						heaterStatus.ledValues[i] = led[i];
-					}
-					lastHeatLedTime = time(NULL);
-					heatLedValuesSameCount = 0;
-				} else {
-					heatLedValuesSameCount = heatLedValuesSameCount+1;
-				}
-				delay(state.Delay);
-			}
-		} else if (settings.shieldVersion == 2 || settings.shieldVersion == 3){
-			uint32_t lastHeatLedTime = millis();
-			uint32_t heatLedValuesSameCount = 0;
-			while(state.running){
-				bool different = false;
-				uint8_t i = 0;
-				bool newHasError = false;
-				
-				uint32_t leds, led1,led2,led3;
-				uint32_t multiplexer = readSignPin(0);
-				delayMicroseconds(200);
-				leds = readSignPin(0);
-				led1 = readSignPin(1);
-				led2 = readSignPin(2);
-				led3 = readSignPin(3);
-				delayMicroseconds(200);
-				timeValues.runTimeMillis = millis();
-				if (multiplexer == leds && leds == readSignPin(0) && led1 == readSignPin(1) && led2 == readSignPin(2) && led3 == readSignPin(3)){
-					if (multiplexer==0){
-						led[0] = led1;
-						led[1] = led2;
-						led[2] = led3;
-						if (heaterStatus.hasPower && (timeValues.runTimeMillis - heaterStatus.multiplexerLastTime1) > 200){
-							//multiplexer value not changed for a amount of time -> No Power
-							led[3] = 0;
-							led[4] = 0;
-							led[5] = 0;
-						}
-					} else {
-						led[3] = led1;
-						led[4] = led2;
-						led[5] = led3;
-						heaterStatus.multiplexerLastTime1 = timeValues.runTimeMillis;
-					}
-					
-					if (daemonGetSettingsDebug_enabled()){printf("%d\t%d\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",timeValues.runTimeMillis,multiplexer, led[0],led[1],led[2],led[3],led[4],led[5]);}
-				} else {
-					delay(state.Delay);
-					continue;
-				}
-				bool multiplexerChanged = false;
-				if (multiplexer != heaterStatus.lastMultiplexer){
-					heaterStatus.lastMultiplexer = multiplexer;
-					multiplexerChanged = true;
-				}
-				
-				for (; i<6; ++i){
-					if (heaterStatus.ledValues[i] != led[i]){
-						different = true;
-						break;
-					}
-				}
-				
-				if (!different && heaterStatus.lastDiffMultiplexer != multiplexer){
-					//OK
-					if (daemonGetSettingsDebug_enabled()){printf("diff changed complete %d\n", multiplexer);}
-					heaterStatus.lastDiffMultiplexer = multiplexer;
-				} else {
-					if (different){
-						heaterStatus.lastDiffMultiplexer = multiplexer;
-						if (daemonGetSettingsDebug_enabled()){
-							printf("there was a difference on multiplexer %d\n", multiplexer);
-							printf("before\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",heaterStatus.ledValues[0],heaterStatus.ledValues[1],heaterStatus.ledValues[2],heaterStatus.ledValues[3],heaterStatus.ledValues[4],heaterStatus.ledValues[5]);
-							printf("after\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",led[0],led[1],led[2],led[3],led[4],led[5]);
-						}
-						i = 0;
-						for (; i<6; ++i){
-							heaterStatus.ledValues[i] = led[i];
-						}
-						delay(state.Delay);
-						continue;
-					} else if (!multiplexerChanged){
-						//if (daemonGetSettingsDebug_enabled()){printf("multiplexer not changed %d\n", multiplexer);}
-						delay(state.Delay);
-						continue;
-					}
-				}
-				if (daemonGetSettingsDebug_enabled()){printf("do check\n");}
-				if (led[IND_LED_POWER]){
-					heaterStatus.hasPowerLedOnLastTime = timeValues.runTimeMillis;
-					if (!heaterStatus.hasPower){
-						heaterStatus.hasPower = true;
-						different = true;
-					}
-				} else {
-					heaterStatus.hasPowerLedOffLastTime = timeValues.runTimeMillis;
-					if (heaterStatus.hasPower && ((timeValues.runTimeMillis - heaterStatus.hasPowerLedOnLastTime) > 1000 || (timeValues.runTimeMillis - heaterStatus.multiplexerLastTime1) > 200)){ //if not heating, blinking in about 500ms cycles
-						heaterStatus.hasPower = false;
-						different = true;
-						
-						//reset all values, there could not be any state if no power
-						heaterStatus.isOn = false;
-						heaterStatus.isModeHeating = false;
-						heaterStatus.isModeKeepwarm = false;
-						heaterStatus.level = 0;
-					}
-				}
-				if (heaterStatus.hasPower){
-					if(led[IND_LED_TEMP_MAX] ^ led[IND_LED_TEMP_MIDDLE] ^ led[IND_LED_TEMP_MIN]){
-						//one(only one!) of the level leds are on
-						if (led[IND_LED_MODE_HEATING] ^ led[IND_LED_MODE_KEEPWARM]){
-							heaterStatus.isOnLastTime = timeValues.runTimeMillis;
-							heaterStatus.errorMsg = NULL;
-							if (!heaterStatus.isOn || heaterStatus.hasError){
-								heaterStatus.isOn = true;
-								heaterStatus.isModeHeating = led[IND_LED_MODE_HEATING];
-								heaterStatus.isModeKeepwarm = led[IND_LED_MODE_KEEPWARM];
-								different = true;
-							}
-							if(led[IND_LED_TEMP_MAX]){
-								heaterStatus.level = 3;
-							} else if(led[IND_LED_TEMP_MIDDLE]){
-								heaterStatus.level = 2;
-							} else if(led[IND_LED_TEMP_MIN]){
-								heaterStatus.level = 1;
-							}
-						} else {
-							newHasError = true;
-						}
-					} else {
-						newHasError = true;
-					}
-				}
-				char* errorMsg = NULL;
-				if(newHasError){
-					if(heaterStatus.hasPower){
-						if (heaterStatus.isOn && (timeValues.runTimeMillis - heaterStatus.hasPowerLedOffLastTime) < 1000){ //if not heating, blinking in about 500ms cycles
-							if (daemonGetSettingsDebug_enabled()){printf("Set isOn to false\n");}
-							heaterStatus.isOn = false;
-							different = true;
-						} else if (!heaterStatus.isOn && (timeValues.runTimeMillis - heaterStatus.hasPowerLedOffLastTime) > 1000){
-							//This one is needed for correct error handling, if it is set to false in couse of error, but is still on
-							if (daemonGetSettingsDebug_enabled()){printf("Set isOn to true\n");}
-							heaterStatus.isOn = true;
-							different = true;
-						}
-					}
-					if (heaterStatus.isOn){
-						if(different || !heaterStatus.hasError || (timeValues.runTimeMillis - heaterStatus.errorLastTime) > 5000){
-							if(!led[IND_LED_MODE_HEATING] && !led[IND_LED_MODE_KEEPWARM] && !led[IND_LED_TEMP_MAX] && !led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-								//Error leds off blink state
-								if (daemonGetSettingsDebug_enabled()){printf("Error leds off blink state\n");}
-								heaterStatus.ledsOffBlinkState = true;
-							} else {
-								//There could only be on error at a time
-								heaterStatus.hasError = true;
-								heaterStatus.ledsOffBlinkState = false;
-								heaterStatus.level = 0;
-								heaterStatus.isModeHeating = false;
-								heaterStatus.isModeKeepwarm = false;
-								different = true;
-								
-								if (daemonGetSettingsDebug_enabled()){printf("check witch error it is...\n");}
-								if(led[IND_LED_MODE_HEATING] && led[IND_LED_MODE_KEEPWARM] && led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-									heaterStatus.noPanError = true;
-									errorMsg = "No Pan";
-								} else if(led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-									heaterStatus.IGBTTempToHeightError = true;
-									errorMsg = "IGBT Temperature To High";
-								} else if(led[IND_LED_TEMP_MAX] && !led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-									heaterStatus.tempSensorError = true;
-									errorMsg = "Temperature Sensor out of work";
-								} else if(!led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-									heaterStatus.IGBTSensorError = true;
-									errorMsg = "IGBT Sensor out of work";
-								} else if(!led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-									heaterStatus.voltageToHeightError = true;
-									errorMsg = "Voltage To High(>260V)";
-								} else if(!led[IND_LED_TEMP_MAX] && !led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-									heaterStatus.voltageToLowError = true;
-									errorMsg = "Voltage to Low(<85V)";
-								} else if(led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-									heaterStatus.bowOutOfWaterError = true;
-									errorMsg = "The bow out of water";
-								}
-								heaterStatus.errorLastTime = timeValues.runTimeMillis;
-							}
-						}
-					}
-				} else {
-					if(heaterStatus.hasError){
-						heaterStatus.hasError = false;
-						heaterStatus.noPanError = false;
-						heaterStatus.IGBTTempToHeightError = false;
-						heaterStatus.tempSensorError = false;
-						heaterStatus.IGBTSensorError = false;
-						heaterStatus.voltageToHeightError = false;
-						heaterStatus.voltageToLowError = false;
-						heaterStatus.bowOutOfWaterError = false;
-						heaterStatus.ledsOffBlinkState = false;
-					}
-				}
-				if (different){
-					if (heaterStatus.hasError){
-						if (errorMsg != NULL){
-							heaterStatus.errorMsg = errorMsg;
-						}
-						if (heaterStatus.errorMsg != NULL){
-							printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d  \tprev amount:%d\t\tError:%s\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, timeValues.runTimeMillis - lastHeatLedTime, heatLedValuesSameCount, heaterStatus.errorMsg);
-						}
-					} else {
-						printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tnoPan:%d\t\telapsed Time:%d  \tprev amount:%d\n",led[0],led[1],led[2],led[3],led[4],led[5], heaterStatus.hasPower,heaterStatus.isOn,heaterStatus.noPanError, timeValues.runTimeMillis - lastHeatLedTime, heatLedValuesSameCount);
-						heaterStatus.errorMsg = NULL;
-					}
-					i = 0;
-					for (; i<6; ++i){
-						heaterStatus.ledValues[i] = led[i];
-					}
-					lastHeatLedTime = timeValues.runTimeMillis;
-					heatLedValuesSameCount = 0;
-				} else {
-					heatLedValuesSameCount = heatLedValuesSameCount+1;
-				}
-				delay(state.Delay);
-			}
-		} else {
-			printf("No longer China Board (on shieldVersion %d), so no need to read heater-leds. Logic now on ATMega644 firmware\n", settings.shieldVersion);
-		}
+		heaterTestHeatLed();
 	} else if (runningMode.test_motor){
 		int16_t diff = settings.test_servo_max-settings.test_servo_min;
 		int16_t step = diff / 10;
 		uint16_t value=settings.test_servo_min;
-		printf("motor is i2c pin: %d\n", i2c_config.i2c_motor);
+		printf("motor is i2c pin: %d\n", motorGetI2cConfig());
 		if (step == 0){// turn the motor at one speed
 			printf("%d\n",value);
-			if(settings.shieldVersion < 4){
-				writeI2CPin(i2c_config.i2c_motor, value);
-			} else {
-				atmelSetMotorRPM(value);
-			}
+			motorSetSpeedRPM(value);
 		} else if (step>0){//the motor speed will increase from minimum to maximum requested
 			printf(">0 step: %d\n",step);
 			while (value<=settings.test_servo_max && state.running){
 				printf("%d\n",value);
-				if(settings.shieldVersion < 4){
-					writeI2CPin(i2c_config.i2c_motor, value);
-				} else {
-					atmelSetMotorRPM(value);
-				}
+				motorSetSpeedRPM(value);
 				delay(500);
 				value=value+step;
 			}
@@ -740,22 +381,14 @@ int main(int argc, const char* argv[]){
 			printf("<0 step: %d\n",step);
 			while (value>=settings.test_servo_max && state.running){
 				printf("%d\n",value);
-				if(settings.shieldVersion < 4){
-					writeI2CPin(i2c_config.i2c_motor, value);
-				} else {
-					atmelSetMotorRPM(value);
-				}
+				motorSetSpeedRPM(value);
 				delay(500);
 				value=value+step;
 			}
 		}
 		delay(2000);
 		printf("set motor back to 0\n");
-		if(settings.shieldVersion < 4){//motor turn off
-			writeI2CPin(i2c_config.i2c_motor, 0);
-		} else {//motor turn off
-			atmelSetMotorRPM(0);
-		}
+		motorSetSpeedRPM(0);//turn off
 	} else if (runningMode.test_buttons){
 		state.Delay = 10;
 		printf("test_buttons\n");
@@ -1036,7 +669,7 @@ int main(int argc, const char* argv[]){
 			delay(state.Delay);
 		}
 	} else if (runningMode.test_heating_power){
-		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		heaterStartThreadLedReader();
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
 		uint8_t currentTestPart = 0;
 		uint32_t partReachedTime = 0;
@@ -1049,7 +682,7 @@ int main(int argc, const char* argv[]){
 		double lastTemp = 0;
 		uint32_t lastOutputTime = 0;
 		
-		beeperBeep();
+		beeperBeepEndStep();
 		//time for initialize weight
 		currentCommandValues.mode = MODE_SCALE;
 		delay(2000);
@@ -1082,7 +715,7 @@ int main(int argc, const char* argv[]){
 				printf("time: %5.3f\tWeight: %.0fg\n", (double)timeValues.runTimeMillis / 1000, adc_values.Weight.valueByOffset);
 				if (adc_values.Weight.valueByOffset >= 2000){
 					if (partReachedTime == 0){
-						void beeperBeepSeconde(1);
+						beeperBeepSeconde(1);
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
 						weight = adc_values.Weight.valueByOffset;
@@ -1121,8 +754,8 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 3){//until 40 degre
-				setMotorRPM(50, &daemon_values);
-				HeatOn(&daemon_values);
+				motorSetCommandRPM(50);
+				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				
@@ -1146,12 +779,12 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 4){//until 90 degre
-				setMotorRPM(50, &daemon_values);
-				HeatOn(&daemon_values);
+				motorSetCommandRPM(50);
+				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				
-				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {/if temperature change or 5s
+				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {//if temperature change or 5s
 					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
 					lastTemp = adc_values.Temp.valueByOffset;
@@ -1181,8 +814,8 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 5){// heat and motor turn off
-				HeatOff(&daemon_values);
-				setMotorRPM(0, &daemon_values);
+				heaterOff();
+				motorSetCommandRPM(0);
 				if (partReachedTime == 0){
 					partReachedTime = timeValues.runTimeMillis;
 				} else if (timeValues.runTimeMillis - partReachedTime > 6000){
@@ -1194,10 +827,10 @@ int main(int argc, const char* argv[]){
 			delay(state.Delay);
 		}
 		pthread_join(threadReadADCValues, NULL);
-		HeatOff(&daemon_values);
-		pthread_join(threadHeaterLedReader, NULL);
+		heaterOff();
+		heaterStoptThreadLedReader();
 	} else if (runningMode.test_heating_press){
-		pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); //(void*) message1
+		heaterStartThreadLedReader();
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
 		uint8_t currentTestPart = 0;
 		uint32_t partReachedTime = 0;
@@ -1212,7 +845,7 @@ int main(int argc, const char* argv[]){
 		double lastPress = 0;
 		uint32_t lastOutputTime = 0;
 		
-		beeperBeep();
+		beeperBeepEndStep();
 		//time for initialize weight
 		currentCommandValues.mode = MODE_SCALE;
 		delay(2000);
@@ -1245,7 +878,7 @@ int main(int argc, const char* argv[]){
 				printf("time: %5.3f\tWeight: %.0fg\n", (double)timeValues.runTimeMillis / 1000, adc_values.Weight.valueByOffset);
 				if (adc_values.Weight.valueByOffset >= 500){
 					if (partReachedTime == 0){
-						void beeperBeepSeconde(1);
+						beeperBeepSeconde(1);
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
 						weight = adc_values.Weight.valueByOffset;
@@ -1284,8 +917,8 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 3){//until PA > 1
-				setMotorRPM(50, &daemon_values);
-				HeatOn(&daemon_values);
+				motorSetCommandRPM(50);
+				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				
@@ -1311,8 +944,8 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 4){//until PA > 1,8
-				setMotorRPM(50, &daemon_values);
-				HeatOn(&daemon_values);
+				motorSetCommandRPM(50);
+				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
 				
@@ -1344,8 +977,8 @@ int main(int argc, const char* argv[]){
 					partReachedTime = 0;
 				}
 			} else if (currentTestPart == 5){// heat and motor turn off
-				HeatOff(&daemon_values);
-				setMotorRPM(0, &daemon_values);
+				heaterOff();
+				motorSetCommandRPM(0);
 				if (settings.shieldVersion < 3){
 					setServoOpen(100, 10, 1000, &daemon_values);
 				} else {
@@ -1391,8 +1024,8 @@ int main(int argc, const char* argv[]){
 			delay(state.Delay);
 		}
 		pthread_join(threadReadADCValues, NULL);
-		HeatOff(&daemon_values);
-		pthread_join(threadHeaterLedReader, NULL);
+		heaterOff();
+		heaterStoptThreadLedReader();
 	} else if (runningMode.test_serial){
 		if (settings.shieldVersion < 4){
 			printf("there is no ATMega644 on shieldVersion %d\n", settings.shieldVersion);
@@ -1508,26 +1141,26 @@ int main(int argc, const char* argv[]){
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//turn on heater during 10 sec
 				printf("enable heater, for 10 seconds\n");
 				uint8_t count=0;
-				atmelSetHeating(true);
+				heaterOn();
 				while(state.running && count<20){
 					parseAtmelState();
 					delay(500);
 					count++;
 				}
-				atmelSetHeating(false);
+				heaterOff();
 			}
 			
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//turn on motor in full speed during 10 sec
 				printf("enable motor in full speed, for 10 seconds\n");
 				uint8_t count=0;
-				atmelSetMotorRPM(200);
+				motorSetSpeedRPM(200);
 				while(state.running && count<20){
 					parseAtmelState();
 					delay(500);
 					count++;
 				}
-				atmelSetMotorRPM(0);
+				motorSetSpeedRPM(0);
 			}
 			
 			stepNr++;
@@ -1798,8 +1431,8 @@ void clearHourCounter(){
 	hourCounter.identifier[2] = 'V';
 	hourCounter.identifier[3] = HOUR_COUNTER_VERSION;
 	hourCounter.daemon = 0;
-	hourCounter.heater = 0;
-	hourCounter.motor = 0;
+	heaterSetHourCounter(0);
+	motorSetHourCounter(0);
 }
 
 /** @brief creation of file
@@ -1887,12 +1520,12 @@ void resetValues(){
 		writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_closed); // send the value by the I2C
 	}
 	
-	heaterStatus.ledValues[0] = 0;
-	heaterStatus.ledValues[1] = 0;
-	heaterStatus.ledValues[2] = 0;
-	heaterStatus.ledValues[3] = 0;
-	heaterStatus.ledValues[4] = 0;
-	heaterStatus.ledValues[5] = 0;
+	heaterSetStatusLedValuesI(0,0);
+	heaterSetStatusLedValuesI(1,0);
+	heaterSetStatusLedValuesI(2,0);
+	heaterSetStatusLedValuesI(3,0);
+	heaterSetStatusLedValuesI(4,0);
+	heaterSetStatusLedValuesI(5,0);
 }
 
 /** @brief check if new information  were send by web
@@ -1985,9 +1618,9 @@ void ProcessCommand(void){
 		if (newCommandValues.stepId < currentCommandValues.stepId){
 			//-1 stop/not aus
 			if(newCommandValues.stepId == -1){
-				i2c_motor_values.motorRpm = i2c_motor_values.i2c_motor_speed_min; //cheating so it will realy stop motor
-				setMotorRPM(0, &daemon_values);
-				HeatOff(&daemon_values);
+				motorSetI2cValuesMotorRpm(motorGetI2cValuesSpeedMin()); //cheating so it will realy stop motor
+				motorSetCommandRPM(0);
+				heaterOff();
 			}
 			//TODO is reset/stop? or is someone try to begin new recipe before old is ended?
 			if(newCommandValues.stepId==0){
@@ -2011,7 +1644,7 @@ void ProcessCommand(void){
 		}
 		
 		if (daemonGetSettingsDebug_enabled()){printf("stepId changed, new mode is: %d\n", daemonGetCurrentCommandValuesMode());}
-		if (daemonGetSettingsDebug_enabled() || runningMode.simulationMode || daemonGetSettingsDebug3_enabled()){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
+		if (daemonGetSettingsDebug_enabled() || runningMode.simulationMode || daemonGetSettingsDebug3_enabled()){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, motorGetNewCommandValuesRpm(), motorGetNewCommandValuesOn(), motorGetNewCommandValuesOff(), newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 		
 		OptionControl();//bep and blink 7seg
 		if (settings.shieldVersion >= 4){// if display, show image per mode
@@ -2161,7 +1794,7 @@ void ProcessCommand(void){
 	if (daemonGetSettingsDebug3_enabled()){
 		printf("\n");
 	}
-	MotorControl();//motor
+	motorControl();//motor
 	ValveControl();//valve
 	
 	if (daemonGetSettingsDebug3_enabled()){
@@ -2183,19 +1816,19 @@ void ProcessCommand(void){
 		if (daemonGetCurrentCommandValuesMode()==MODE_COOK || daemonGetCurrentCommandValuesMode() == MODE_PRESSHOLD){
 			currentCommandValues.mode=MODE_COOK_TIMEEND;
 			state.dataChanged=true;
-			if (beeperSetSettingsBeepStepEnd()>0){
-				beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+beeperSetSettingsBeepStepEnd());
+			if (beeperGetSettingsBeepStepEnd()>0){
+				beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+beeperGetSettingsBeepStepEnd());
 			}
 		} else if (daemonGetCurrentCommandValuesMode() != MODE_STANDBY){
 			currentCommandValues.mode=MODE_STANDBY;
 			state.dataChanged=true;
-			if (beeperSetSettingsBeepStepEnd()>0){
-				beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+beeperSetSettingsBeepStepEnd());
+			if (beeperGetSettingsBeepStepEnd()>0){
+				beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+beeperGetSettingsBeepStepEnd());
 			}
 		}
 	}
 	SegmentDisplay();
-	beeperBeep();
+	beeperBeepEndStep();
 }
 
 /******************* processing functions **********************/
@@ -2204,7 +1837,7 @@ void ProcessCommand(void){
 void OptionControl(){
     if (daemonGetCurrentCommandValuesMode()>=MODE_OPTIONS_BEGIN){
 		if (daemonGetCurrentCommandValuesMode()==MODE_OPTION_REMEMBER_BEEP_ON){
-			beeperSetDoRememberBeep(true)
+			beeperSetDoRememberBeep(true);
 		} else if (daemonGetCurrentCommandValuesMode()==MODE_OPTION_REMEMBER_BEEP_OFF){
 			beeperSetDoRememberBeep(false);
 		} else if (daemonGetCurrentCommandValuesMode()==MODE_OPTION_7SEGMENT_BLINK){
@@ -2243,19 +1876,19 @@ void parseAtmelState(){
 	state.pusherLocked = (atmelState & (1<<SB_PusherLocked))>0;
 
 	//TODO heaterStatus.hasPower =security chain
-	heaterStatus.isOn = (atmelState & (1<<SB_isIHOn))>0;
+	heaterSetStatusIsOn((atmelState & (1<<SB_isIHOn))>0);
 	//TODO heaterStatus.noPanError = set if errorcode
 
 	if ((atmelState & (1<<SB_MotorStoped))>0){
-		i2c_motor_values.motorRpm = 0;
+		motorSetI2cValuesMotorRpm(0);
 	}
 	//TODO(need this?) i2c_solenoid_values.solenoidOpen != bit in status
 
-	uint8_t atmelMotorSpeed = atmelGetMotorSpeed();
+	uint8_t atmelMotorSpeed = motorGetMotorSpeed();
 	uint8_t atmelIGBTTemp = atmelGetIGBTTemp();
 	uint8_t atmelHeatingOutputLevel = atmelGetHeatingOutputLevel();
-	bool atmelMotorPosSensor = atmelGetMotorPosSensor();
-	uint8_t atmelMotorRPM = atmelGetMotorRPM();
+	bool atmelMotorPosSensor = motorGetPosSensor();
+	uint8_t atmelMotorRPM = motorGetMotorRPM();
 
 	if (daemonGetSettingsDebug_enabled() || daemonGetSettingsDebug3_enabled()){
 		printf("atmelState:%02X, atmelMotorSpeed:%02X, atmelMotorRPM:%02X, atmelIGBTTemp:%02X, atmelHeatingOutputLevel:%02X, atmelMotorPosSensor:%02X\n", atmelState, atmelMotorSpeed, atmelMotorRPM, atmelIGBTTemp, atmelHeatingOutputLevel, atmelMotorPosSensor); //HEX
@@ -2303,7 +1936,7 @@ void parseAtmelState(){
 /** @brief Controle temperature
 */
 void TempControl(){
-	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) HeatOff(&daemon_values);
+	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) heatertOff();
 	if (daemonGetCurrentCommandValuesMode()>=MIN_TEMP_MODE && daemonGetCurrentCommandValuesMode()<=MAX_TEMP_MODE) {
 		oldCommandValues.temp = currentCommandValues.temp;
 		currentCommandValues.temp = adc_values.Temp.valueByOffset;
@@ -2317,18 +1950,18 @@ void TempControl(){
 		int deltaT=newCommandValues.temp-currentCommandValues.temp;
 		if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP || daemonGetCurrentCommandValuesMode()==MODE_COOK) {
 			if (deltaT<=0) {
-				HeatOff(&daemon_values);
+				heaterOff();
 				if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP) {//heatup function
 					timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
 					currentCommandValues.mode=MODE_HOT; //we are hot
 					state.dataChanged=true;
 				}
 			}
-			else if (deltaT>=adc_config.TempHystereis) {HeatOn(&daemon_values);}
+			else if (deltaT>=adc_config.TempHystereis) {heaterOn();}
 		} else {
-			HeatOff(&daemon_values);
+			heaterOff();
 		}
-		if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP && state.heatPowerStatus) { //heatup
+		if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP && heaterGetPowerStatus()) { //heatup
 			timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
 		} else if (daemonGetCurrentCommandValuesMode()==MODE_COOLDOWN && deltaT>=0) { //cooldown function
 			timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
@@ -2351,7 +1984,7 @@ void TempControl(){
 /** @brief Controle pression
 */
 void PressControl(){
-	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) HeatOff(&daemon_values);
+	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) heaterOff();
 	if (daemonGetCurrentCommandValuesMode()>=MIN_PRESS_MODE && daemonGetCurrentCommandValuesMode()<=MAX_PRESS_MODE) {
 		oldCommandValues.press = currentCommandValues.press;
 		currentCommandValues.press = adc_values.Press.valueByOffset;
@@ -2365,18 +1998,18 @@ void PressControl(){
 		int deltaP=newCommandValues.press-currentCommandValues.press;
 		if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP || daemonGetCurrentCommandValuesMode()==MODE_PRESSHOLD) {
 			if (deltaP<=0) {
-				HeatOff(&daemon_values);
+				heaterOff();
 				if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP) {//pressup function
 					timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
 					currentCommandValues.mode=MODE_PRESSURIZED; //we are pressurized
 					state.dataChanged=true;
 				}
 			}
-			else if (deltaP>=adc_config.PressHystereis) {HeatOn(&daemon_values);}
+			else if (deltaP>=adc_config.PressHystereis) {heaterOn();}
 		} else {
-			HeatOff(&daemon_values);
+			heaterOff();
 		}
-		if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP && state.heatPowerStatus) { //pressure up
+		if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP && heaterGetPowerStatus()) { //pressure up
 			timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;;
 		} else if (daemonGetCurrentCommandValuesMode()==MODE_PRESSDOWN && deltaP>=0) { //pressure down function
 			timeValues.stepEndTime=daemonGetTimeValuesRunTime()-2;
@@ -2397,46 +2030,13 @@ void PressControl(){
 	}
 }
 
-/** @brief Controle Motor
-*/
-void MotorControl(){
-	if (daemonGetCurrentCommandValuesMode()==MODE_CUT || daemonGetCurrentCommandValuesMode()>=MIN_TEMP_MODE){
-		if (daemonGetCurrentCommandValuesMode()==MODE_CUT) timeValues.stepEndTime=daemonGetTimeValuesRunTime()+1;
-		if (newCommandValues.motorRpm > 0 && daemonGetCurrentCommandValuesMode()<=MAX_STATUS_MODE) {
-			if  (newCommandValues.motorOn > 0 && newCommandValues.motorOff > 0) {
-				if (daemonGetTimeValuesRunTime() >= timeValues.motorStartTime+newCommandValues.motorOn && daemonGetTimeValuesRunTime() < timeValues.motorStartTime+newCommandValues.motorOn+newCommandValues.motorOff) { 
-					currentCommandValues.motorRpm = 0; 
-				} else if (currentCommandValues.motorRpm==0){
-					currentCommandValues.motorRpm = newCommandValues.motorRpm;
-					timeValues.motorStartTime=daemonGetTimeValuesRunTime();
-				} else if (currentCommandValues.motorRpm != newCommandValues.motorRpm){
-					currentCommandValues.motorRpm = newCommandValues.motorRpm;
-				}
-			} else {
-				currentCommandValues.motorRpm = newCommandValues.motorRpm;
-				timeValues.motorStartTime=daemonGetTimeValuesRunTime();
-			}
-		} else {
-			currentCommandValues.motorRpm = 0;
-		}
-	} else {
-		currentCommandValues.motorRpm = 0;
-	}
-	setMotorRPM(currentCommandValues.motorRpm, &daemon_values);
-	
-	if (i2c_motor_values.motorRpm == 0){
-		if(timeValues.motorStopTime < timeValues.motorStartTime){
-			timeValues.motorStopTime = daemonGetTimeValuesRunTime();
-		}
-	}
-}
 
 //void ValveControl(struct State state, struct Settings settings, struct Command_Values currentCommandValues, struct Time_Values timeValues){
 /** @brief Controle Valve
 */
 void ValveControl(){
 	if (daemonGetCurrentCommandValuesMode()==MODE_PRESSVENT) {
-		HeatOff(&daemon_values);
+		heaterOff();
 		if (settings.shieldVersion < 3){
 			setServoOpen(100, 10, 1000, &daemon_values);
 		} else {
@@ -2585,8 +2185,8 @@ void prepareState(char* TotalUpdate){
 	} else {
 		press = 0;
 	}
-	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidClosed\":%d,\"lidLocked\":%d,\"pusherLocked\":%d}",	currentCommandValues.temp, 						press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, daemonGetCurrentCommandValuesMode(), currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
-	if (daemonGetSettingsDebug_enabled()){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidClosed:%d, lidLocked:%d, pusherLocked:%d\n", 		currentCommandValues.temp, currentCommandValues.press, currentCommandValues.motorRpm, currentCommandValues.motorOn, currentCommandValues.motorOff, currentCommandValues.weight, currentCommandValues.time, daemonGetCurrentCommandValuesMode(), currentCommandValues.stepId, heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);}
+	sprintf(TotalUpdate, "{\"T0\":%.2f,\"P0\":%d,\"M0RPM\":%d,\"M0ON\":%d,\"M0OFF\":%d,\"W0\":%.0f,\"STIME\":%d,\"SMODE\":%d,\"SID\":%d,\"heaterHasPower\":%d,\"isOn\":%d,\"noPan\":%d,\"lidClosed\":%d,\"lidLocked\":%d,\"pusherLocked\":%d}",	currentCommandValues.temp, 						press, motorGetCurrentCommandValuesRpm(), motorGetCurrentCommandValuesOn(), motorGetCurrentCommandValuesOff(), currentCommandValues.weight, currentCommandValues.time, daemonGetCurrentCommandValuesMode(), currentCommandValues.stepId, heaterGetStatusHasPower(), heaterGetStatusIsOn(), heaterGetStatusNoPanError(), state.lidClosed, state.lidLocked, state.pusherLocked);
+	if (daemonGetSettingsDebug_enabled()){printf("prepareState: T0: %f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %f, STIME: %d, SMODE: %d, SID: %d, heaterHasPower: %d, isOn: %d, noPan: %d, lidClosed:%d, lidLocked:%d, pusherLocked:%d\n", 		currentCommandValues.temp, currentCommandValues.press, motorGetCurrentCommandValuesRpm(), motorGetCurrentCommandValuesOn(), motorGetCurrentCommandValuesOff(), currentCommandValues.weight, currentCommandValues.time, daemonGetCurrentCommandValuesMode(), currentCommandValues.stepId, heaterGetStatusHasPower(), heaterGetStatusIsOn(), heaterGetStatusNoPanError(), state.lidClosed, state.lidLocked, state.pusherLocked);}
 }
 
 /** @brief write data in settings.statusFile
@@ -2604,40 +2204,6 @@ void writeStatus(char* data){
 	if (daemonGetSettingsDebug_enabled()){printf("WriteStatus: after write\n");}
 }
 
-/** @brief update time of motor
-*/
-void updateMotorTime(){
-	//if (currentCommandValues.motorRpm>0){
-	if (i2c_motor_values.motorRpm>0){
-		if (timeValues.motorStartTime < timeValues.lastLogSaveTime){
-			hourCounter.motor = hourCounter.motor + (daemonGetTimeValuesRunTime() - timeValues.lastLogSaveTime);
-		} else {
-			hourCounter.motor = hourCounter.motor + (daemonGetTimeValuesRunTime() - timeValues.motorStartTime);
-		}
-	} else if (i2c_motor_values.motorRpm == 0){
-		if (timeValues.motorStopTime > timeValues.lastLogSaveTime){
-			hourCounter.motor = hourCounter.motor + (timeValues.motorStopTime - timeValues.lastLogSaveTime);
-		}
-	}
-}
-
-/** @brief update time of heater
-*/
-void updateHeaterTime(){
-	//if (currentCommandValues.motorRpm>0){
-	if (state.heatPowerStatus){
-		if (timeValues.heaterStartTime < timeValues.lastLogSaveTime){
-			hourCounter.heater = hourCounter.heater + (daemonGetTimeValuesRunTime() - timeValues.lastLogSaveTime);
-		} else {
-			hourCounter.heater = hourCounter.heater + (daemonGetTimeValuesRunTime() - timeValues.heaterStartTime);
-		}
-	} else {
-		if (timeValues.heaterStopTime > timeValues.lastLogSaveTime){
-			hourCounter.heater = hourCounter.heater + (timeValues.heaterStopTime - timeValues.lastLogSaveTime);
-		}
-	}
-}
-
 /** @ brief write on file settings.logFile and settings.hourCounterFile
 */
 void writeLog(){
@@ -2650,7 +2216,7 @@ void writeLog(){
 		StringClean(tempString, 20);
 		strftime(tempString, 20,"%F %T",timeValues.localTime);
 		char logline[200];
-		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, i2c_motor_values.motorRpm, currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.weight, newCommandValues.mode, daemonGetCurrentCommandValuesMode(), heaterStatus.hasPower, heaterStatus.isOn, heaterStatus.noPanError, state.lidClosed, state.lidLocked, state.pusherLocked);
+		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, motorGetI2cValuesMotorRpm(), currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, motorGetNewCommandValuesRpm(), newCommandValues.weight, newCommandValues.mode, daemonGetCurrentCommandValuesMode(), heaterGetStatusHasPower(), heaterGetStatusIsOn(), heaterGetStatusNoPanError(), state.lidClosed, state.lidLocked, state.pusherLocked);
 		
 		if (settings.logLines == 0){
 			fputs(logline, state.logFilePointer);
@@ -2687,12 +2253,12 @@ void writeLog(){
 		
 		if (timeValues.lastLogSaveTime>0){
 			hourCounter.daemon = hourCounter.daemon + (daemonGetTimeValuesRunTime() - timeValues.lastLogSaveTime);
-			updateHeaterTime();
-			updateMotorTime();
+			heaterUpdateTime();
+			motorUpdateTime();
 			
 			FILE *hourCounterFilePointer = fopen(settings.hourCounterFile, "w");
 			fwrite(&hourCounter, sizeof(hourCounter), 1, hourCounterFilePointer);
-			fprintf(hourCounterFilePointer, "\nhours on: %.2f\nmotor hours: %.2f\nheater hours: %.2f\n", hourCounter.daemon/SECONDS_PER_HOUR, hourCounter.motor/SECONDS_PER_HOUR, hourCounter.heater/SECONDS_PER_HOUR);
+			fprintf(hourCounterFilePointer, "\nhours on: %.2f\nmotor hours: %.2f\nheater hours: %.2f\n", hourCounter.daemon/SECONDS_PER_HOUR, motorGetHourCounter()/SECONDS_PER_HOUR, heaterGetHourCounter()/SECONDS_PER_HOUR);
 			//fprintf(hourCounterFilePointer, "\nhours on: %d\nmotor hours: %d\nheater hours: %d\n", hourCounter.daemon, hourCounter.motor, hourCounter.heater);
 			fclose(hourCounterFilePointer);
 		}
@@ -2869,11 +2435,11 @@ void evaluateInput(){
 		} else if(strcmp(state.names[i], "P0") == 0){
 			newCommandValues.press = state.value[i];
 		} else if(strcmp(state.names[i], "M0RPM") == 0){
-			newCommandValues.motorRpm = state.value[i];
+			motorSetNewCommandValuesRpm(state.value[i]);
 		} else if(strcmp(state.names[i], "M0ON") == 0){
-			newCommandValues.motorOn = state.value[i];
+			motorSetNewCommandValuesOn(state.value[i]);
 		} else if(strcmp(state.names[i], "M0OFF") == 0){
-			newCommandValues.motorOff = state.value[i];
+			motorSetNewCommandValuesOff(state.value[i]);
 		} else if(strcmp(state.names[i], "W0") == 0){
 			newCommandValues.weight = state.value[i];
 		} else if(strcmp(state.names[i], "STIME") == 0){
@@ -2884,12 +2450,12 @@ void evaluateInput(){
 			newCommandValues.stepId = state.value[i];
 		}
 	}
-	if (daemonGetSettingsDebug_enabled()){printf("evaluateInput: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, newCommandValues.motorRpm, newCommandValues.motorOn, newCommandValues.motorOff, newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
+	if (daemonGetSettingsDebug_enabled()){printf("evaluateInput: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, motorGetNewCommandValuesRpm(), motorGetNewCommandValuesOn(), motorGetNewCommandValuesOff(), newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
 	
 	if(newCommandValues.temp>200) {newCommandValues.temp=200;}
 	if(newCommandValues.press>80) {newCommandValues.press=80;}
-	if (newCommandValues.motorOn>0 && newCommandValues.motorOn<2) newCommandValues.motorOn=2;
-	if (newCommandValues.motorOff>0 && newCommandValues.motorOff<2) newCommandValues.motorOff=2;
+	if (motorGetNewCommandValuesOn()>0 && motorGetNewCommandValuesOn()<2) motorSetNewCommandValuesOn(2);
+	if (motorGetNewCommandValuesOff()>0 && motorGetNewCommandValuesOff()<2) motorSetNewCommandValuesOff(2);
 }
 
 /** @brief read one ligne of the file fp
@@ -2983,7 +2549,7 @@ void ReadConfigurationFile(void){
 				if (showReadedConfigs){printf("\tBeepWeightReached: %d\n", settings.BeepWeightReached);} // (old: %d)
 			} else if(strcmp(keyString, "BeepStepEnd") == 0){
 				beeperSetSettingsBeepStepEnd(StringConvertToNumber(valueString));
-				if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", beeperSetSettingsBeepStepEnd());} // (old: %d)
+				if (showReadedConfigs){printf("\tBeepStepEnd: %d\n", beeperGetSettingsBeepStepEnd());} // (old: %d)
 			} else if(strcmp(keyString, "doRememberBeep") == 0){
 				beeperSetDoRememberBeep(StringConvertToNumber(valueString));
 				if (showReadedConfigs){printf("\tdoRememberBeep: %d\n", beeperGetDoRememberBeep());} // (old: %d)
@@ -3072,11 +2638,11 @@ void ReadConfigurationFile(void){
 			
 			//motor values
 			} else if(strcmp(keyString, "i2c_motor_speed_min") == 0){
-				i2c_motor_values.i2c_motor_speed_min = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_motor_speed_min: %d\n", i2c_motor_values.i2c_motor_speed_min);}
+				motorSetI2cValuesSpeedMin(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_motor_speed_min: %d\n", motorGetI2cValuesSpeedMin());}
 			} else if(strcmp(keyString, "i2c_motor_speed_ramp") == 0){
-				i2c_motor_values.i2c_motor_speed_ramp = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_motor_speed_ramp %d\n", i2c_motor_values.i2c_motor_speed_ramp);}
+				motorSetI2cValuesSpeedRamp(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_motor_speed_ramp %d\n", motorGetI2cValuesSpeedRamp());}
 			
 			//servo values
 			} else if(strcmp(keyString, "i2c_servo_stay_open") == 0){
@@ -3281,8 +2847,8 @@ void ReadCalibrationFile(void){
 				if (showReadedConfigs){printf("\ti2c_7seg_period: %d\n", i2c_config.i2c_7seg_period);}
 				
 			} else if(strcmp(keyString, "i2c_motor") == 0){
-				i2c_config.i2c_motor = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_motor: %d\n", i2c_config.i2c_motor);}
+				motorSetI2cConfig(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_motor: %d\n", motorGetI2cConfig());}
 			} else if(strcmp(keyString, "i2c_servo") == 0){
 				i2c_config.i2c_servo = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo %d\n", i2c_config.i2c_servo);}
@@ -3353,326 +2919,6 @@ void ReadCalibrationFile(void){
 	if (daemonGetSettingsDebug_enabled()){printf("done.\n");}
 }
 
-/** @brief check something
- * 	@param * leds :
- *  @param errNo
- *  @param * state
- *  @param * lastTime
- *  @param runTime
- @return true if no probleme
-*/
-bool checkIsHeaterState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* lastTime, uint32_t runTime){
-	bool isSame = true;
-	uint8_t i;
-	for (i = 0; i<6; ++i){
-		if (HeaterErrorPattern[errNo][i] != leds[i]){
-			isSame = false;
-			break;
-		}
-	}
-	if (isSame){
-		*lastTime = runTime;
-		*state = true;
-	} else {
-		if (*state && *lastTime + HeaterErrorTimeout[errNo] < runTime){
-			*state = false;
-		}
-	}
-	return *state;
-}
-
-/** @brief calculate the status of heater in according to the shield Version
-*/
-void *heaterLedEvaluation(void *ptr){
-	if (runningMode.simulationMode){//if simulation mode
-		heaterStatus.hasPower = true;
-		heaterStatus.noPanError = false;
-		while (state.running){
-			heaterStatus.isOn = state.heatPowerStatus;
-			delay(500);
-		}
-		return 0;
-	}
-	if (settings.shieldVersion == 1){//if n 1 shield Version
-		uint32_t lastTime_V1[7];
-		while (state.running){
-			uint32_t runTime = time(NULL);
-			//return high or low
-			heaterStatus.ledValues[0] = readSignPin(0);
-			heaterStatus.ledValues[1] = readSignPin(1);
-			heaterStatus.ledValues[2] = readSignPin(2);
-			heaterStatus.ledValues[3] = readSignPin(3);
-			heaterStatus.ledValues[4] = readSignPin(4);
-			heaterStatus.ledValues[5] = readSignPin(5);
-			
-			if (heaterStatus.ledValues[0] && heaterStatus.ledValues[1] && heaterStatus.ledValues[2]  && heaterStatus.ledValues[3] && heaterStatus.ledValues[4]  && heaterStatus.ledValues[5]){ //all leds are turn on
-				if (heaterStatus.hasPower && heaterStatus.hasPowerLedOnLastTime + 4 < daemonGetTimeValuesRunTime()){
-					heaterStatus.hasPower = false;
-				}
-			} else {// all leds are not turn on
-				heaterStatus.hasPowerLedOnLastTime = daemonGetTimeValuesRunTime();//initialization of time
-				if (!heaterStatus.hasPower){
-					heaterStatus.hasPower = true;
-				}
-			}
-			
-			if (heaterStatus.ledValues[3] == 0){
-				heaterStatus.isOnLastTime = daemonGetTimeValuesRunTime();//initialization of time
-				if (!heaterStatus.isOn){
-					heaterStatus.isOn = true;
-				}
-			} else if (heaterStatus.isOn && heaterStatus.isOnLastTime + 4 < daemonGetTimeValuesRunTime()){
-				heaterStatus.isOn = false;
-			}
-			
-			
-			bool errorFound = false;
-			if(checkIsHeaterState(&heaterStatus.ledValues[0], 0, &heaterStatus.noPanError, &lastTime_V1[0], runTime)){
-				heaterStatus.errorMsg = HeaterErrorCodes[0];
-				errorFound = true;
-			}
-			
-			if(checkIsHeaterState(&heaterStatus.ledValues[0], 1, &heaterStatus.tempSensorError, &lastTime_V1[1], runTime)){
-				heaterStatus.errorMsg = HeaterErrorCodes[1];
-				errorFound = true;
-			}
-			if(checkIsHeaterState(&heaterStatus.ledValues[0], 2, &heaterStatus.IGBTSensorError, &lastTime_V1[2], runTime)){
-				heaterStatus.errorMsg = HeaterErrorCodes[2];
-				errorFound = true;
-			}
-			if(checkIsHeaterState(&heaterStatus.ledValues[0], 3, &heaterStatus.voltageToHeightError, &lastTime_V1[3], runTime)){
-				heaterStatus.errorMsg = HeaterErrorCodes[3];
-				errorFound = true;
-			}
-			if(checkIsHeaterState(&heaterStatus.ledValues[0], 4, &heaterStatus.voltageToLowError, &lastTime_V1[4], runTime)){
-				heaterStatus.errorMsg = HeaterErrorCodes[4];
-				errorFound = true;
-			}
-			if(checkIsHeaterState(&heaterStatus.ledValues[0], 5, &heaterStatus.bowOutOfWaterError, &lastTime_V1[5], runTime)){
-				heaterStatus.errorMsg = HeaterErrorCodes[5];
-				errorFound = true;
-			}
-			if(checkIsHeaterState(&heaterStatus.ledValues[0], 6, &heaterStatus.IGBTTempToHeightError, &lastTime_V1[6], runTime)){
-				heaterStatus.errorMsg = HeaterErrorCodes[6];
-				errorFound = true;
-			}
-			
-			if (!errorFound){//si error
-				heaterStatus.errorMsg = NULL;
-			}
-			//if (daemonGetSettingsDebug_enabled()){
-			//	printf("leds:\t%d\t%d\t%d\t%d\t%d\t%d\t|\thas power:%d\tis heating:%d\tNoPan:%d\t\tError:%s\n",heaterStatus.ledValues[0],heaterStatus.ledValues[1],heaterStatus.ledValues[2],heaterStatus.ledValues[3],heaterStatus.ledValues[4],heaterStatus.ledValues[5], heaterStatus.hasPower,heaterStatus.isHeating,heaterStatus.noPan, heaterStatus.errorMsg);
-			//}
-			delay(10);
-		}
-	} else if (settings.shieldVersion == 2 || settings.shieldVersion == 3){//if n 2 or 3 shield Version
-		uint32_t led[6];
-		led[0] = 0;
-		led[1] = 0;
-		led[2] = 0;
-		led[3] = 0;
-		led[4] = 0;
-		led[5] = 0;
-		
-		uint32_t leds, led1,led2,led3;
-		uint32_t updateDelay = 10;
-		uint32_t runTimeMillis;
-		while (state.running){
-			bool different = false;
-			uint8_t i = 0;
-			bool newHasError = false;
-			
-			uint32_t multiplexer = readSignPin(0);
-			delayMicroseconds(200);
-			leds = readSignPin(0);
-			led1 = readSignPin(1);
-			led2 = readSignPin(2);
-			led3 = readSignPin(3);
-			delayMicroseconds(200);
-			runTimeMillis = millis();
-			if (multiplexer == leds && leds == readSignPin(0) && led1 == readSignPin(1) && led2 == readSignPin(2) && led3 == readSignPin(3)){
-				if (multiplexer==0){
-					led[0] = led1;
-					led[1] = led2;
-					led[2] = led3;
-					if (heaterStatus.hasPower && (runTimeMillis - heaterStatus.multiplexerLastTime1) > 200){
-						//multiplexer value not changed for a amount of time -> No Power
-						led[3] = 0;
-						led[4] = 0;
-						led[5] = 0;
-					}
-				} else {
-					led[3] = led1;
-					led[4] = led2;
-					led[5] = led3;
-					heaterStatus.multiplexerLastTime1 = runTimeMillis;
-				}
-				
-				if (daemonGetSettingsDebug_enabled()){printf("%d\t%d\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",runTimeMillis,multiplexer, led[0],led[1],led[2],led[3],led[4],led[5]);}
-			} else {
-				delay(updateDelay);
-				continue;
-			}
-			bool multiplexerChanged = false;
-			if (multiplexer != heaterStatus.lastMultiplexer){
-				heaterStatus.lastMultiplexer = multiplexer;
-				multiplexerChanged = true;
-			}
-			
-			for (; i<6; ++i){
-				if (heaterStatus.ledValues[i] != led[i]){
-					different = true;
-					break;
-				}
-			}
-			
-			if (!different && heaterStatus.lastDiffMultiplexer != multiplexer){
-				//OK
-				if (daemonGetSettingsDebug_enabled()){printf("diff changed complete %d\n", multiplexer);}
-				heaterStatus.lastDiffMultiplexer = multiplexer;
-			} else {
-				if (different){
-					heaterStatus.lastDiffMultiplexer = multiplexer;
-					if (daemonGetSettingsDebug_enabled()){
-						printf("there was a difference on multiplexer %d\n", multiplexer);
-						printf("before\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",heaterStatus.ledValues[0],heaterStatus.ledValues[1],heaterStatus.ledValues[2],heaterStatus.ledValues[3],heaterStatus.ledValues[4],heaterStatus.ledValues[5]);
-						printf("after\tleds:\t%d\t%d\t%d\t%d\t%d\t%d\n",led[0],led[1],led[2],led[3],led[4],led[5]);
-					}
-					i = 0;
-					for (; i<6; ++i){
-						heaterStatus.ledValues[i] = led[i];
-					}
-					delay(updateDelay);
-					continue;
-				} else if (!multiplexerChanged){
-					//if (daemonGetSettingsDebug_enabled()){printf("multiplexer not changed %d\n", multiplexer);}
-					delay(updateDelay);
-					continue;
-				}
-			}
-			
-			if (daemonGetSettingsDebug_enabled()){printf("do check\n");}
-			if (led[IND_LED_POWER]){
-				heaterStatus.hasPowerLedOnLastTime = runTimeMillis;
-				if (!heaterStatus.hasPower){
-					heaterStatus.hasPower = true;
-					different = true;
-				}
-			} else {
-				heaterStatus.hasPowerLedOffLastTime = runTimeMillis;
-				if (heaterStatus.hasPower && ((runTimeMillis - heaterStatus.hasPowerLedOnLastTime) > 1000 || (runTimeMillis - heaterStatus.multiplexerLastTime1) > 200)){ //if not heating, blinking in about 500ms cycles
-					heaterStatus.hasPower = false;
-					different = true;
-					
-					//reset all values, there could not be any state if no power
-					heaterStatus.isOn = false;
-					heaterStatus.isModeHeating = false;
-					heaterStatus.isModeKeepwarm = false;
-					heaterStatus.level = 0;
-				}
-			}
-			if (heaterStatus.hasPower){
-				if(led[IND_LED_TEMP_MAX] ^ led[IND_LED_TEMP_MIDDLE] ^ led[IND_LED_TEMP_MIN]){
-					//one(only one!) of the level leds are on
-					if (led[IND_LED_MODE_HEATING] ^ led[IND_LED_MODE_KEEPWARM]){
-						heaterStatus.isOnLastTime = runTimeMillis;
-						heaterStatus.errorMsg = NULL;
-						if (!heaterStatus.isOn || heaterStatus.hasError){
-							heaterStatus.isOn = true;
-							heaterStatus.isModeHeating = led[IND_LED_MODE_HEATING];
-							heaterStatus.isModeKeepwarm = led[IND_LED_MODE_KEEPWARM];
-							different = true;
-						}
-						if(led[IND_LED_TEMP_MAX]){
-							heaterStatus.level = 3;
-						} else if(led[IND_LED_TEMP_MIDDLE]){
-							heaterStatus.level = 2;
-						} else if(led[IND_LED_TEMP_MIN]){
-							heaterStatus.level = 1;
-						}
-					} else {
-						newHasError = true;
-					}
-				} else {
-					newHasError = true;
-				}
-			}
-			
-			if(newHasError){
-				if(heaterStatus.hasPower){
-					if (heaterStatus.isOn && (runTimeMillis - heaterStatus.hasPowerLedOffLastTime) < 1000){ //if not heating, blinking in about 500ms cycles
-						if (daemonGetSettingsDebug_enabled()){printf("Set isOn to false\n");}
-						heaterStatus.isOn = false;
-						different = true;
-					} else if (!heaterStatus.isOn && (runTimeMillis - heaterStatus.hasPowerLedOffLastTime) > 1000){
-						//This one is needed for correct error handling, if it is set to false in couse of error, but is still on
-						if (daemonGetSettingsDebug_enabled()){printf("Set isOn to true\n");}
-						heaterStatus.isOn = true;
-						different = true;
-					}
-				}
-				if (heaterStatus.isOn){
-					if(different || !heaterStatus.hasError || (runTimeMillis - heaterStatus.errorLastTime) > 5000){
-						if(!led[IND_LED_MODE_HEATING] && !led[IND_LED_MODE_KEEPWARM] && !led[IND_LED_TEMP_MAX] && !led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-							//Error leds off blink state
-							if (daemonGetSettingsDebug_enabled()){printf("Error leds off blink state\n");}
-							heaterStatus.ledsOffBlinkState = true;
-						} else {
-							//There could only be on error at a time
-							heaterStatus.hasError = true;
-							heaterStatus.ledsOffBlinkState = false;
-							heaterStatus.level = 0;
-							heaterStatus.isModeHeating = false;
-							heaterStatus.isModeKeepwarm = false;
-							different = true;
-							
-							if (daemonGetSettingsDebug_enabled()){printf("check witch error it is...\n");}
-							if(led[IND_LED_MODE_HEATING] && led[IND_LED_MODE_KEEPWARM] && led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-								heaterStatus.noPanError = true;
-								heaterStatus.errorMsg = "No Pan";
-							} else if(led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-								heaterStatus.IGBTTempToHeightError = true;
-								heaterStatus.errorMsg = "IGBT Temperature To High";
-							} else if(led[IND_LED_TEMP_MAX] && !led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-								heaterStatus.tempSensorError = true;
-								heaterStatus.errorMsg = "Temperature Sensor out of work";
-							} else if(!led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-								heaterStatus.IGBTSensorError = true;
-								heaterStatus.errorMsg = "IGBT Sensor out of work";
-							} else if(!led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-								heaterStatus.voltageToHeightError = true;
-								heaterStatus.errorMsg = "Voltage To High(>260V)";
-							} else if(!led[IND_LED_TEMP_MAX] && !led[IND_LED_TEMP_MIDDLE] && led[IND_LED_TEMP_MIN]){
-								heaterStatus.voltageToLowError = true;
-								heaterStatus.errorMsg = "Voltage to Low(<85V)";
-							} else if(led[IND_LED_TEMP_MAX] && led[IND_LED_TEMP_MIDDLE] && !led[IND_LED_TEMP_MIN]){
-								heaterStatus.bowOutOfWaterError = true;
-								heaterStatus.errorMsg = "The bow out of water";
-							}
-							heaterStatus.errorLastTime = runTimeMillis;
-						}
-					}
-				}
-			} else {
-				if(heaterStatus.hasError){
-					heaterStatus.hasError = false;
-					heaterStatus.noPanError = false;
-					heaterStatus.IGBTTempToHeightError = false;
-					heaterStatus.tempSensorError = false;
-					heaterStatus.IGBTSensorError = false;
-					heaterStatus.voltageToHeightError = false;
-					heaterStatus.voltageToLowError = false;
-					heaterStatus.bowOutOfWaterError = false;
-					heaterStatus.ledsOffBlinkState = false;
-				}
-			}
-			delay(updateDelay);
-		}
-	} else if (settings.shieldVersion >= 4){
-		printf("No longer China Board (on shieldVersion %d), so no need to read heater-leds. Logic now on ATMega644 firmware\n", settings.shieldVersion);
-	}
-	return 0;
-}
 
 /** @brief return the valu of temperaure, pression and loadcell
 */
@@ -3897,7 +3143,7 @@ void *readADCValues(void *ptr){
 				}
 				//adc_values.Temp.valueByOffset = 0;
 				//adc_values.Press.valueByOffset = 0;
-				HeatOff(&daemon_values);
+				heaterOff();
 				AD7794Init();
 				adc_config.restarting_adc = false;
 			}
@@ -4090,7 +3336,7 @@ uint32_t daemonGetTimeValuesRunTime(){
 	return timeValues.runTime;
 }
 uint32_t daemonGetSettingsTimeValuesStepEndTime(){
-	return timeValues.stepEndTime
+	return timeValues.stepEndTime;
 }
 uint32_t daemonGetCurrentCommandValuesMode(){
 	return currentCommandValues.mode;
@@ -4101,3 +3347,35 @@ uint32_t daemonGetSettingsShieldVersion(){
 bool daemonGetRunningModeSimulationMode(){
 	return runningMode.simulationMode;
 }
+uint32_t daemonGetTimeValuesRunTimeMillis(){
+	return timeValues.runTimeMillis;
+}
+uint32_t daemonGetSettingsLongDelay(){
+	return settings.LongDelay;
+}
+uint32_t daemonGetTimeValuesLastLogSaveTime(){
+	return timeValues.lastLogSaveTime;
+}
+bool daemonGetAdcConfigRestartingAdc(){
+	return adc_config.restarting_adc;
+}
+bool daemonGetStateRunning(){
+	return state.running;
+}
+uint32_t daemonGetStateDelay(){
+	return state.Delay;
+}
+//SET
+void daemonSetTimeValuesStepEndTime(uint32_t step){
+	timeValues.stepEndTime=step;
+}
+void daemonSetStateDelay(uint32_t delay){
+		state.Delay=delay;
+}
+void daemonSetTimeValuesRunTime(uint32_t runtime){
+	timeValues.runTime=runtime;
+}
+void daemonSetTimeValuesRunTimeMillis(uint32_t runtimemillis){
+	timeValues.runTimeMillis=runtimemillis;
+}
+

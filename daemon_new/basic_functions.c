@@ -207,7 +207,7 @@ uint32_t readADC(uint8_t i){
 		while (!readyToRead){//wait until the transmition is ready
 			if (ad7794_check_if_ready(&adc)){//if ready
 				readyToRead = true;
-			} else {if //not ready wait
+			} else { //if not ready wait
 				delay(5);
 			}
 		}

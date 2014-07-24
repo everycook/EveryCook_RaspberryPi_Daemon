@@ -17,19 +17,8 @@ See GPLv3.htm in the main folder for details.
 
 double readTemp(struct Daemon_Values *dv);
 int32_t readPress(struct Daemon_Values *dv);
-bool HeatOn(struct Daemon_Values *dv);
 
-/** @brief turn heat off
- *	@param *dv : Daemon_Values
- *  @return succed?
-*/
-bool HeatOff(struct Daemon_Values *dv);
 
-/** @brief send command to the motor
- *  @param rpm : command
- *  @param *dv : configuration motor
-*/
-void setMotorRPM(uint16_t rpm, struct Daemon_Values *dv);
 
 void setServoOpen(uint8_t openPercent, uint8_t steps, uint16_t stepWait, struct Daemon_Values *dv);
 double readWeight(struct Daemon_Values *dv);

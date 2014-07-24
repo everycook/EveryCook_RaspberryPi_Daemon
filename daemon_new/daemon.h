@@ -17,12 +17,13 @@ See GPLv3.htm in the main folder for details.
 /* Header of the firmware.
  *
  */
-
+ 
 #include "bool.h"
 #include "speaker.h"
 #include "beeper.h"
 #include "display.h"
 #include "solenoid.h"
+#include "motor.h"
 
 /** @brief reset all value
  */
@@ -114,3 +115,17 @@ uint32_t daemonGetSettingsTimeValuesStepEndTime();
 uint32_t daemonGetCurrentCommandValuesMode();
 uint32_t daemonGetSettingsShieldVersion();
 bool daemonGetRunningModeSimulationMode();
+uint32_t daemonGetTimeValuesRunTimeMillis();
+uint32_t daemonGetSettingsLongDelay();
+uint32_t daemonGetTimeValuesLastLogSaveTime();
+bool daemonGetAdcConfigRestartingAdc();
+bool daemonGetStateRunning();
+uint32_t daemonGetStateDelay();
+
+
+
+//SET
+void daemonSetTimeValuesStepEndTime(uint32_t step);
+void daemonSetStateDelay(uint32_t delay);
+void daemonSetTimeValuesRunTime(uint32_t runtime);
+void daemonSetTimeValuesRunTimeMillis(uint32_t runtimemillis);
