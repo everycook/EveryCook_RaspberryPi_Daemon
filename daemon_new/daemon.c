@@ -84,7 +84,7 @@ struct Settings settings = {0, 5,0,1, 1.0, 1,1, 40,10, 500,1, false, "127.0.0.1"
 
 struct State state = {true,true,true, 1/*setting.ShortDelay*/, 0,false, false, true, ' ',false, -1,"", 0};
 
-struct Heater_Led_Values heaterStatus = {};
+struct Heater_Led_Values heaterStatusEx = {};
 
 struct Daemon_Values daemon_values;
 
@@ -167,7 +167,7 @@ int main(int argc, const char* argv[]){
 	daemon_values.runningMode = &runningMode;
 	daemon_values.settings = &settings;
 	daemon_values.state = &state;
-	daemon_values.heaterStatus = &heaterStatus;
+	daemon_values.heaterStatusEx = &heaterStatusEx;
 	daemon_values.hourCounter = &hourCounter;
 	daemon_values.buttonConfig = &buttonConfig;
 	daemon_values.buttonValues = &buttonValues;
@@ -1886,7 +1886,7 @@ void parseAtmelState(){
 
 	uint8_t atmelMotorSpeed = motorGetMotorSpeed();
 	uint8_t atmelIGBTTemp = atmelGetIGBTTemp();
-	uint8_t atmelHeatingOutputLevel = atmelGetHeatingOutputLevel();
+	uint8_t atmelHeatingOutputLevel = heaterAtmelGetHeatingOutputLevel();
 	bool atmelMotorPosSensor = motorGetPosSensor();
 	uint8_t atmelMotorRPM = motorGetMotorRPM();
 

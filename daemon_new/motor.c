@@ -107,7 +107,7 @@ void motorSetCommandRPM(uint16_t rpm){ //setMotorRPM
 				if(daemonGetSettingsShieldVersion()<4){
 					motorI2cSetRPM(motor_i2c_values.i2c_motor_value);
 				} else {
-					atmelSetMotorRPM(motorGetI2cValuesMotorRpm());
+					motorAtmelSetRPM(motorGetI2cValuesMotorRpm());
 				}
 			}
 
@@ -122,7 +122,7 @@ void motorSetCommandRPM(uint16_t rpm){ //setMotorRPM
 					if(daemonGetSettingsShieldVersion() < 4){
 						motorI2cSetRPM(motor_i2c_values.i2c_motor_value);
 					} else {
-						atmelSetMotorRPM(motorGetI2cValuesMotorRpm());
+						motorAtmelSetRPM(motorGetI2cValuesMotorRpm());
 					}
 				}
 			}
@@ -155,7 +155,7 @@ void motorSetSpeedRPM(uint16_t valueRpm){
 }
 
 void motorAtmelSetRPM(uint8_t rpm){//atmelSetMotorRPM
-	if (atmelGetDebug2()) {printf("--->atmelSetMotorRPM\n");}
+	if (atmelGetDebug2()) {printf("--->motorAtmelSetRPM\n");}
 	SPIAtmelWrite(SPI_MODE_MOTOR);
 	SPIAtmelWrite(rpm);
 	getValidResultOrReset();

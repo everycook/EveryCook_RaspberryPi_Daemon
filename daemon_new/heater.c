@@ -146,7 +146,7 @@ bool heaterOff(){//HeatOff
 			if (!daemonGetRunningModeSimulationMode()){
 				if (heaterGetStatusIsOn()){
 					heaterAtmelSetHeating(false);
-										if (daemonGetSettingsDebug3_enabled()){printf("-->HeatOff\n");}
+					if (daemonGetSettingsDebug3_enabled()){printf("-->HeatOff\n");}
 				} else {
 					printf("ERROR: should turn HeatOff, but ATMega644 status say it is already off, so nothing done\n");
 				}
