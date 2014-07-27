@@ -14,6 +14,7 @@ See GPLv3.htm in the main folder for details.
 */
 
 #include "bool.h"
+#include <wiringPi.h>
 
 double readTemp(struct Daemon_Values *dv);
 int32_t readPress(struct Daemon_Values *dv);

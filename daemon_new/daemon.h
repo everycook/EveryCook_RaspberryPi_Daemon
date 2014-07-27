@@ -24,6 +24,7 @@ See GPLv3.htm in the main folder for details.
 #include "display.h"
 #include "solenoid.h"
 #include "motor.h"
+#include "heater.h"
 
 /** @brief reset all value
  */

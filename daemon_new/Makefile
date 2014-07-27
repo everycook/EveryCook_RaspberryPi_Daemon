@@ -29,7 +29,7 @@ LIBS    = -lwiringPi -lpthread -lm #lm needed for math.h
 
 #SRC	=	virtualspi.c virtuali2c.c basic_functions.c middlewareSocket.c convertFunctions.c hardwareFunctions.c daemon.c
 #SRC	=	ad7794_interface.c virtualspi.c virtuali2c.c basic_functions.c middlewareSocket.c convertFunctions.c hardwareFunctions.c atmel.c daemon.c
-SRC	=	ad7794_interface.c virtualspi.c virtuali2c.c basic_functions.c middlewareSocket.c convertFunctions.c hardwareFunctions.c virtualspiAtmel.c daemon.c
+SRC	=	ad7794_interface.c virtualspi.c virtuali2c.c basic_functions.c middlewareSocket.c convertFunctions.c hardwareFunctions.c virtualspiAtmel.c heater.c motor.c beeper.c speaker.c solenoid.c display.c daemon.c
 
 OBJ	=	$(SRC:.c=.o)
 

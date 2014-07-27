@@ -179,7 +179,7 @@ void heaterThreadLedReader(){
 	pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); 
 }
 
-void heaterStoptThreadLedReader(){
+void heaterStartThreadLedReader(){
 	pthread_join(threadHeaterLedReader, NULL);
 }
 	
@@ -835,7 +835,7 @@ bool heaterCheckIsState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* la
 	return *state;
 }
 
-void heaterheaterAtmelSetHeating(bool on){
+void heaterAtmelSetHeating(bool on){
 	if (atmelGetDebug2()) {printf("--->heaterAtmelSetHeating\n");}
 	SPIAtmelWrite(SPI_MODE_HEATING);
 	if(on){

@@ -167,7 +167,7 @@ int main(int argc, const char* argv[]){
 	daemon_values.runningMode = &runningMode;
 	daemon_values.settings = &settings;
 	daemon_values.state = &state;
-	daemon_values.heaterStatusEx = &heaterStatusEx;
+	daemon_values.heaterStatus = &heaterStatusEx;
 	daemon_values.hourCounter = &hourCounter;
 	daemon_values.buttonConfig = &buttonConfig;
 	daemon_values.buttonValues = &buttonValues;
@@ -221,7 +221,7 @@ int main(int argc, const char* argv[]){
 	
 	if (runningMode.normalMode){
 		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
-			heaterThreadLedReader();
+			heaterStartThreadLedReader();
 		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		if(settings.shieldVersion != 1){// only if shield version is not 1
@@ -1936,7 +1936,7 @@ void parseAtmelState(){
 /** @brief Controle temperature
 */
 void TempControl(){
-	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) heatertOff();
+	if (daemonGetCurrentCommandValuesMode()<MIN_COOK_MODE || daemonGetCurrentCommandValuesMode()>MAX_COOK_MODE) heaterOff();
 	if (daemonGetCurrentCommandValuesMode()>=MIN_TEMP_MODE && daemonGetCurrentCommandValuesMode()<=MAX_TEMP_MODE) {
 		oldCommandValues.temp = currentCommandValues.temp;
 		currentCommandValues.temp = adc_values.Temp.valueByOffset;
