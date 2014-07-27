@@ -175,11 +175,11 @@ void heaterUpdateTime(){//updateHeaterTime
 	}
 }
 
-void heaterThreadLedReader(){
+void heaterStartThreadLedReader(){
 	pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); 
 }
 
-void heaterStartThreadLedReader(){
+void heaterStopThreadLedReader(){
 	pthread_join(threadHeaterLedReader, NULL);
 }
 	

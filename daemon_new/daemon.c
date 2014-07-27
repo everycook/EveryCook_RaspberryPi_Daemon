@@ -283,7 +283,7 @@ int main(int argc, const char* argv[]){
 		}
 		pthread_join(threadReadADCValues, NULL);// wait end of thread
 		if (settings.shieldVersion < 4){
-			heaterStoptThreadLedReader();// wait end of thread
+			heaterStopThreadLedReader();// wait end of thread
 		}
 	} else if (runningMode.calibration || runningMode.measure_noise){
 		if (runningMode.calibration) {
@@ -318,7 +318,7 @@ int main(int argc, const char* argv[]){
 		pthread_join(threadReadADCValues, NULL);// wait he end of thread
 		if (runningMode.calibration){
 			if (runningMode.calibration) heaterOff();
-			heaterStoptThreadLedReader();
+			heaterStopThreadLedReader();
 		}
 	} else if (runningMode.test_7seg){
 		if (settings.shieldVersion < 4){//there is a 7 seg
@@ -828,7 +828,7 @@ int main(int argc, const char* argv[]){
 		}
 		pthread_join(threadReadADCValues, NULL);
 		heaterOff();
-		heaterStoptThreadLedReader();
+		heaterStopThreadLedReader();
 	} else if (runningMode.test_heating_press){
 		heaterStartThreadLedReader();
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);
@@ -1025,7 +1025,7 @@ int main(int argc, const char* argv[]){
 		}
 		pthread_join(threadReadADCValues, NULL);
 		heaterOff();
-		heaterStoptThreadLedReader();
+		heaterStopThreadLedReader();
 	} else if (runningMode.test_serial){
 		if (settings.shieldVersion < 4){
 			printf("there is no ATMega644 on shieldVersion %d\n", settings.shieldVersion);
