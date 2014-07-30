@@ -24,7 +24,7 @@ See GPLv3.htm in the main folder for details.
 #include <time.h>
 #include <sys/types.h>
 #include <stdlib.h>
-#include <wiringPi.h>
+//#include <wiringPi.h>
 #include "virtualspiAtmel.h"
 #include "daemon.h"
 #include "basic_functions.h"
@@ -80,7 +80,7 @@ void heaterUpdateTime();
 void heaterStartThreadLedReader();
 /** stop the thread that read leds
  */
-void heaterStoptThreadLedReader();
+void heaterStopThreadLedReader();
 
 void heaterTestHeatLed();
 

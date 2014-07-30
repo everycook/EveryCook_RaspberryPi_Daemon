@@ -85,13 +85,9 @@ uint8_t SPIAtmelRead(void);
 
 uint8_t atmelGetStatus();
 
-void atmelSetMotorRPM(uint8_t rpm);
 void atmelSetMaintenance(bool on);
 
-uint8_t atmelGetMotorSpeed();
 uint8_t atmelGetIGBTTemp();
-bool atmelGetMotorPosSensor();
-uint8_t atmelGetMotorRPM();
 
 uint8_t getResult();
 uint8_t getValidResultOrReset();

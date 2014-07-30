@@ -2159,12 +2159,12 @@ void SegmentDisplay(){
 			timeValues.lastBlinkTime = daemonGetTimeValuesRunTime();
 			//togglePin(i2c_7seg_period);
 			if (state.blinkState){
-				writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_OFF);
+				displaySetPeriod(false);
 				state.blinkState = false;
 				if (daemonGetSettingsDebug_enabled() || (runningMode.simulationMode && !runningMode.simulationModeShow7Segment)){printf("SegmentDisplay: blink off\n");}
 			} else {
 				state.blinkState = true;
-				writeI2CPin(i2c_config.i2c_7seg_period,I2C_7SEG_ON);
+				displaySetPeriod(true);
 				if (daemonGetSettingsDebug_enabled() || (runningMode.simulationMode && !runningMode.simulationModeShow7Segment)){printf("SegmentDisplay: blink on\n");}
 			}
 		}
@@ -2822,29 +2822,29 @@ void ReadCalibrationFile(void){
 			
 			//7seg pins
 			} else if(strcmp(keyString, "i2c_7seg_top") == 0){
-				i2c_config.i2c_7seg_top = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_top: %d\n", i2c_config.i2c_7seg_top);}
+				displaySetI2c_7seg_top(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_top: %d\n", displayGetI2c_7seg_top());}
 			} else if(strcmp(keyString, "i2c_7seg_top_left") == 0){
-				i2c_config.i2c_7seg_top_left = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_top_left: %d\n", i2c_config.i2c_7seg_top_left);}
+				displaySetI2c_7seg_top_left(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_top_left: %d\n", displayGetI2c_7seg_top_left());}
 			} else if(strcmp(keyString, "i2c_7seg_top_right") == 0){
-				i2c_config.i2c_7seg_top_right = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_top_right: %d\n", i2c_config.i2c_7seg_top_right);}
+				displaySetI2c_7seg_top_right(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_top_right: %d\n", displayGetI2c_7seg_top_right());}
 			} else if(strcmp(keyString, "i2c_7seg_center") == 0){
-				i2c_config.i2c_7seg_center = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_center: %d\n", i2c_config.i2c_7seg_center);}
+				displaySetI2c_7seg_center(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_center: %d\n", displayGetI2c_7seg_center());}
 			} else if(strcmp(keyString, "i2c_7seg_bottom_left") == 0){
-				i2c_config.i2c_7seg_bottom_left = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_bottom_left: %d\n", i2c_config.i2c_7seg_bottom_left);}
+				displaySetI2c_7seg_bottom_left(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_bottom_left: %d\n", displayGetI2c_7seg_bottom_left());}
 			} else if(strcmp(keyString, "i2c_7seg_bottom_right") == 0){
-				i2c_config.i2c_7seg_bottom_right = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_bottom_right: %d\n", i2c_config.i2c_7seg_bottom_right);}
+				displaySetI2c_7seg_bottom_right(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_bottom_right: %d\n", displayGetI2c_7seg_bottom_right());}
 			} else if(strcmp(keyString, "i2c_7seg_bottom") == 0){
-				i2c_config.i2c_7seg_bottom = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_bottom: %d\n", i2c_config.i2c_7seg_bottom);}
+				displaySetI2c_7seg_bottom(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_bottom: %d\n", displayGetI2c_7seg_bottom());}
 			} else if(strcmp(keyString, "i2c_7seg_period") == 0){
-				i2c_config.i2c_7seg_period = StringConvertToNumber(valueString);
-				if (showReadedConfigs){printf("\ti2c_7seg_period: %d\n", i2c_config.i2c_7seg_period);}
+				displaySetI2c_7seg_period(StringConvertToNumber(valueString));
+				if (showReadedConfigs){printf("\ti2c_7seg_period: %d\n", displayGetI2c_7seg_period());}
 				
 			} else if(strcmp(keyString, "i2c_motor") == 0){
 				motorSetI2cConfig(StringConvertToNumber(valueString));

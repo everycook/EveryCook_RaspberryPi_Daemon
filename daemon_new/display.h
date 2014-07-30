@@ -28,13 +28,34 @@ See GPLv3.htm in the main folder for details.
 #define SPI_MODE_DISPLAY_CLEAR				8
 #define SPI_MODE_DISPLAY_PICTURE			9
 
+#define I2C_7SEG_TOP			4	//SegAPin
+#define I2C_7SEG_TOP_LEFT		3	//SegBPin
+#define I2C_7SEG_TOP_RIGHT		5	//SegFPin
+#define I2C_7SEG_CENTER			2	//SegGPin
+#define I2C_7SEG_BOTTOM_LEFT	6	//SegEPin
+#define I2C_7SEG_BOTTOM_RIGHT	8	//SegCPin
+#define I2C_7SEG_BOTTOM			7	//SegDPin
+#define I2C_7SEG_PERIOD			9	//SegDPPin
+
+#define I2C_7SEG_ON				0
+#define I2C_7SEG_OFF			4095
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "virtualspiAtmel.h"
+#include "daemon_structs.h"
+#include "basic_functions.h"
+#include "daemon.h"
+
+
+
 /** @brief clear the display
  */
 void displayClear();
+/** @brief make shine all the display
+ */
+void displayFill();
 /** @brief show the text on the display
  *  @param text
  */
@@ -52,5 +73,42 @@ void displayShowPicture(uint16_t* picture);
  *  @param text
  */
 void displayShowPercentText(uint8_t percent, char* text);
+/** @brief blink one segment after one
+ *  @param *i2c_config : configuration of I2C
+*/
+void blink7Segment(struct I2C_Config *i2c_config);
+/** @brief display a char on 7 segment
+ *  @param curSegmentDisplay : char to display
+ *  @param state : state of 7 seg
+ *  @param i2c_config
+*/
+void SegmentDisplaySimple(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
+void SegmentDisplayOptimized(char curSegmentDisplay, struct State *state, struct I2C_Config *i2c_config);
 
+uint8_t displayGetI2c_7seg_top();			
+uint8_t displayGetI2c_7seg_top_left();		
+uint8_t displayGetI2c_7seg_top_right();		
+uint8_t displayGetI2c_7seg_center();		
+uint8_t displayGetI2c_7seg_bottom_left();	
+uint8_t displayGetI2c_7seg_bottom_right();	
+uint8_t displayGetI2c_7seg_bottom();		
+uint8_t displayGetI2c_7seg_period();
+	
+void displaySetI2c_7seg_top(uint8_t set);
+void displaySetI2c_7seg_top_left(uint8_t set);
+void displaySetI2c_7seg_top_right(uint8_t	set);
+void displaySetI2c_7seg_center(uint8_t set);
+void displaySetI2c_7seg_bottom_left(uint8_t set);
+void displaySetI2c_7seg_bottom_right(uint8_t set);	
+void displaySetI2c_7seg_bottom(uint8_t set );
+void displaySetI2c_7seg_period(uint8_t set);
+
+void displaySetTop(bool shine);
+void displaySetTopLeft(bool shine);
+void displaySetTopRight(bool shine);
+void displaySetCenter(bool shine);
+void displaySetBottomLeft(bool shine);
+void displaySetBottomRight(bool shine);
+void displaySetBottom(bool shine);
+void displaySetPeriod(bool shine);
 #endif /*----DISPLAY_H_-----*/
