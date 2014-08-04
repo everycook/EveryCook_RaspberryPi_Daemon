@@ -32,7 +32,7 @@ void speakerSpeak(char* text){
 	pthread_t threadSpeak;
 	//pthread_create(&threadSpeak, NULL, speakThreadFunc, NULL);
 	char* textpointer = &text[0];
-	pthread_create(&threadSpeak, NULL, speakThreadFunc, (void *) textpointer);
+	//pthread_create(&threadSpeak, NULL, speakThreadFunc, (void *) textpointer);
 	//pthread_join(threadSpeak, NULL);
 }
 
