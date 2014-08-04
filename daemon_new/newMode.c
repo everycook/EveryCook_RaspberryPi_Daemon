@@ -1,3 +1,6 @@
+#ifndef NEWMODE_C_
+#define NEWMODE_C_
+#include "newMode.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,9 +9,10 @@
 #include <pthread.h>
 #include <math.h>
 #include <stdarg.h>
-#include "daemon.h"
+#include "daemon.c"
 #include "solenoid.h"
 #include "display.h"
+#include "newMode.h"
 
 #define HELP 0
 #define QUIT 1
@@ -25,7 +29,8 @@
 #define WIDHTCOLUMN 10
 pthread_t readInput;// thread that read input on keyboard
 
-void  printColumnVAr( uint16_t widthColumn, uint16_t nbColumn,...);
+int newModeMain();
+void printColumnVAr( uint16_t widthColumn, uint16_t nbColumn,...);
 void printMiddle(uint16_t space, uint32_t nb);
 void *readInputFunction(void *ptr);
 void helpPrintf();
@@ -46,27 +51,21 @@ int running=1;
 //TEST_FAN
 int fanPwm=0;
 int fantemp=0;
-
 //TEST_MOTOR
 int motorRPMTrue=0;
 int motorRPMDesired=0;
 int motorSensor=0;
-
 //TEST_INDUCTION
 int inductionPwm=0;
 bool inductionIsRunning=false;
-
 //TEST_BOUTON
 bool boutonState[6]={false,false,false,false,false,false};
-
 //TEST_DISPLAY
 bool displayLedShined[8]={false,false,false,false,false,false,false,false};
 int displayMode=0;
-
 //TEST_VALVE
 int solenoidPwm=0;
 bool solenoidIsOpen=false;
-
 //TEST_WEIGHT
 #define NBWEIGHTLINE 25
 struct Weight_Data {
@@ -87,7 +86,6 @@ struct Weight_Data_tab{
 struct Weight_Data allWeightData[NBWEIGHTLINE]; 
 struct Weight_Data newWeightData;
 struct Weight_Data_tab tabWeightData;
-
 //TEST_TEMPPRESS
 #define NBTEMPPRESSLINE 25
 struct Temppress_Data{
@@ -108,7 +106,7 @@ struct Temppress_Data newTemppressData;
 struct Temppress_Data_tab tabTemppressData;
 
 
-int main(){
+int newModeMain(){
 	srand(time(NULL));
 	int t=pthread_create(&readInput, NULL, readInputFunction, NULL);
 	if(t==0){
@@ -872,3 +870,5 @@ void printMiddle(uint16_t space, uint32_t nb){
 		printf("The number is bigger than numberSpace");
 	}
 }
+
+#endif /*----NEWMODE_C_-----*/

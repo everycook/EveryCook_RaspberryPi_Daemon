@@ -33,20 +33,10 @@ See GPLv3.htm in the main folder for details.
 
 #define I2C_MOTOR				0	//ENLEVE
 
-#define I2C_7SEG_TOP			4	//SegAPin
-#define I2C_7SEG_TOP_LEFT		3	//SegBPin
-#define I2C_7SEG_TOP_RIGHT		5	//SegFPin
-#define I2C_7SEG_CENTER			2	//SegGPin
-#define I2C_7SEG_BOTTOM_LEFT	6	//SegEPin
-#define I2C_7SEG_BOTTOM_RIGHT	8	//SegCPin
-#define I2C_7SEG_BOTTOM			7	//SegDPin
-#define I2C_7SEG_PERIOD			9	//SegDPPin
-
 #define PI_PIN_BUZZER	4
 #define BUZZER_PWM		1000
 
-#define I2C_7SEG_ON				0
-#define I2C_7SEG_OFF			4095
+
 
 
 /** @brief modifie debug_enabled2 avec value

@@ -12,6 +12,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 
 See GPLv3.htm in the main folder for details.
 */
+#ifndef DAEMONSTRUCTS_H_
+#define DAEMONSTRUCTS_H_
 
 #include <time.h>
 
@@ -363,3 +365,5 @@ struct Daemon_Values {
 	struct Button_Values *buttonValues;
 	struct ADC_Values *adc_values;
 };
+
+#endif /*----DAEMONSTRUCTS_H_-----*/
