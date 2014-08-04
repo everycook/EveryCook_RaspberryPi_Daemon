@@ -155,7 +155,7 @@ uint16_t displayMode=0;
 uint16_t solenoidPwm=0;
 bool solenoidIsOpen=false;
 //TEST_WEIGHT
-#define NBWEIGHTLINE 25
+#define NBWEIGHTLINE 15
 struct Weight_Data {
 	uint32_t frontL;
 	uint32_t frontR;
@@ -175,7 +175,7 @@ struct Weight_Data allWeightData[NBWEIGHTLINE];
 struct Weight_Data newWeightData;
 struct Weight_Data_tab tabWeightData;
 //TEST_TEMPPRESS
-#define NBTEMPPRESSLINE 25
+#define NBTEMPPRESSLINE 15
 struct Temppress_Data{
 	uint32_t tempInput;
 	uint32_t tempDeg;
@@ -3589,6 +3589,10 @@ void *readInputFunction(void *ptr){
 					heaterOn();
 					inductionIsRunning=true;
 				break;
+				case TEST_TEMPPRESS :
+					heaterOn();
+					inductionIsRunning=true;
+				break;
 				default :
 				break;
 			}
@@ -3605,6 +3609,10 @@ void *readInputFunction(void *ptr){
 					displayClear();
 				break;
 				case TEST_INDUCTION :
+					heaterOff();
+					inductionIsRunning=false;
+				break;
+				case TEST_TEMPPRESS :
 					heaterOff();
 					inductionIsRunning=false;
 				break;
@@ -3858,6 +3866,12 @@ void testTempPressPrintf(){
 		tabTemppressData.avg.pressPasc=newTemppressData.pressPasc+tabTemppressData.avg.pressPasc;
 	}
 	tabTemppressData.nbData++;
+	if(inductionIsRunning){
+		printf("\nThe heater is running, press 'n' to desactivate. (n)");
+	}else{
+		printf("\nThe heater is not running, press 'y' to activate. (y)");
+	}
+	printf("\n_____________________________________________________");
 	printf("\n  Value :PressInput| PressPasc| TempInput|  TempDeg |");
 	
 	printf("\n  Max   :");
@@ -3944,11 +3958,11 @@ void testInductionPrintf(){
 	}else{
 		printf("\nThe heater is not running");
 	}
-	//if(heaterStatus.errorMsg == NULL){
+	if(heaterGetStatusErrorMsg() == NULL){
 		printf("\nThere aren't error");
-	//}else{
-		//printf("The error is %s",heaterStatus.errorMsg);
-	//}
+	}else{
+		printf("\nThe error is %s",heaterGetStatusErrorMsg());
+	}
 }
 void testSDisplayPrintf(){
 	printf("\nthe Shield version is %d",daemonGetSettingsShieldVersion());

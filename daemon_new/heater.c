@@ -879,6 +879,9 @@ void heaterSetStatusLedValuesI(uint8_t i,uint32_t ledvalues){
 }
 
 // Get function
+char* heaterGetStatusErrorMsg(){
+	return heaterStatus.errorMsg;
+}
 bool heaterGetStatusIsOn(){
 	return heaterStatus.isOn;
 }

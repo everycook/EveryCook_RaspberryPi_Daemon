@@ -99,6 +99,7 @@ void heaterSetHourCounter(uint32_t hourcounter);
 void heaterSetStatusLedValuesI(uint8_t i,uint32_t ledvalues);
 
 // Get function
+char* heaterGetStatusErrorMsg();
 bool heaterGetStatusIsOn();
 bool heaterGetStatusIsOnLastTime();
 bool heaterGetStatusHasPower();
