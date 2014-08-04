@@ -3459,7 +3459,7 @@ int newModeMain(){
 		parseAtmelState();
 		system("clear");
 		printf("\n********************************************************************************");
-		printf("\n Help : h  ********* Mode actuel : %s",modeNom);
+		printf("\n Help : h  ******** version : %d ********* Mode actuel : %s",daemonGetSettingsShieldVersion(),modeNom);
 		printf("\n********************************************************************************");
 		switch (modeNum){
 			case HELP :
@@ -3509,7 +3509,7 @@ int newModeMain(){
 }
 
 void *readInputFunction(void *ptr){
-	int isNumber;
+	uint16_t isNumber;
 	while(state.running){
 	char str[50]; // 50 caractères + '\0' terminal
 	fgets(str, 50, stdin);
@@ -3589,6 +3589,9 @@ void *readInputFunction(void *ptr){
 					displayMode=1;
 					displayFill();
 				break;
+				case TEST_INDUCTION :
+					heaterOn();
+				break;
 				default :
 				break;
 			}
@@ -3603,6 +3606,9 @@ void *readInputFunction(void *ptr){
 				case TEST_DISPLAY :
 					displayMode=0;
 					displayClear();
+				break;
+				case TEST_INDUCTION :
+					heaterOff();
 				break;
 				default :
 				break;
@@ -3645,9 +3651,13 @@ void *readInputFunction(void *ptr){
 					//PWM 0 of Fan
 				break;
 				case TEST_MOTOR:
-					motorRPMDesired=0;
-					motorSetCommandRPM(0);
+						motorRPMDesired=isNumber;
+						motorSetCommandRPM(motorRPMDesired);
 				break;
+				case TEST_VALVE :
+					solenoidPwm=0;
+					writeI2CPin(i2c_config.i2c_servo, solenoidPwm);
+					solenoidIsOpen=false;
 				default:
 				break;
 			}
@@ -3758,8 +3768,13 @@ void *readInputFunction(void *ptr){
 				break;
 				case TEST_MOTOR:
 						motorRPMDesired=isNumber;
-						//RPM of Motor
+						motorSetCommandRPM(motorRPMDesired);
 				break;
+				case TEST_VALVE :
+					solenoidPwm=isNumber;
+					writeI2CPin(i2c_config.i2c_servo, solenoidPwm);
+					solenoidIsOpen=true;
+					break;
 				default :
 				break;
 			}
@@ -3928,7 +3943,11 @@ void testBoutonPrintf(){
 
 }
 void testInductionPrintf(){
-	printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",inductionPwm);
+	if(daemonGetSettingsShieldVersion()<4){
+		printf("\nwould you activate the heater? (y/n)");
+	}else{
+		printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",inductionPwm);
+	}
 	if(inductionIsRunning){
 		printf("\nThe heater is running");
 	}else{
@@ -4053,7 +4072,11 @@ void testFanPrintf(){
 void testMotorPrintf(){
 	motorRPMTrue=motorGetMotorRPM();
 	motorSensor=motorGetPosSensor();
-	printf("\nHow many RPM would you want?");
+	if(daemonGetSettingsShieldVersion()<4){
+		printf("\nEnter the PWM that you want");
+	}else{
+		printf("\nHow many RPM would you want?");
+	}
 	printf("\nThe motor turn at %d RPM per second and your command is %d",motorRPMTrue,motorRPMDesired);
 	printf("\nState of position sensor %d",motorSensor);
 }
