@@ -46,7 +46,7 @@ function ShowData(){
 function MakeGraph(){
 	g = new Dygraph(
 		document.getElementById("demodiv"), "data.txt", {
-			labels: ["Time","Temp","Press","Rpm","Weight","SetTemp","SetPress","SetRpm","SetWeight","SetMode","Mode","heaterHasPower","isHeating","noPan","lidOpen"],
+			labels: ["Time","Temp","Press","Rpm","Weight","SetTemp","SetPress","SetRpm","SetWeight","SetMode","Mode","heaterHasPower","isHeating","noPan","lidClosed","lidLocked","pusherLocked"],
 			//title: 'The Awesome EveryCook Trend Visualisation',
 			legend: 'always',
 			labelsDivWidth: 800,
