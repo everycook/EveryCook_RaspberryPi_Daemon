@@ -103,7 +103,7 @@ pthread_t threadHandleButtons;
 //for the new mode
 #define HELP 0
 #define QUIT 1
-#define TEST_SERVO 2
+
 #define TEST_TEMPPRESS 3
 #define TEST_VALVE 4
 #define TEST_BOUTON 5
@@ -136,22 +136,23 @@ char * modeNom = "mode test"; //name of the mode for the display
 int modeNum = 0; //number of mode for the switch
 int running=1;
 //TEST_FAN
-int fanPwm=0;
+uint16_t fanPwm=0;
 int fantemp=0;
 //TEST_MOTOR
-int motorRPMTrue=0;
-int motorRPMDesired=0;
-int motorSensor=0;
+uint16_t motorPWMDesired=0;
+uint16_t motorRPMTrue=0;
+uint16_t motorRPMDesired=0;
+uint16_t motorSensor=0;
 //TEST_INDUCTION
-int inductionPwm=0;
+uint16_t inductionPwm=0;
 bool inductionIsRunning=false;
 //TEST_BOUTON
 bool boutonState[6]={false,false,false,false,false,false};
 //TEST_DISPLAY
 bool displayLedShined[8]={false,false,false,false,false,false,false,false};
-int displayMode=0;
+uint16_t displayMode=0;
 //TEST_VALVE
-int solenoidPwm=0;
+uint16_t solenoidPwm=0;
 bool solenoidIsOpen=false;
 //TEST_WEIGHT
 #define NBWEIGHTLINE 25
@@ -416,10 +417,11 @@ int main(int argc, const char* argv[]){
 		}
 	} else if (runningMode.test_7seg){
 		//newMode
+		
 		printf("\nnew mode is going to start");
 		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
 			heaterStartThreadLedReader();
-		}
+		}		
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		if(settings.shieldVersion != 1){// only if shield version is not 1
 			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);//gestionndes bouttons
@@ -1349,6 +1351,7 @@ time_t get_mtime(const char *path){
 void printUsage(){
 	printf("Usage: ecdaemon [OPTIONS]\r\n");
 	printf("programm options:\r\n");
+	printf("  -t7, --test-7seg              New calibration mode\r\n");
 	printf("  -s,  --sim                    start in simulation mode, and will increase weight/temp/press automaticaly\r\n");
 	printf("  -s7, --sim7seg                show 7Segment display in simulation Mode\r\n");
 	printf("  -d,  --debug                  activate Debug output\r\n");
@@ -1360,7 +1363,6 @@ void printUsage(){
 	printf("  -cg, --config <path>          set configfile path to <file>\r\n");
 	printf("  -ms, --middleware-server <ip>	set middleware Server to <ip>\r\n");
 	printf("  -tn, --test-noise             measure and output random noise\r\n");
-	printf("  -t7, --test-7seg              blink 7segments to evaluate correct config\r\n");
 	printf("  -ts, --test-servo [from [to]] test servo open value, if from/to is omitted, values are from: %d, to: %d\r\n", settings.test_servo_min, settings.test_servo_max);
 	printf("  -th, --test-heat-led          read the heater LED informations\r\n");
 	printf("  -tm, --test-motor [from [to]] test motor speed value, if from/to is omitted, values are from: %d, to: %d\r\n", 200, 2000);
@@ -3452,11 +3454,14 @@ void *handleButtons(void *ptr){
 int newModeMain(){
 	srand(time(NULL));
 	int t=pthread_create(&readInput, NULL, readInputFunction, NULL);
+	
 	if(t==0){
 		printf("merde");
 	}
 	while(state.running){
-		parseAtmelState();
+		if(daemonGetSettingsShieldVersion()>3){
+			parseAtmelState();
+		}
 		system("clear");
 		printf("\n********************************************************************************");
 		printf("\n Help : h  ******** version : %d ********* Mode actuel : %s",daemonGetSettingsShieldVersion(),modeNom);
@@ -3467,9 +3472,6 @@ int newModeMain(){
 			break;
 			case QUIT  :
 				quitPrintf();
-			break;
-			case TEST_SERVO  :
-				testServoPrintf();
 			break;
 			case TEST_TEMPPRESS  :
 				testTempPressPrintf();
@@ -3502,7 +3504,6 @@ int newModeMain(){
 		printf("\nWhat do you want to do : ");
 		printf("\n");
 		usleep(1000000);
-		
 	};
 	pthread_join(readInput, NULL);// wait end of thread
 	return 0;
@@ -3521,11 +3522,6 @@ void *readInputFunction(void *ptr){
         case 'H' :
 			modeNom="help";
 			modeNum=HELP;
-            break;
-        case 's' :
-        case 'S' :
-			modeNom="test servo";
-			modeNum=TEST_SERVO;
             break;
         case 't' :
         case 'T' :
@@ -3591,6 +3587,7 @@ void *readInputFunction(void *ptr){
 				break;
 				case TEST_INDUCTION :
 					heaterOn();
+					inductionIsRunning=true;
 				break;
 				default :
 				break;
@@ -3609,6 +3606,7 @@ void *readInputFunction(void *ptr){
 				break;
 				case TEST_INDUCTION :
 					heaterOff();
+					inductionIsRunning=false;
 				break;
 				default :
 				break;
@@ -3638,12 +3636,9 @@ void *readInputFunction(void *ptr){
 		break;
 		case '0':
 			switch (modeNum){
-				case TEST_VALVE :
-					solenoidPwm=0;
-					//PWM 0 pour servo moteur
-				break;
 				case TEST_INDUCTION :
 					inductionPwm=0;
+					inductionIsRunning=false;
 					heaterOff();
 				break;
 				case TEST_FAN :
@@ -3651,8 +3646,10 @@ void *readInputFunction(void *ptr){
 					//PWM 0 of Fan
 				break;
 				case TEST_MOTOR:
-						motorRPMDesired=isNumber;
+						motorRPMDesired=0;
+						motorPWMDesired=0;
 						motorSetCommandRPM(motorRPMDesired);
+						motorSetSpeedRPM(0);
 				break;
 				case TEST_VALVE :
 					solenoidPwm=0;
@@ -3669,10 +3666,6 @@ void *readInputFunction(void *ptr){
 		isNumber=atoi(temp);
 		if(isNumber!=0){
 			switch (modeNum){
-				case TEST_VALVE :
-					solenoidPwm=isNumber;
-					//PWM pour servo moteur
-				break;
 				case TEST_DISPLAY:
 					if(isNumber==1){
 						if(displayLedShined[isNumber-1]){
@@ -3768,7 +3761,8 @@ void *readInputFunction(void *ptr){
 				break;
 				case TEST_MOTOR:
 						motorRPMDesired=isNumber;
-						motorSetCommandRPM(motorRPMDesired);
+						motorPWMDesired=isNumber;
+						motorSetSpeedRPM(motorRPMDesired);
 				break;
 				case TEST_VALVE :
 					solenoidPwm=isNumber;
@@ -3786,7 +3780,6 @@ void *readInputFunction(void *ptr){
 
 void helpPrintf(){
 	printf("\nMode enable :");
-	printf("\ns : test servo");
 	printf("\nt : test temp/press");
 	printf("\nb : test bouton");
 	printf("\nd : test display");
@@ -3799,8 +3792,6 @@ void helpPrintf(){
 }
 void quitPrintf(){
 	printf("\nDo you want to quit? (y,n)");
-}
-void testServoPrintf(){
 }
 void testTempPressPrintf(){
 	int i;
@@ -4073,12 +4064,18 @@ void testMotorPrintf(){
 	motorRPMTrue=motorGetMotorRPM();
 	motorSensor=motorGetPosSensor();
 	if(daemonGetSettingsShieldVersion()<4){
-		printf("\nEnter the PWM that you want");
+		printf("\nWhat PWM would you want?");
 	}else{
 		printf("\nHow many RPM would you want?");
 	}
-	printf("\nThe motor turn at %d RPM per second and your command is %d",motorRPMTrue,motorRPMDesired);
-	printf("\nState of position sensor %d",motorSensor);
+	if(daemonGetSettingsShieldVersion()<4){
+		printf("\nYour command is %d",motorPWMDesired);
+	}else{
+		printf("\nThe motor turn at %d RPM per second and your command is %d",motorRPMTrue,motorRPMDesired);
+	}
+	if(daemonGetSettingsShieldVersion()==4){
+		printf("\nState of position sensor %d",motorSensor);
+	}
 }
 void testWeightPrintf(){
 	int i;
