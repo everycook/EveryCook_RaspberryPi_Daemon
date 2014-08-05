@@ -256,8 +256,11 @@ void LedSign_Vertical(uint8_t x, uint8_t c) {
  * calculations are done here, so we don't need to do in the
  * interrupt code
  */
-void LedSign_Set(uint8_t x, uint8_t y, uint8_t c)
-{
+void LedSign_Set(uint8_t xnew, uint8_t ynew, uint8_t c)
+{	
+	uint8_t x,y;
+	x=DISPLAY_COLS-xnew;
+	y=DISPLAY_ROWS-ynew;
 #ifdef GRAYSCALE
     // If we aren't in grayscale mode, just map any pin brightness to max
     if (c > 0 && !(displayMode & GRAYSCALE))
