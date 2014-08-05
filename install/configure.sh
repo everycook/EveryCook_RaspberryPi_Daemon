@@ -296,6 +296,7 @@ server_ip=\`$installDir/getServerIp.sh\`
 #server_ip=\`/opt/EveryCook/getServerIp.sh\`
 server_ip=127.0.0.1
 daemonPath=/opt/EveryCook/daemon
+IPcheckPath=/opt/EveryCook/checkIP.sh
 #daemonCommand="\${daemonPath}/ecdaemon --config \${daemonPath}/config --middleware-and-file --middleware-server \${server_ip} --sim --sim7seg"
 daemonCommand="\${daemonPath}/ecdaemon --config \${daemonPath}/config --middleware-and-file --middleware-server \${server_ip}"
 
@@ -324,6 +325,7 @@ case "\$1" in
         exit 2
     fi
     echo "Starting ecdaemon"
+    \${IPcheckPath}
     \${daemonCommand}  > \${daemonPath}/ecdaemon.log 2>&1 &
     echo -ne \$! > \${daemonPath}/ecdaemon.pid
     ;;
@@ -336,6 +338,7 @@ case "\$1" in
         fi
     fi
     echo "Starting ecdaemon"
+    \${IPcheckPath}
     \${daemonCommand}  > \${daemonPath}/ecdaemon.log 2>&1 &
     echo -ne \$! > \${daemonPath}/ecdaemon.pid
     ;;
@@ -371,6 +374,27 @@ chown root:root /etc/init.d/ecdaemon
 chmod 0755 /etc/init.d/ecdaemon
 
 /usr/sbin/update-rc.d ecdaemon defaults
+
+echo "create ip check script"
+cat << EOF > /opt/EveryCook/checkIP.sh
+#!/bin/bash
+#/opt/EveryCook/checkIP.sh
+if /sbin/ifconfig eth0 | /bin/grep 10.0.0 2>&1 > /dev/null; then
+echo "all good we have an IP on eth0";
+else
+echo "no IP, restarting eth0 and dhcp-server";
+/sbin/ifdown eth0
+/sbin/ifup eth0
+sleep 5
+/etc/init.d/isc-dhcp-server restart
+echo "done"
+fi
+EOF
+
+chown root:root /opt/EveryCook/checkIP.sh
+chmod 0755 /opt/EveryCook/checkIP.sh
+
+
 
 #@@@@@@@@@@@@@@@
 echo "create /etc/init.d/ecmiddleware"
