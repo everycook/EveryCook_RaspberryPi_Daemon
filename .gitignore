@@ -1,5 +1,7 @@
 daemon/ecdaemon
+daemon/ecdaemon.pid
 daemon/*.o
 daemon_new/ecdaemon
+daemon_new/ecdaemon.pid
 daemon_new/*.o
 daemon_new/*.gch
