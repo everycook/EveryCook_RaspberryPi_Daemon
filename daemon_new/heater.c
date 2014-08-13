@@ -24,7 +24,7 @@ See GPLv3.htm in the main folder for details.
  @return true if no probleme
 */
 bool heaterCheckIsState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* lastTime, uint32_t runTime);//checkIsHeaterState
-/** @brief calculate the status of heater in according to the shield Version
+/** @brief calculate the heater status in according to the shield Version
 */
 void *heaterLedEvaluation(void *ptr);
 
