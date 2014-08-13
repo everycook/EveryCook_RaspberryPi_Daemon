@@ -27,15 +27,15 @@ void Heating_controlIHTemp(){
 	ihTemp = analogRead(IHTempSensor);
 	ihTemp8bit = ihTemp >> 2;
 	uint8_t IHFanPWMValue = 0;
-	if (ihTemp8bit > 200){
+	if (ihTemp8bit > 214){//70°
 		IHFanPWMValue = 255;
-	} else if (ihTemp8bit > 150){
+	} else if (ihTemp8bit > 200){//65°
 		IHFanPWMValue = 200;
-	} else if (ihTemp8bit > 100){
+	} else if (ihTemp8bit > 180){//45°
 		IHFanPWMValue = 150;
-	} else if (ihTemp8bit > 64){
+	} else if (ihTemp8bit > 167){//38°
 		IHFanPWMValue = 100;
-	} else if (ihTemp8bit < 32){
+	} else if (ihTemp8bit < 140){//27°
 		IHFanPWMValue = 0;
 }
 	if (IHFanPWMValue != 0){
@@ -74,8 +74,6 @@ void Heating_init(){
 	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
 	pinMode(IHFanPWM, OUTPUT/*_PWM*/);
 	
-
-	
 	cli();
 	//Enable ADC (for IHTempSensor)
 	ADCSRA |= _BV(ADEN);		//ATmega_644.pdf, Page 249
@@ -86,7 +84,15 @@ void Heating_init(){
 	TCCR2B |= _BV(CS21);
 	
 	sei();
-	
+	/*
+	//time test hack
+	while(1){
+	digitalWrite(IHOn,HIGH);
+	_delay_ms(1);
+	digitalWrite(IHOn,LOW);
+	}
+	//end time test hack
+	*/
 }
 
 

@@ -18,6 +18,7 @@
 	extern uint8_t IHFanPWM_TIMER;
 	extern uint8_t ihTemp8bit;
 	extern int outputValueIH;
+	extern uint8_t lastIHFanPWM;
 //}
 
 #endif

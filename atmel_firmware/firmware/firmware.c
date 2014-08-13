@@ -47,6 +47,7 @@ avrdude -F -V -c gpio -p m644p -P gpio -b 57600 -U flash:w:input.hex
 #define SPI_MODE_GET_HEATING_OUTPUT_LEVEL	14
 #define SPI_MODE_GET_MOTOR_POS_SENSOR		15
 #define SPI_MODE_GET_MOTOR_RPM				16
+#define SPI_MODE_GET_FAN_PWM				17
 
 
 //struct pinInfo PIN_RaspiReset = PA_0; //out 1 to remove power
@@ -218,24 +219,13 @@ int main (void)
 
 	initWatchDog();
 	
-//hack for timer check
-/*
-		while(1){
-		digitalWrite(PIN_Ventil, HIGH);
-		_delay_ms(10);
-		digitalWrite(PIN_Ventil, LOW);
-		wdt_reset();
-		_delay_ms(10);
-		}
-*/		
+
 	
 	while(1){
 		Motor_motorControl();
 		Heating_heatControl();
 		Heating_controlIHTemp();
 		checkLocks();
-		
-		
 		
 		if (availableSPI() > 0) {
 			triggerWatchDog(true);
@@ -382,6 +372,9 @@ int main (void)
 				
 				case SPI_MODE_GET_IGBT_TEMP:
 					nextResponse = ihTemp8bit;
+				break;
+				case SPI_MODE_GET_FAN_PWM:
+					nextResponse = lastIHFanPWM;
 				break;
 				
 				case SPI_MODE_GET_HEATING_OUTPUT_LEVEL:
