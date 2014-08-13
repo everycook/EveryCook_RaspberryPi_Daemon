@@ -53,6 +53,7 @@ void initTime(){
 		default:
 			//Set prescale to 64
 			TCCR1B |= _BV(CS11) | _BV(CS10);
+			//TCCR1B |_BV(CS10);
 			break;
 	}
 	

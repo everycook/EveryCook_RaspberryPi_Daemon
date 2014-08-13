@@ -74,6 +74,8 @@ void Heating_init(){
 	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
 	pinMode(IHFanPWM, OUTPUT/*_PWM*/);
 	
+
+	
 	cli();
 	//Enable ADC (for IHTempSensor)
 	ADCSRA |= _BV(ADEN);		//ATmega_644.pdf, Page 249
@@ -84,15 +86,7 @@ void Heating_init(){
 	TCCR2B |= _BV(CS21);
 	
 	sei();
-	/*
-	//time test hack
-	while(1){
-	digitalWrite(IHOn,HIGH);
-	_delay_ms(1);
-	digitalWrite(IHOn,LOW);
-	}
-	//end time test hack
-	*/
+	
 }
 
 

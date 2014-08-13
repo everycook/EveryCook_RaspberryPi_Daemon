@@ -218,13 +218,24 @@ int main (void)
 
 	initWatchDog();
 	
-
+//hack for timer check
+/*
+		while(1){
+		digitalWrite(PIN_Ventil, HIGH);
+		_delay_ms(10);
+		digitalWrite(PIN_Ventil, LOW);
+		wdt_reset();
+		_delay_ms(10);
+		}
+*/		
 	
 	while(1){
 		Motor_motorControl();
 		Heating_heatControl();
 		Heating_controlIHTemp();
 		checkLocks();
+		
+		
 		
 		if (availableSPI() > 0) {
 			triggerWatchDog(true);
