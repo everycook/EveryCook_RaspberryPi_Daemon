@@ -217,6 +217,9 @@ int main (void)
 	}
 
 	initWatchDog();
+	
+
+	
 	while(1){
 		Motor_motorControl();
 		Heating_heatControl();

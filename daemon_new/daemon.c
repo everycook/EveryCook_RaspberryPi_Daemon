@@ -140,9 +140,9 @@ uint16_t fanPwm=0;
 int fantemp=0;
 //TEST_MOTOR
 uint16_t motorPWMDesired=0;
-uint16_t motorRPMTrue=0;
+uint16_t motorRPMTrued=0;
 uint16_t motorRPMDesired=0;
-uint16_t motorSensor=0;
+uint16_t motorSensord=0;
 //TEST_INDUCTION
 uint16_t inductionPwm=0;
 bool inductionIsRunning=false;
@@ -287,6 +287,7 @@ int main(int argc, const char* argv[]){
 	
 	if (settings.shieldVersion >= 4){
 		VirtualSPIAtmelInit(daemonGetSettingsDebug_enabled()); // initilalization PIN (SPI)
+		virtualAtmelStartSPI();
 	}
 	
 	initOutputFile();// création of the file wich is use for web
@@ -1168,7 +1169,6 @@ int main(int argc, const char* argv[]){
 				printf("count from 0 to 255\n");
 				uint8_t value=0;
 				for(value=10;value<255 && state.running;value++){
-					SPIAtmelWrite(value);
 					//delay(200);
 					if (value % 10 == 0){
 						delay(1000);
@@ -1177,7 +1177,6 @@ int main(int argc, const char* argv[]){
 				if (!state.running){
 					exit(0);
 				}
-				SPIAtmelWrite(value);
 				delay(250);
 			}
 			
@@ -1259,7 +1258,6 @@ int main(int argc, const char* argv[]){
 				uint8_t count=0;
 				solenoidSetOpen(true);
 				while(state.running && count<10){
-					parseAtmelState();
 					delay(500);
 					count++;
 				}
@@ -1272,7 +1270,6 @@ int main(int argc, const char* argv[]){
 				uint8_t count=0;
 				heaterOn();
 				while(state.running && count<20){
-					parseAtmelState();
 					delay(500);
 					count++;
 				}
@@ -1285,7 +1282,6 @@ int main(int argc, const char* argv[]){
 				uint8_t count=0;
 				motorSetSpeedRPM(200);
 				while(state.running && count<20){
-					parseAtmelState();
 					delay(500);
 					count++;
 				}
@@ -1296,7 +1292,6 @@ int main(int argc, const char* argv[]){
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//read status until programm end Ctrl+C
 				printf("read status until programm end Ctrl+C\n");
 				while(state.running){
-					parseAtmelState();
 					delay(500);
 				}
 			}
@@ -1319,6 +1314,7 @@ int main(int argc, const char* argv[]){
 			0b00000000000000
 		};
 		displayShowPicture(&picture_bye[0]);
+		virtualAtmelStopSPI();
 	}
 	if (settings.logLines == 0 || state.logLineNr<settings.logLines){
 		fclose(state.logFilePointer);
@@ -1916,7 +1912,7 @@ void ProcessCommand(void){
 		}
 	}
 	if (settings.shieldVersion >= 4){
-		parseAtmelState();//TODO
+		
 	}
 	TempControl();//temperature
 	PressControl();//pression
@@ -1997,70 +1993,7 @@ void OptionControl(){
 #define SB_CommandError		7
 /** @brief fonction is not finish
 */
-void parseAtmelState(){
-	uint8_t atmelState = atmelGetStatus();
-	
-	state.lidClosed = (atmelState & (1<<SB_LidClosed))>0;
-	state.lidLocked = (atmelState & (1<<SB_LidLocked))>0;
-	state.pusherLocked = (atmelState & (1<<SB_PusherLocked))>0;
 
-	//TODO heaterStatus.hasPower =security chain
-	heaterSetStatusIsOn((atmelState & (1<<SB_isIHOn))>0);
-	//TODO heaterStatus.noPanError = set if errorcode
-
-	if ((atmelState & (1<<SB_MotorStoped))>0){
-		motorSetI2cValuesMotorRpm(0);
-	}
-	//TODO(need this?) i2c_solenoid_values.solenoidOpen != bit in status
-
-	uint8_t atmelMotorSpeed = motorGetMotorSpeed();
-	uint8_t atmelIGBTTemp = atmelGetIGBTTemp();
-	uint8_t atmelHeatingOutputLevel = heaterAtmelGetHeatingOutputLevel();
-	bool atmelMotorPosSensor = motorGetPosSensor();
-	uint8_t atmelMotorRPM = motorGetMotorRPM();
-
-	if (daemonGetSettingsDebug_enabled() || daemonGetSettingsDebug3_enabled()){
-		printf("atmelState:%02X, atmelMotorSpeed:%02X, atmelMotorRPM:%02X, atmelIGBTTemp:%02X, atmelHeatingOutputLevel:%02X, atmelMotorPosSensor:%02X\n", atmelState, atmelMotorSpeed, atmelMotorRPM, atmelIGBTTemp, atmelHeatingOutputLevel, atmelMotorPosSensor); //HEX
-	}
-
-	
-/*
-	currentCommandValues.temp
-	currentCommandValues.press, 
-	currentCommandValues.motorRpm
-	currentCommandValues.motorOn
-	currentCommandValues.motorOff
-	currentCommandValues.weight
-	currentCommandValues.time
-	currentCommandValues.mode
-	currentCommandValues.stepId
-
-	heaterStatus.isOnLastTime = runTimeMillis;
-	heaterStatus.errorMsg = NULL;
-	if (!heaterStatus.isOn || heaterStatus.hasError){
-		heaterStatus.isOn = true;
-		heaterStatus.isModeHeating = led[IND_LED_MODE_HEATING];
-		heaterStatus.isModeKeepwarm = led[IND_LED_MODE_KEEPWARM];
-		different = true;
-	}
-	if(led[IND_LED_TEMP_MAX]){
-		heaterStatus.level = 3;
-	} else if(led[IND_LED_TEMP_MIDDLE]){
-		heaterStatus.level = 2;
-	} else if(led[IND_LED_TEMP_MIN]){
-		heaterStatus.level = 1;
-	}
-	heaterStatus.hasError = false;
-	heaterStatus.noPanError = false;
-	heaterStatus.IGBTTempToHeightError = false;
-	heaterStatus.tempSensorError = false;
-	heaterStatus.IGBTSensorError = false;
-	heaterStatus.voltageToHeightError = false;
-	heaterStatus.voltageToLowError = false;
-	heaterStatus.bowOutOfWaterError = false;
-	heaterStatus.ledsOffBlinkState = false;
-*/
-}
 
 /** @brief Controle temperature
 */
@@ -3460,7 +3393,6 @@ int newModeMain(){
 	}
 	while(state.running){
 		if(daemonGetSettingsShieldVersion()>3){
-			parseAtmelState();
 		}
 		system("clear");
 		printf("\n********************************************************************************");
@@ -3657,7 +3589,7 @@ void *readInputFunction(void *ptr){
 						motorRPMDesired=0;
 						motorPWMDesired=0;
 						motorSetCommandRPM(motorRPMDesired);
-						motorSetSpeedRPM(0);
+						motorSetCommandRPM(0);
 				break;
 				case TEST_VALVE :
 					solenoidPwm=0;
@@ -3954,7 +3886,7 @@ void testInductionPrintf(){
 		printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",inductionPwm);
 	}
 	if(inductionIsRunning){
-		printf("\nThe heater is running");
+		printf("\nThe heater is running and the PWM is %d",heaterGetPWMTrue());
 	}else{
 		printf("\nThe heater is not running");
 	}
@@ -4075,8 +4007,8 @@ void testFanPrintf(){
 	printf("\nThe temperature of the transistor is %d",fantemp);
 }
 void testMotorPrintf(){
-	motorRPMTrue=motorGetMotorRPM();
-	motorSensor=motorGetPosSensor();
+	motorRPMTrued=motorGetRPMTrue();
+	motorSensord=motorGetSensor();
 	if(daemonGetSettingsShieldVersion()<4){
 		printf("\nWhat PWM would you want?");
 	}else{
@@ -4085,10 +4017,10 @@ void testMotorPrintf(){
 	if(daemonGetSettingsShieldVersion()<4){
 		printf("\nYour command is %d",motorPWMDesired);
 	}else{
-		printf("\nThe motor turn at %d RPM per second and your command is %d",motorRPMTrue,motorRPMDesired);
+		printf("\nThe motor turn at %d RPM per second and your command is %d",motorRPMTrued,motorRPMDesired);
 	}
 	if(daemonGetSettingsShieldVersion()==4){
-		printf("\nState of position sensor %d",motorSensor);
+		printf("\nState of position sensor %d",motorSensord);
 	}
 }
 void testWeightPrintf(){
@@ -4308,4 +4240,12 @@ void daemonSetTimeValuesRunTime(uint32_t runtime){
 void daemonSetTimeValuesRunTimeMillis(uint32_t runtimemillis){
 	timeValues.runTimeMillis=runtimemillis;
 }
-
+void daemonSetStateLidClosed(bool stateLidClosed){
+	state.lidClosed = stateLidClosed;
+}
+void daemonSetStateLidLocked(bool stateLidLocked){
+	state.lidLocked = stateLidLocked;
+}
+void daemonSetStatePusherLocked(bool statePusherLocked){
+	state.pusherLocked = statePusherLocked;
+}

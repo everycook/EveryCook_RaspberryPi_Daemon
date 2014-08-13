@@ -24,6 +24,10 @@ struct Motor_Command_Values motorOldCommandValues={0,0,0};
 
 struct Motor_I2C_Values motor_i2c_values = {10,10, 0,0,0.0, 0,0,0,10}; //last value (motorRpm) set to 10 so it will be reset to 0 on startup
 
+uint8_t motorRPMTrue=0;
+uint8_t motorSensor=0;
+uint8_t motorPWMTrue=0;
+
 uint32_t motorStartTime; 
 uint32_t motorStopTime;
 
@@ -106,9 +110,9 @@ void motorSetCommandRPM(uint16_t rpm){ //setMotorRPM
 			if (!daemonGetRunningModeSimulationMode()){
 				if(daemonGetSettingsShieldVersion()<4){
 					motorI2cSetRPM(motor_i2c_values.i2c_motor_value);
-				} else {
-					motorAtmelSetRPM(motorGetI2cValuesMotorRpm());
-				}
+				}// else {
+					// motorAtmelSetRPM(motorGetI2cValuesMotorRpm());
+				// }
 			}
 
 			daemonSetStateDelay(daemonGetSettingsLongDelay());
@@ -121,9 +125,9 @@ void motorSetCommandRPM(uint16_t rpm){ //setMotorRPM
 				if (!daemonGetRunningModeSimulationMode()){
 					if(daemonGetSettingsShieldVersion() < 4){
 						motorI2cSetRPM(motor_i2c_values.i2c_motor_value);
-					} else {
-						motorAtmelSetRPM(motorGetI2cValuesMotorRpm());
-					}
+					}// else {
+					// motorAtmelSetRPM(motorGetI2cValuesMotorRpm());
+				// }
 				}
 			}
 
@@ -131,35 +135,6 @@ void motorSetCommandRPM(uint16_t rpm){ //setMotorRPM
 	}
 }
 
-bool motorGetPosSensor(){//atmelGetMotorPosSensor
-	SPIAtmelWrite(SPI_MODE_GET_MOTOR_POS_SENSOR);
-	return getResult();
-}
-
-uint8_t motorGetMotorRPM(){//atmelGetMotorRPM
-	SPIAtmelWrite(SPI_MODE_GET_MOTOR_RPM);
-	return getResult();
-}
-
-uint8_t motorGetMotorSpeed(){//atmelGetMotorSpeed
-	SPIAtmelWrite(SPI_MODE_GET_MOTOR_SPEED);
-	return getResult();
-}
-
-void motorSetSpeedRPM(uint16_t valueRpm){
-	if(daemonGetSettingsShieldVersion() < 4){
-				motorI2cSetRPM(valueRpm);
-	} else {
-				motorAtmelSetRPM(valueRpm);
-	}
-}
-
-void motorAtmelSetRPM(uint8_t rpm){//atmelSetMotorRPM
-	if (atmelGetDebug2()) {printf("--->motorAtmelSetRPM\n");}
-	SPIAtmelWrite(SPI_MODE_MOTOR);
-	SPIAtmelWrite(rpm);
-	getValidResultOrReset();
-}
 void motorI2cSetRPM(uint16_t rpm){
 	writeI2CPin(motorI2cConfig,rpm);
 }
@@ -196,6 +171,14 @@ void motorControl(){//MotorControl
 			motorStopTime = daemonGetTimeValuesRunTime();
 		}
 	}
+}
+
+void motorSetSpeedRPM(uint16_t valueRpm){
+if(daemonGetSettingsShieldVersion() < 4){
+motorI2cSetRPM(valueRpm);
+} else {
+motorSetI2cValuesMotorRpm(valueRpm);
+}
 }
 
 /** @brief update time of motor
@@ -248,6 +231,15 @@ uint32_t motorGetCurrentCommandValuesOff(){
 uint32_t motorGetHourCounter(){
 	return motorHourConter;
 }
+uint8_t motorGetRPMTrue(){
+	return motorRPMTrue;
+}
+bool motorGetSensor(){
+	return motorSensor;
+}
+uint8_t motorGetPWMTrue(){
+	return motorPWMTrue;
+}
 //SET
 void motorSetI2cValuesMotorRpm(uint16_t rpm){
 	motor_i2c_values.motorRpm=rpm;
@@ -275,4 +267,13 @@ void motorSetI2cValuesSpeedRamp(uint16_t speedRamp){
 }
 void motorSetI2cConfig(uint8_t i2cConfig){
 	motorI2cConfig=i2cConfig;
+}
+void motorSetRPMTrue(uint8_t rpm){
+	motorRPMTrue=rpm;
+}
+void motorSetSensor(bool sensor){
+	motorSensor=sensor;
+}
+void motorSetPWMTrue(uint8_t pwm){
+	motorPWMTrue=pwm;
 }

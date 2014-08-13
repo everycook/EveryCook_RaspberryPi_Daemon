@@ -12,42 +12,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 
 See GPLv3.htm in the main folder for details.
 */
-/**
- * @brief      This class control the solenoid valve of everycook,
- * @author     Arthur Bouché
- */
-#ifndef SOLENOID_H_
-#define SOLENOID_H_
-
-#include <stdio.h>
-#include "daemon.h"
-#include "basic_functions.h"
-#include "virtualspiAtmel.h"
-
-#define I2C_VALVE_OPEN_VALUE	210
-#define I2C_VALVE_CLOSED_VALUE	350
-
-#define I2C_SERVO				1
-
-struct Solenoid_I2c_Values {
-	uint16_t i2c_solenoid_open;
-	uint16_t i2c_solenoid_closed;
-	
-	float currentValue;
-	uint16_t i2c_solenoid_value;
-	uint8_t solenoidOpen;
-};
-/** @brief open or close the solenoid valve
- *  @param open : true/false = open/close
- */
-void solenoidSetOpen(bool open);
-
-// Set function
-void solenoidSetI2cOpen(uint16_t i2c0pen);
-void solenoidSetI2cClosed(uint16_t i2cClosed);
-// Get function
-uint16_t solenoidGetI2cOpen();
-uint16_t solenoidGetI2cClosed();
-uint8_t solenoidGetOpen();
-
-#endif /*----SOLENOID_H_-----*/
+#include "thermometer.h"

@@ -40,6 +40,7 @@ void Motor_init(){
 	pinMode(MotorPWM, OUTPUT/*_PWM*/);
 	analogWrite(MotorPWM_TIMER, 0);
 	
+	
 	cli();
 	
 	//Set Phase-Correct PWM mode for OC1A / OC1B 8bit mode 		//ATmega_644.pdf, Page 127
@@ -48,6 +49,8 @@ void Motor_init(){
 	TCCR1B |= _BV(CS11) | _BV(CS10);
 		
 	sei();
+	
+	
 }
 
 

@@ -84,6 +84,15 @@ void Heating_init(){
 	TCCR2B |= _BV(CS21);
 	
 	sei();
+	/*
+	//time test hack
+	while(1){
+	digitalWrite(IHOn,HIGH);
+	_delay_ms(1);
+	digitalWrite(IHOn,LOW);
+	}
+	//end time test hack
+	*/
 }
 
 

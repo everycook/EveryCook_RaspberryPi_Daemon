@@ -42,6 +42,8 @@ uint8_t heaterErrorTimeout[7] = {1, 4, 4, 2, 2, 3, 2};
 
 pthread_t threadHeaterLedReader;
 
+uint8_t heaterPWMTrue=0;
+uint8_t heaterTempTrans=0;
 
 //Public function
 bool heaterOn(){//HeatOn
@@ -87,7 +89,7 @@ bool heaterOn(){//HeatOn
 			if (daemonGetSettingsDebug_enabled()|| daemonGetRunningModeSimulationMode()){printf("HeatOn status was: %d, led is heating: %d\n", heaterGetPowerStatus(), heaterGetStatusIsOn());}
 			if (!daemonGetRunningModeSimulationMode()){
 				if (!heaterGetStatusIsOn()){
-					heaterAtmelSetHeating(true);
+					//heaterAtmelSetHeating(true);
 					if (daemonGetSettingsDebug3_enabled()){printf("-->HeatOn\n");}
 				} else {
 					printf("ERROR: should turn HeatOn, but ATMega644 status say it's already on, so nothing done\n");
@@ -145,7 +147,7 @@ bool heaterOff(){//HeatOff
 			if (daemonGetSettingsDebug_enabled()|| daemonGetRunningModeSimulationMode()){printf("HeatOff status was: %d, led is heating: %d\n", heaterGetPowerStatus(), heaterGetStatusIsOn());}
 			if (!daemonGetRunningModeSimulationMode()){
 				if (heaterGetStatusIsOn()){
-					heaterAtmelSetHeating(false);
+					//heaterAtmelSetHeating(false);
 					if (daemonGetSettingsDebug3_enabled()){printf("-->HeatOff\n");}
 				} else {
 					printf("ERROR: should turn HeatOff, but ATMega644 status say it is already off, so nothing done\n");
@@ -516,13 +518,6 @@ void heaterTestHeatLed(){
 		}
 }
 	
-uint8_t heaterAtmelGetHeatingOutputLevel(){
-	SPIAtmelWrite(SPI_MODE_GET_HEATING_OUTPUT_LEVEL);
-return getResult();
-}
-
-
-
 //Private function
 void *heaterLedEvaluation(void *ptr){
 	if (daemonGetRunningModeSimulationMode()){//if simulation mode
@@ -835,17 +830,6 @@ bool heaterCheckIsState(uint32_t* leds, uint8_t errNo, bool* state, uint32_t* la
 	return *state;
 }
 
-void heaterAtmelSetHeating(bool on){
-	if (atmelGetDebug2()) {printf("--->heaterAtmelSetHeating\n");}
-	SPIAtmelWrite(SPI_MODE_HEATING);
-	if(on){
-		SPIAtmelWrite(0x01);
-	} else{
-		SPIAtmelWrite(0x00);
-	}
-	getValidResultOrReset();
-}
-
 // Set function
 void heaterSetStatusErrorMsg(char* msg){
 	heaterStatus.errorMsg=msg;
@@ -877,7 +861,12 @@ void heaterSetHourCounter(uint32_t hourcounter){
 void heaterSetStatusLedValuesI(uint8_t i,uint32_t ledvalues){
 	heaterStatus.ledValues[i]=ledvalues;
 }
-
+void heaterSetPWMTrue(uint8_t pwm){
+	heaterPWMTrue=pwm;
+}
+void heaterSetTempTrans(uint8_t tempTrans){
+	heaterTempTrans=tempTrans;
+}
 // Get function
 char* heaterGetStatusErrorMsg(){
 	return heaterStatus.errorMsg;
@@ -906,3 +895,11 @@ bool heaterGetPowerStatus(){
 uint32_t heaterGetHourCounter(){
 	return heaterHourCounter;
 }
+uint8_t heaterGetPWMTrue(){
+	return heaterPWMTrue;
+}
+uint8_t heaterGetTempTrans(){
+	return heaterTempTrans;
+}
+
+

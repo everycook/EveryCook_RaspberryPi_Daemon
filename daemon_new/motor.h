@@ -74,6 +74,10 @@ uint8_t motorGetCurrentCommandValuesRpm();
 uint32_t motorGetCurrentCommandValuesOn();
 uint32_t motorGetCurrentCommandValuesOff();
 uint32_t motorGetHourCounter();
+uint8_t motorGetRPMTrue();
+bool motorGetSensor();
+uint8_t motorGetPWMTrue();
+
 //SET
 void motorSetI2cValuesMotorRpm(uint16_t rpm);
 void motorSetI2cValuesDestRpm(uint16_t destrpm);
@@ -84,5 +88,8 @@ void motorSetNewCommandValuesOff(uint32_t off);
 void motorSetI2cValuesSpeedMin(uint16_t speedMin);
 void motorSetI2cValuesSpeedRamp(uint16_t speedRamp);
 void motorSetI2cConfig(uint8_t i2cConfig);
+void motorSetRPMTrue(uint8_t rpm);
+void motorSetSensor(bool sensor);
+void motorSetPWMTrue(uint8_t pwm);
 
 #endif /*----MOTOR_H_-----*/

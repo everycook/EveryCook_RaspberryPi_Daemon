@@ -93,6 +93,9 @@ uint8_t displayGetI2c_7seg_bottom_left();
 uint8_t displayGetI2c_7seg_bottom_right();	
 uint8_t displayGetI2c_7seg_bottom();		
 uint8_t displayGetI2c_7seg_period();
+uint8_t displayGetPercentToShow();	
+char* displayGetTextToShow();
+uint16_t* displayGetPictureToShow();
 	
 void displaySetI2c_7seg_top(uint8_t set);
 void displaySetI2c_7seg_top_left(uint8_t set);

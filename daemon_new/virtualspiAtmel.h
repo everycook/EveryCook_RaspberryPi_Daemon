@@ -18,6 +18,7 @@ See GPLv3.htm in the main folder for details.
  */
 
 #include "bool.h"
+#include "daemon.h"
 
 //Pin defination for the SPI (gpio numbers)
 #define MOSI_ATMEL	18
@@ -93,6 +94,9 @@ uint8_t getResult();
 uint8_t getValidResultOrReset();
 uint8_t getValidResultOrResetAdditionalValid(uint8_t validByte);
 
+void virtualAtmelStopSPI();
+void virtualAtmelStartSPI();
+void virtualSpiAtmelSetNewMode(uint8_t newMode);
 bool atmelGetDebug();
 bool atmelGetDebug2();
 

@@ -20,9 +20,11 @@ See GPLv3.htm in the main folder for details.
 #include <wiringPi.h>
 #include "virtualspiAtmel.h"
 #include "bool.h"
-
+uint8_t SPImode=0;
 bool debug = false;
 bool debug2 = false;
+pthread_t SPIWriterReader;
+void *SPIWriterReaderFunction(void *ptr);
 
 /** @brief initialization PIN for SPI and debug=debugEnabled
  *  @param debugEnabled 
@@ -86,6 +88,141 @@ uint8_t SPIAtmelWrite(uint8_t data){
 	//}
 	delay(10);
 	return readed;
+}
+
+void virtualAtmelStartSPI(){
+	pthread_create(&SPIWriterReader, NULL, SPIWriterReaderFunction, NULL);
+}
+void virtualAtmelStopSPI(){
+	pthread_join(SPIWriterReader, NULL);
+}	
+void *SPIWriterReaderFunction(void *ptr){
+	char* text;
+	uint8_t dataReceipt;
+	uint8_t i;
+	uint16_t *picture;
+	uint8_t len;
+	while(daemonGetStateRunning()){
+		switch (SPImode) {
+			case SPI_MODE_IDLE:
+			SPImode=SPI_MODE_GET_STATUS;
+			break;
+			case SPI_MODE_GET_STATUS:
+				SPImode=SPI_MODE_MOTOR;
+				SPIAtmelWrite(SPI_MODE_GET_STATUS);
+				dataReceipt=getValidResultOrReset();
+				daemonSetStateLidClosed((dataReceipt & (1<<SB_LidClosed))>0);
+				daemonSetStateLidLocked((dataReceipt & (1<<SB_LidLocked))>0);
+				daemonSetStatePusherLocked((dataReceipt & (1<<SB_PusherLocked))>0);
+				heaterSetStatusIsOn((dataReceipt & (1<<SB_isIHOn))>0);
+				if ((dataReceipt & (1<<SB_MotorStoped))>0){
+					motorSetI2cValuesMotorRpm(0);
+				}
+				//fanSetIsOn((dataReceipt & (1<<SB_IHFanOn))>0);		
+			break;
+			case SPI_MODE_DISPLAY_CLEAR:
+				SPImode=SPI_MODE_MOTOR;
+				SPIAtmelWrite(SPI_MODE_DISPLAY_CLEAR);		
+			break;
+			case SPI_MODE_MOTOR:
+				SPImode=SPI_MODE_HEATING;
+				SPIAtmelWrite(SPI_MODE_MOTOR);
+				SPIAtmelWrite(motorGetI2cValuesMotorRpm());		
+			break;
+			case SPI_MODE_HEATING:
+				SPImode=SPI_MODE_VENTIL;
+				SPIAtmelWrite(SPI_MODE_HEATING);
+				if(heaterGetPowerStatus()){
+					SPIAtmelWrite(0x01);
+				} else{
+					SPIAtmelWrite(0x00);
+				}				
+			break;
+			case SPI_MODE_VENTIL:
+				SPImode=SPI_MODE_GET_MOTOR_SPEED;
+				SPIAtmelWrite(SPI_MODE_VENTIL);
+				if(solenoidGetOpen()){
+					SPIAtmelWrite(0x01);
+				} else{
+					SPIAtmelWrite(0x00);
+				}	
+			break;
+			case SPI_MODE_DISPLAY_PERCENT:
+				SPImode=SPI_MODE_GET_MOTOR_SPEED;
+				SPIAtmelWrite(SPI_MODE_DISPLAY_PERCENT);
+				SPIAtmelWrite(displayGetPercentToShow());
+			break;
+			case SPI_MODE_DISPLAY_PERCENT_TEXT:
+				SPImode=SPI_MODE_GET_MOTOR_SPEED;
+				SPIAtmelWrite(SPI_MODE_DISPLAY_PERCENT_TEXT);
+				SPIAtmelWrite(displayGetPercentToShow());
+				text=displayGetTextToShow();
+				len = strlen(text);
+				SPIAtmelWrite(len);
+				for(i=0;i<len;i++){
+					SPIAtmelWrite(text[i]);
+				}
+				SPIAtmelWrite(0x00);
+				getValidResultOrResetAdditionalValid(SPI_Error_Text_Invalid);
+			break;
+			case SPI_MODE_DISPLAY_TEXT:
+				SPImode=SPI_MODE_GET_MOTOR_SPEED;
+				SPIAtmelWrite(SPI_MODE_DISPLAY_TEXT);
+				text=displayGetTextToShow();
+				len = strlen(text);
+				SPIAtmelWrite(len);
+				for(i=0;i<len;i++){
+					SPIAtmelWrite(text[i]);
+				}
+				SPIAtmelWrite(0x00);
+				getValidResultOrResetAdditionalValid(SPI_Error_Text_Invalid);				
+			case SPI_MODE_DISPLAY_TEXT_SMALL:
+			break;
+			case SPI_MODE_DISPLAY_PICTURE:
+				SPImode=SPI_MODE_GET_MOTOR_SPEED;
+				SPIAtmelWrite(SPI_MODE_DISPLAY_PICTURE);
+				picture=displayGetPictureToShow();
+				for(i=0; i<9;++i){
+					SPIAtmelWrite((picture[i] >> 8) & 0xFF);
+					SPIAtmelWrite(picture[i] & 0xFF);
+				}
+				SPIAtmelWrite(0x00);
+				getValidResultOrResetAdditionalValid(SPI_Error_Picture_Invalid);			
+			break;	
+			case SPI_MODE_MAINTENANCE:	
+			break;		
+			case SPI_MODE_GET_MOTOR_SPEED:
+				SPImode=SPI_MODE_GET_IGBT_TEMP;
+				SPIAtmelWrite(SPI_MODE_GET_MOTOR_SPEED);
+				motorSetRPMTrue(getResult());
+			break;
+			case SPI_MODE_GET_IGBT_TEMP:
+				SPImode=SPI_MODE_GET_HEATING_OUTPUT_LEVEL;
+				SPIAtmelWrite(SPI_MODE_GET_IGBT_TEMP);
+				heaterSetTempTrans(getResult());
+			break;
+			case SPI_MODE_GET_HEATING_OUTPUT_LEVEL:
+				SPImode=SPI_MODE_GET_MOTOR_POS_SENSOR;
+				SPIAtmelWrite(SPI_MODE_GET_HEATING_OUTPUT_LEVEL);
+				heaterSetPWMTrue(getResult());
+			break;
+			case SPI_MODE_GET_MOTOR_POS_SENSOR:
+				SPImode=SPI_MODE_GET_MOTOR_RPM;
+				SPIAtmelWrite(SPI_MODE_GET_MOTOR_POS_SENSOR);
+				motorSetSensor(getResult());
+			break;
+			case SPI_MODE_GET_MOTOR_RPM:		
+				SPImode=SPI_MODE_IDLE;
+				SPIAtmelWrite(SPI_MODE_GET_MOTOR_RPM);
+				motorSetRPMTrue(getResult());
+			break;
+			default:
+				SPImode=SPI_MODE_IDLE;
+			break;
+		}
+		delay(10);
+	}
+	return 0;
 }
 
 /* SPIAtmelRead: Read one byte data from the Atmel
@@ -180,6 +317,9 @@ uint8_t atmelGetIGBTTemp(){
 	return getResult();
 }
 
+void virtualSpiAtmelSetNewMode(uint8_t newMode){
+	SPImode=newMode;
+}
 
 bool atmelGetDebug(){
 	return debug;

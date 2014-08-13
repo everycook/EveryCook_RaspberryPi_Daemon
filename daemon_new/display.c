@@ -22,11 +22,12 @@ See GPLv3.htm in the main folder for details.
 	uint8_t displayI2c_7seg_bottom;		//SegDPin
 	uint8_t displayI2c_7seg_period;		//SegDPPin
 
-
+	uint8_t displayPercentToShow=0;
+	char* displaytextToshow;
+	uint16_t displayPictureToShow[9];
 
 void displayClear(){
-	SPIAtmelWrite(SPI_MODE_DISPLAY_CLEAR);
-	getValidResultOrReset();
+	virtualSpiAtmelSetNewMode(SPI_MODE_DISPLAY_CLEAR);
 }
 
 void displayFill(){
@@ -44,48 +45,30 @@ void displayFill(){
 
 void displayShowText(char* text){
 	if (atmelGetDebug2()) {printf("--->atmelShowText\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_TEXT);
-	uint8_t len = strlen(text);
-	SPIAtmelWrite(len);
-	uint8_t i;
-	for(i=0;i<len;i++){
-		SPIAtmelWrite(text[i]);
-	}
-	SPIAtmelWrite(0x00);
-	getValidResultOrResetAdditionalValid(SPI_Error_Text_Invalid);
+	displaytextToshow=text;
+	virtualSpiAtmelSetNewMode(SPI_MODE_DISPLAY_TEXT);
 }
 
 void displayShowPercent(uint8_t percent){
 	if (atmelGetDebug2()) {printf("--->atmelShowPercent\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_PERCENT);
-	SPIAtmelWrite(percent);
-	getValidResultOrReset();
+	displayPercentToShow=percent;
+	virtualSpiAtmelSetNewMode(SPI_MODE_DISPLAY_PERCENT);
 }
 
 void displayShowPicture(uint16_t* picture){
+	int i=0;
 	if (atmelGetDebug2()) {printf("--->atmelShowPicture\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_PICTURE);
-	uint8_t i=0;
-	for(; i<9;++i){
-		SPIAtmelWrite((picture[i] >> 8) & 0xFF);
-		SPIAtmelWrite(picture[i] & 0xFF);
+	for(i=0; i<9;++i){
+		displayPictureToShow[i]=picture[i];
 	}
-	SPIAtmelWrite(0x00);
-	getValidResultOrResetAdditionalValid(SPI_Error_Picture_Invalid);
+	virtualSpiAtmelSetNewMode(SPI_MODE_DISPLAY_PICTURE);
 }
 
 void displaySPI_Error_Picture_InvalidShowPercentText(uint8_t percent, char* text){
 	if (atmelGetDebug2()) {printf("--->atmelShowPercentText\n");}
-	SPIAtmelWrite(SPI_MODE_DISPLAY_PERCENT_TEXT);
-	SPIAtmelWrite(percent);
-	uint8_t len = strlen(text);
-	SPIAtmelWrite(len);
-	uint8_t i;
-	for(i=0;i<len;i++){
-		SPIAtmelWrite(text[i]);
-	}
-	SPIAtmelWrite(0x00);
-	getValidResultOrResetAdditionalValid(SPI_Error_Text_Invalid);
+	displayPercentToShow=percent;
+	strcpy(displaytextToshow,text);
+	virtualSpiAtmelSetNewMode(SPI_MODE_DISPLAY_PERCENT_TEXT);
 }
 
 /** @brief display a char on 7 segment
@@ -340,7 +323,16 @@ uint8_t displayGetI2c_7seg_bottom(){
 uint8_t displayGetI2c_7seg_period(){
 	return displayI2c_7seg_period;
 }			
-	
+uint8_t displayGetPercentToShow(){
+	return displayPercentToShow;
+}
+char* displayGetTextToShow(){
+	return displaytextToshow;
+}
+uint16_t* displayGetPictureToShow(){
+	return displayPictureToShow;
+}
+
 void displaySetI2c_7seg_top(uint8_t set){
 	displayI2c_7seg_top=set;
 }

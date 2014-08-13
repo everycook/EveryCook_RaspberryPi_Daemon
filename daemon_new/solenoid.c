@@ -37,25 +37,11 @@ void solenoidSetOpen(bool open){
 		} else {
 			if (daemonGetRunningModeSimulationMode() || daemonGetSettingsDebug3_enabled()){printf("setSolonoidOpen: old: %d, new: %d\n",solenoid.solenoidOpen, open);}
 			if (!daemonGetRunningModeSimulationMode()){
-				atmelSetSolenoidOpen(open);
 			}
 		}
 		solenoid.solenoidOpen = open;
 	}
 }
-
-void atmelSetSolenoidOpen(bool open){
-	if (atmelGetDebug2()) {printf("--->atmelSetSolenoidOpen\n");}
-	SPIAtmelWrite(SPI_MODE_VENTIL);
-	if(open){
-		SPIAtmelWrite(0x01);
-	} else{
-		SPIAtmelWrite(0x00);
-	}
-	getValidResultOrReset();
-}
-
-
 // Set function
 void solenoidSetI2cOpen(uint16_t i2c0pen){
 	solenoid.i2c_solenoid_open=i2c0pen;
@@ -69,4 +55,7 @@ uint16_t solenoidGetI2cOpen(){
 }
 uint16_t solenoidGetI2cClosed(){
 	return solenoid.i2c_solenoid_closed;
+}
+uint8_t solenoidGetOpen(){
+	return solenoid.solenoidOpen;
 }

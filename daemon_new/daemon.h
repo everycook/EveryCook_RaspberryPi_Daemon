@@ -130,3 +130,6 @@ void daemonSetTimeValuesStepEndTime(uint32_t step);
 void daemonSetStateDelay(uint32_t delay);
 void daemonSetTimeValuesRunTime(uint32_t runtime);
 void daemonSetTimeValuesRunTimeMillis(uint32_t runtimemillis);
+void daemonSetStateLidClosed(bool stateLidClosed);
+void daemonSetStateLidLocked(bool stateLidLocked);
+void daemonSetStatePusherLocked(bool statePusherLocked);

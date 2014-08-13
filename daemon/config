@@ -1,6 +1,6 @@
 #configuration file for the EveryCook_RaspberryPi_Daemon
 #lines starting with a # are comments
-shieldVersion=2
+shieldVersion=4
 
 weightReachedMultiplier=0.95
 
