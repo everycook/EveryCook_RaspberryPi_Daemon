@@ -1,2 +1,5 @@
 daemon/ecdaemon
 daemon/*.o
+daemon_new/ecdaemon
+daemon_new/*.o
+daemon_new/*.gch
