@@ -3895,6 +3895,7 @@ void testInductionPrintf(){
 	}else{
 		printf("\nThe error is %s",heaterGetStatusErrorMsg());
 	}
+	printf("The temperatur of the transistor is %d",heaterGetTempTrans());
 }
 void testSDisplayPrintf(){
 	printf("\nthe Shield version is %d",daemonGetSettingsShieldVersion());
@@ -4002,9 +4003,10 @@ void testSDisplayPrintf(){
 	}
 }
 void testFanPrintf(){
-	//fantemp=
-	printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",fanPwm);
-	printf("\nThe temperature of the transistor is %d",fantemp);
+	printf("\nThe temperatur of the transistor is %d",heaterGetTempTrans());
+	printf("\nPWM of fan is %d",heaterGetFanPWM());
+	//printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",fanPwm);
+	//printf("\nThe temperature of the transistor is %d",fantemp);
 }
 void testMotorPrintf(){
 	motorRPMTrued=motorGetRPMTrue();

@@ -44,6 +44,7 @@ pthread_t threadHeaterLedReader;
 
 uint8_t heaterPWMTrue=0;
 uint8_t heaterTempTrans=0;
+uint8_t heaterFanPWM=24;
 
 //Public function
 bool heaterOn(){//HeatOn
@@ -867,6 +868,9 @@ void heaterSetPWMTrue(uint8_t pwm){
 void heaterSetTempTrans(uint8_t tempTrans){
 	heaterTempTrans=tempTrans;
 }
+void heaterSetFanPWM(uint8_t fanpwm){
+	heaterFanPWM=fanpwm;
+}
 // Get function
 char* heaterGetStatusErrorMsg(){
 	return heaterStatus.errorMsg;
@@ -901,5 +905,7 @@ uint8_t heaterGetPWMTrue(){
 uint8_t heaterGetTempTrans(){
 	return heaterTempTrans;
 }
-
+uint8_t heaterGetFanPWM(){
+	return heaterFanPWM;
+}
 

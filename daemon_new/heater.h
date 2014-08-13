@@ -99,6 +99,7 @@ void heaterSetHourCounter(uint32_t hourcounter);
 void heaterSetStatusLedValuesI(uint8_t i,uint32_t ledvalues);
 void heaterSetPWMTrue(uint8_t pwm);
 void heaterSetTempTrans(uint8_t tempTrans);
+void heaterSetFanPWM(uint8_t pwm);
 // Get function
 char* heaterGetStatusErrorMsg();
 bool heaterGetStatusIsOn();
@@ -111,4 +112,5 @@ bool heaterGetPowerStatus();
 uint32_t heaterGetHourCounter();
 uint8_t heaterGetPWMTrue();
 uint8_t heaterGetTempTrans();
+uint8_t heaterGetFanPWM();
 #endif /*----HEATER_H_-----*/
