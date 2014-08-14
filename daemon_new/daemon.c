@@ -112,6 +112,7 @@ pthread_t threadHandleButtons;
 #define TEST_INDUCTION 8
 #define TEST_MOTOR 9
 #define TEST_WEIGHT 10
+#define TEST_SPEAKER 11
 
 #define WIDHTCOLUMN 10
 pthread_t readInput;// thread that read input on keyboard
@@ -131,6 +132,7 @@ void testSDisplayPrintf();
 void testFanPrintf();
 void testMotorPrintf();
 void testWeightPrintf();
+void testSpeakerPrintf();
 
 char * modeNom = "mode test"; //name of the mode for the display
 int modeNum = 0; //number of mode for the switch
@@ -3429,6 +3431,9 @@ int newModeMain(){
 			case TEST_WEIGHT  :
 				testWeightPrintf();
 			break;
+			case TEST_SPEAKER  :
+				testSpeakerPrintf();
+			break;
 			default :
 				printf("ERROR = No modeNum");
 			break;
@@ -3468,13 +3473,28 @@ void *readInputFunction(void *ptr){
             break;
         case 'b' :
         case 'B' :
-			modeNom="test bouton";
+			modeNom="test button";
 			modeNum=TEST_BOUTON;
+            break;
+        case 's' :
+        case 'S' :
+			modeNom="test speaker";
+			modeNum=TEST_SPEAKER;
             break;
         case 'd' :
         case 'D' :
-			modeNom="test display";
-			modeNum=TEST_DISPLAY;
+			if(modeNum==TEST_SPEAKER){
+				speakerLanguageDeutsch();
+			}else{
+				modeNom="test display";
+				modeNum=TEST_DISPLAY;
+			}
+            break;
+        case 'e' :
+        case 'E' :
+			if(modeNum==TEST_SPEAKER){
+				speakerLanguageEnglish();
+			}
             break;
         case 'q' :
         case 'Q' :
@@ -3483,8 +3503,12 @@ void *readInputFunction(void *ptr){
             break;
 		case 'f' :
         case 'F' :
-			modeNom="test fan";
-			modeNum=TEST_FAN;
+			if(modeNum==TEST_SPEAKER){
+				speakerLanguageFrancais();
+			}else{
+				modeNom="test fan";
+				modeNum=TEST_FAN;
+			}
 			break;
 		case 'i' :
         case 'I' :
@@ -3709,6 +3733,13 @@ void *readInputFunction(void *ptr){
 					writeI2CPin(i2c_config.i2c_servo, solenoidPwm);
 					solenoidIsOpen=true;
 					break;
+				case TEST_SPEAKER :
+					if(isNumber==1){
+						speakerSpeakLanguage("slowly");
+					}else if(isNumber==2){
+						speakerSpeakLanguage("stop");
+					}
+					break;
 				default :
 				break;
 			}
@@ -3720,8 +3751,9 @@ void *readInputFunction(void *ptr){
 
 void helpPrintf(){
 	printf("\nMode enable :");
+	printf("\ns : test speaker");
 	printf("\nt : test temp/press");
-	printf("\nb : test bouton");
+	printf("\nb : test button");
 	printf("\nd : test display");
 	printf("\nf : test fan");
 	printf("\ni : test induction");
@@ -3803,6 +3835,7 @@ void testTempPressPrintf(){
 	}else{
 		printf("\nThe heater is not running, press 'y' to activate. (y)");
 	}
+	printf("\nPress 't' to reset the valuz (t)");
 	printf("\n_____________________________________________________");
 	printf("\n  Value :PressInput| PressPasc| TempInput|  TempDeg |");
 	
@@ -3885,7 +3918,7 @@ void testInductionPrintf(){
 	}else{
 		printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",inductionPwm);
 	}
-	if(inductionIsRunning){
+	if(heaterGetStatusIsOn()){
 		printf("\nThe heater is running and the PWM is %d",heaterGetPWMTrue());
 	}else{
 		printf("\nThe heater is not running");
@@ -3895,7 +3928,11 @@ void testInductionPrintf(){
 	}else{
 		printf("\nThe error is %s",heaterGetStatusErrorMsg());
 	}
+<<<<<<< HEAD
+	printf("\nThe temperatur of the transistor is %d",heaterGetTempTrans());
+=======
 	printf("The temperatur of the transistor is %d",heaterGetTempTrans());
+>>>>>>> 80353c2ba80b504c085b4a855f644ad93c205d06
 }
 void testSDisplayPrintf(){
 	printf("\nthe Shield version is %d",daemonGetSettingsShieldVersion());
@@ -4003,7 +4040,11 @@ void testSDisplayPrintf(){
 	}
 }
 void testFanPrintf(){
+<<<<<<< HEAD
+	printf("\nThe temperature of the transistor is %d",heaterGetTempTrans());
+=======
 	printf("\nThe temperatur of the transistor is %d",heaterGetTempTrans());
+>>>>>>> 80353c2ba80b504c085b4a855f644ad93c205d06
 	printf("\nPWM of fan is %d",heaterGetFanPWM());
 	//printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",fanPwm);
 	//printf("\nThe temperature of the transistor is %d",fantemp);
@@ -4112,6 +4153,8 @@ void testWeightPrintf(){
 		tabWeightData.avg.averageG=newWeightData.averageG+tabWeightData.avg.averageG;
 	}
 	tabWeightData.nbData++;
+	printf("\nPress 'w' to reset the valuz (w)");
+	printf("\n__________________________________________________________________________");
 	printf("\n Sensor :  FrontL  |  FrontR  |   BackL  |   BackR  |  Average | Average/G|");
 	
 	printf("\n  Max   :");
@@ -4135,7 +4178,13 @@ void testWeightPrintf(){
 		}
 	}
 }
-
+void testSpeakerPrintf(){
+	printf("\nFrancais : f           Currente language : %s",speakerCurrentLabguage());
+	printf("\nEnglish  : e");   
+	printf("\nDeutsch  : d");
+	printf("\nPress 1 to say 'slowly' in %s",speakerCurrentLabguage()); 
+	printf("\nPress 2 to say 'stop' in %s",speakerCurrentLabguage()); 
+}
 void  printColumnVAr( uint16_t widthColumn, uint16_t nbColumn,...){
 	va_list ap;
 	int i;

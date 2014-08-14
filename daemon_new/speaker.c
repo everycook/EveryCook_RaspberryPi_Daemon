@@ -14,10 +14,55 @@ See GPLv3.htm in the main folder for details.
 */
 #include "speaker.h"
 
-/** @brief fonction wich speaks
- *  @param *ptr : text that is spoken
-*/
-void *speakThreadFunc(void *ptr);
+#define FRANCAIS 1
+#define ENGLISH	 2
+#define DEUTSCH	 3
+
+int language = ENGLISH;
+char * sounds="/home/pi/codes/sounds/";
+
+void speakerSpeakLanguage(char * text){
+	char command[400];
+	switch (language) {
+		case FRANCAIS :
+			sprintf(command, "mpg123 -q %sfr%s.mp3",sounds, text);
+		break;
+		case ENGLISH :
+			sprintf(command, "mpg123 -q %sen%s.mp3",sounds, text);
+		break;
+		case DEUTSCH :
+			sprintf(command, "mpg123 -q %sde%s.mp3",sounds, text);
+		break;
+	}
+	system(command);
+}
+void speakerLanguageFrancais(){
+	language=FRANCAIS;
+}
+void speakerLanguageEnglish(){
+	language=ENGLISH;
+}
+void speakerLanguageDeutsch(){
+	language=DEUTSCH;
+}
+char* speakerCurrentLabguage(){
+	char* currentLanguage;
+	switch (language) {
+		case FRANCAIS :
+			currentLanguage="francais";
+		break;
+		case ENGLISH :
+			currentLanguage="english";
+		break;
+		case DEUTSCH :
+			currentLanguage="deutsch";
+		break;
+		default :
+			currentLanguage="no language";
+		break;
+	}
+	return currentLanguage;
+}
 
 void speakerSpeak(char* text){
 /*
@@ -35,6 +80,12 @@ void speakerSpeak(char* text){
 	//pthread_create(&threadSpeak, NULL, speakThreadFunc, (void *) textpointer);
 	//pthread_join(threadSpeak, NULL);
 }
+
+/** @brief fonction wich speaks
+ *  @param *ptr : text that is spoken
+*/
+void *speakThreadFunc(void *ptr);
+
 
 void *speakThreadFunc(void *ptr){
 	char* text = (char *) ptr;

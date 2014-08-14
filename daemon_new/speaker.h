@@ -31,4 +31,9 @@ See GPLv3.htm in the main folder for details.
 */
 void speakerSpeak(char* text);
 
+void speakerSpeakLanguage(char * text);
+void speakerLanguageFrancais();
+void speakerLanguageEnglish();
+void speakerLanguageDeutsch();
+char* speakerCurrentLabguage();
 #endif /*----SPEAKER_H_-----*/
