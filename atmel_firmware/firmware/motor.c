@@ -46,7 +46,15 @@ void Motor_init(){
 	//Set Phase-Correct PWM mode for OC1A / OC1B 8bit mode 		//ATmega_644.pdf, Page 127
 	TCCR1A |= _BV(WGM10);
 	//Set prescaling 64, this enable the timer //Set it to 64 because of time messurement in time.c (other values are also possible, you must call "initTime();" after change this)
-	TCCR1B |= _BV(CS11) | _BV(CS10);
+	//TCCR1B |= _BV(CS11) | _BV(CS10);
+	
+	//TCCR1B |= _BV(CS11) | _BV(CS10) | _BV(CS12) ; //=18 Hz
+	//TCCR1B |= _BV(CS11) | _BV(CS10)  ; //=245 Hz
+	//TCCR1B |= _BV(CS11)  ; //=1.9kHz
+	//TCCR1B |= _BV(CS10) | _BV(CS12)  ; //=18 Hz
+	//TCCR1B |= _BV(CS11) | _BV(CS12)  ; //=18 Hz
+	TCCR1B |= _BV(CS10) ; //=685Hz
+	
 		
 	sei();
 	
