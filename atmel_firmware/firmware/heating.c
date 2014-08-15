@@ -81,18 +81,10 @@ void Heating_init(){
 	//Set Phase-Correct PWM mode for OC2A / OC2B 		//ATmega_644.pdf, Page 148
 	TCCR2A |= _BV(WGM20);
 	//Set prescaling 64, this enable the timer
-	TCCR2B |= _BV(CS21);
+	TCCR2B |= _BV(CS10) | _BV(CS20);
 	
 	sei();
-	/*
-	//time test hack
-	while(1){
-	digitalWrite(IHOn,HIGH);
-	_delay_ms(1);
-	digitalWrite(IHOn,LOW);
-	}
-	//end time test hack
-	*/
+	
 }
 
 
@@ -135,8 +127,8 @@ void Heating_heatControl(){
 			if (currentMillis - lastPulseTime>HEATING_PULSE_INTERVAL){
 				outputValueIH+=Increment;
 				
-				if (outputValueIH>255){
-					outputValueIH = 255;
+				if (outputValueIH>80){
+					outputValueIH = 80;
 				}
 				/*
 				if (outputValueIH>100){
@@ -156,7 +148,7 @@ void Heating_heatControl(){
 		_delay_ms(20);
 		digitalWrite(IHOff,LOW);
 		*/
-		outputValueIH = 0;
+		outputValueIH = 1;
 		analogWrite(IHPowerPWM_TIMER, outputValueIH);
 	}
 	lastIsHeating=isHeating;

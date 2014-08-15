@@ -53,8 +53,11 @@ void Motor_init(){
 	//TCCR1B |= _BV(CS11)  ; //=1.9kHz
 	//TCCR1B |= _BV(CS10) | _BV(CS12)  ; //=18 Hz
 	//TCCR1B |= _BV(CS11) | _BV(CS12)  ; //=18 Hz
-	TCCR1B |= _BV(CS10) ; //=685Hz
-	
+	//TCCR1B |= _BV(CS10) ; //=685Hz
+	//TCCR1B |= _BV(CS10) | _BV(CS21)  ; //=245 Hz
+	TCCR1B |= _BV(CS10) | _BV(CS20) ; //=685 Hz
+	//TCCR1B |= _BV(CS10) | _BV(CS20) | _BV(CS22) ; //=16 Hz
+	//TCCR1B |= _BV(CS10) | _BV(CS02) ; //=16 Hz
 		
 	sei();
 	
