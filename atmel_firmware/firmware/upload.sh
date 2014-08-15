@@ -3,6 +3,8 @@ if [ -e "$file" ] && [ -s "$file" ]
 then
   sudo /etc/init.d/ecdaemon stop
   stopDeamonStatus=$?
+  killall ecdaemon -9
+  killall ecdaemon -9
   gpio -g mode 17 out
   gpio -g write 17 1
   sudo avrdude -F -V -c gpio -p m644 -P gpio -b 57600 -U flash:w:$file
