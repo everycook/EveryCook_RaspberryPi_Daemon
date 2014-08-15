@@ -20,29 +20,38 @@ See GPLv3.htm in the main folder for details.
 #include "virtualspi.h"
 
 uint8_t Data[10];
+uint32_t selectedShieldVersion;
 
 /*******************PI Driver Code**********************/
 /** @brief VirtualSPIInit
+ *  @param shieldVersion:the configured shield Version
  */
-void VirtualSPIInit(void){
+void VirtualSPIInit(uint32_t shieldVersion){
 	wiringPiSetupGpio();
+	selectedShieldVersion = shieldVersion;
 	
 	pinMode(MOSI, OUTPUT);
 	pinMode(MISO, INPUT);
 	pinMode(SCLK, OUTPUT);
-//	pinMode(CS, OUTPUT);
+	if (selectedShieldVersion < 4){
+		pinMode(CS, OUTPUT);
+	}
 	delay(30);
 }
 
 /** @brief SPIReset: Reset the AD7794 chip, write 4 0xff.
  */
 void SPIReset(void){
-//	digitalWrite(CS, LOW);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, LOW);
+	}
 	SPIWrite(0xff);
 	SPIWrite(0xff);
 	SPIWrite(0xff);
 	SPIWrite(0xff);
-//	digitalWrite(CS, HIGH);	
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, HIGH);
+	}
 }
 
 /** @brief SPIWrite: Write one byte data to the register in AD7794
@@ -88,10 +97,14 @@ uint8_t SPIRead(void){
  * 
  */
 void SPIWriteByte(uint8_t reg, uint8_t data){
-//	digitalWrite(CS, LOW);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, LOW);
+	}
 	SPIWrite(reg);
 	SPIWrite(data);
-//	digitalWrite(CS, HIGH);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, HIGH);
+	}
 }
 
 /** @brief SPIWrite2Bytes: Wirte one byte to denstination register. 
@@ -99,11 +112,15 @@ void SPIWriteByte(uint8_t reg, uint8_t data){
  *  @param data
  */
 void SPIWrite2Bytes(uint8_t reg, uint32_t data){
-//	digitalWrite(CS, LOW);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, LOW);
+	}
 	SPIWrite(reg);
 	SPIWrite((data>>8)&0xff);
 	SPIWrite(data&0xff);
-//	digitalWrite(CS, HIGH);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, HIGH);
+	}
 }
 
 /** @brief Get one byte from denstination register.
@@ -113,10 +130,14 @@ void SPIWrite2Bytes(uint8_t reg, uint32_t data){
 uint8_t SPIReadByte(uint8_t reg){
 	uint8_t data;
 
-//	digitalWrite(CS, LOW);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, LOW);
+	}
 	SPIWrite(reg);
 	data = SPIRead();
-//	digitalWrite(CS, HIGH);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, HIGH);
+	}
 
 	return data;
 }
@@ -128,11 +149,15 @@ uint8_t SPIReadByte(uint8_t reg){
 uint32_t SPIRead2Bytes(uint8_t reg){
 	uint32_t data;
 
-//	digitalWrite(CS, LOW);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, LOW);
+	}
 	SPIWrite(reg);
 	data = SPIRead();
 	data = (data << 8)| SPIRead();
-//	digitalWrite(CS, HIGH);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, HIGH);
+	}
 	
 	return data;
 }
@@ -144,12 +169,16 @@ uint32_t SPIRead2Bytes(uint8_t reg){
 uint32_t SPIRead3Bytes(uint8_t reg){
 	uint32_t data;
 
-//	digitalWrite(CS, LOW);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, LOW);
+	}
 	SPIWrite(reg);
 	data = SPIRead();
 	data = (data << 8)| SPIRead();
 	data = (data << 8)| SPIRead();
-//	digitalWrite(CS, HIGH);
+	if (selectedShieldVersion < 4){
+		digitalWrite(CS, HIGH);
+	}
 
 	return data;
 }

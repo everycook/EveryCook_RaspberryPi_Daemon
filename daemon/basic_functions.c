@@ -80,7 +80,7 @@ void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonIn
 		InverseButtons = &buttonInverse[0];
 	}
 	if (!use_spi_dev){
-		VirtualSPIInit();
+		VirtualSPIInit(shieldVersion);
 	}
 	VirtualI2CInit();
 	GPIOInit();
