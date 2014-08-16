@@ -21,7 +21,7 @@ See GPLv3.htm in the main folder for details.
 #define MOSI	10
 #define MISO	9
 #define SCLK	11
-//CS is fix set to ground=>selected since ShieldVersion 2
+//CS is fix set to ground=>selected since ShieldVersion 3
 #define CS	8
 /*
 //Pin defination for the SPI (physics numbers)

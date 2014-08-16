@@ -29,7 +29,6 @@ uint32_t selectedShieldVersion;
 void VirtualSPIInit(uint32_t shieldVersion){
 	wiringPiSetupGpio();
 	selectedShieldVersion = shieldVersion;
-	
 	pinMode(MOSI, OUTPUT);
 	pinMode(MISO, INPUT);
 	pinMode(SCLK, OUTPUT);

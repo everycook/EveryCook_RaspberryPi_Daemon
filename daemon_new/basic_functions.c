@@ -16,7 +16,6 @@ See GPLv3.htm in the main folder for details.
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-//#include <math.h>
 
 #include <softPwm.h>
 #include <wiringPi.h>
