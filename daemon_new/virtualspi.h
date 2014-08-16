@@ -66,8 +66,9 @@ extern uint32_t SPIRead3Bytes(uint8_t register);
 
 //virtualSPI function delaration
 /** @brief VirtualSPIInit
+ *  @param shieldVersion:the configured shield Version
  */
-void VirtualSPIInit(void);
+void VirtualSPIInit(uint32_t shieldVersion);
 /** @brief SPIReset: Reset the AD7794 chip, write 4 0xff.
  */
 void SPIReset(void);

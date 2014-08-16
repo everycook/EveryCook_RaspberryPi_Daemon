@@ -80,7 +80,7 @@ void initHardware(uint32_t shieldVersion, uint8_t* buttonPins, uint8_t* buttonIn
 		InverseButtons = &buttonInverse[0];
 	}
 	if (!use_spi_dev){
-		VirtualSPIInit();
+		VirtualSPIInit(shieldVersion);
 	}
 	VirtualI2CInit();
 	GPIOInit();
@@ -207,7 +207,7 @@ uint32_t readADC(uint8_t i){
 		while (!readyToRead){//wait until the transmition is ready
 			if (ad7794_check_if_ready(&adc)){//if ready
 				readyToRead = true;
-			} else { //if not ready wait
+			} else {//not ready wait
 				delay(5);
 			}
 		}
