@@ -22,6 +22,7 @@ int language = ENGLISH;
 char * sounds="/home/pi/codes/sounds/";
 
 void speakerSpeakLanguage(char * text){
+	int result;
 	char command[400];
 	switch (language) {
 		case FRANCAIS :
@@ -34,7 +35,21 @@ void speakerSpeakLanguage(char * text){
 			sprintf(command, "mpg123 -q %sde%s.mp3",sounds, text);
 		break;
 	}
-	system(command);
+	result=system(command);
+	if(result!=0){
+		switch (language) {
+			case FRANCAIS :
+				sprintf(command, "mpg123 -q %sfrmp3filedoesnotexist.mp3",sounds);
+			break;
+			case ENGLISH :
+				sprintf(command, "mpg123 -q %senmp3filedoesnotexist.mp3",sounds);
+			break;
+			case DEUTSCH :
+				sprintf(command, "mpg123 -q %sdemp3filedoesnotexist.mp3",sounds);
+			break;
+		}
+		system(command);
+	}
 }
 void speakerLanguageFrancais(){
 	language=FRANCAIS;

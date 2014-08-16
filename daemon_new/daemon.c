@@ -96,6 +96,7 @@ struct HourCounter hourCounter = {"HCV\0", 0.0, 0.0, 0.0};
 struct Button_Config buttonConfig = {{17,27,22},{0,0,0}};
 struct Button_Values buttonValues;
 
+bool weightSlowly=false;
 
 pthread_t threadReadADCValues;
 pthread_t threadHandleButtons;
@@ -2167,10 +2168,16 @@ void ScaleFunction(){
 					state.weightPercent = (uint8_t) percent;
 				}
 			}
+			if(state.weightPercent>180 && !weightSlowly){
+				speakerSpeakLanguage("slowly");
+				weightSlowly=true;
+			}
 			if (currentCommandValues.weight>=(newCommandValues.weight*settings.weightReachedMultiplier)) {//If we have reached the required mass
 				if (daemonGetCurrentCommandValuesMode() != MODE_WEIGHT_REACHED){
 					if(settings.BeepWeightReached > 0){
-						beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+settings.BeepWeightReached);
+						speakerSpeakLanguage("stop");
+						weightSlowly=false;
+						//beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+settings.BeepWeightReached);
 					}
 					if (daemonGetSettingsDebug_enabled() || daemonGetSettingsDebug3_enabled()){printf("\tweight reached!\n");}
 				} else {
@@ -3572,6 +3579,9 @@ void *readInputFunction(void *ptr){
 					heaterOff();
 					inductionIsRunning=false;
 				break;
+				case TEST_SPEAKER :
+					speakerSpeakLanguage("blalbal");
+				break;
 				default :
 				break;
 			}
@@ -4176,6 +4186,7 @@ void testSpeakerPrintf(){
 	printf("\nFrancais : f           Currente language : %s",speakerCurrentLabguage());
 	printf("\nEnglish  : e");   
 	printf("\nDeutsch  : d");
+	printf("\nPress n to make error in %s",speakerCurrentLabguage()); 
 	printf("\nPress 1 to say 'slowly' in %s",speakerCurrentLabguage()); 
 	printf("\nPress 2 to say 'stop' in %s",speakerCurrentLabguage()); 
 }
