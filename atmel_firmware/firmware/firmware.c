@@ -48,7 +48,7 @@ avrdude -F -V -c gpio -p m644p -P gpio -b 57600 -U flash:w:input.hex
 #define SPI_MODE_GET_MOTOR_POS_SENSOR		15
 #define SPI_MODE_GET_MOTOR_RPM				16
 #define SPI_MODE_GET_FAN_PWM				17
-
+#define SPI_MODE_GET_DEBUG					18
 
 //struct pinInfo PIN_RaspiReset = PA_0; //out 1 to remove power
 //struct pinInfo PIN_IHTempSensor = PA_1; //Analog
@@ -148,7 +148,7 @@ int main (void)
 //	pinMode(PIN_MotorPWM, OUTPUT/*_PWM*/);
 //	pinMode(PIN_IHPowerPWM, OUTPUT/*_PWM*/);
 //	pinMode(PIN_IHFanPWM, OUTPUT/*_PWM*/);
-	
+	Vdebug=0;
 	Motor_init();
 	Heating_init();
 	
@@ -258,6 +258,9 @@ int main (void)
 					wdt_reset();
 					Heating_setHeating(data);
 					nextResponse = SPI_CommandOK;
+				break;
+				case SPI_MODE_GET_DEBUG:
+					nextResponse = Vdebug;
 				break;
 				case SPI_MODE_VENTIL:
 					VentilState = readSPI(true);
