@@ -1,3 +1,7 @@
+killall ecdaemon -9
+killall ecdaemon -9
+sleep 1
+echo "daemon killed, setting fuses"
 gpio -g mode 17 out
 gpio -g write 17 1
 sleep 0.5
