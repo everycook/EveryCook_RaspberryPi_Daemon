@@ -55,7 +55,7 @@ avrdude -F -V -c gpio -p m644p -P gpio -b 57600 -U flash:w:input.hex
 //struct pinInfo PIN_MotorPosSensor = PA_2; //in		//Status Bit 6
 struct pinInfo PIN_Ventil = PA_3; //out
 //struct pinInfo PIN_SafetyChain = PA_4; //out 1 to power
-struct pinInfo PIN_PusherLocked = PD_3; //in		//Status Bit 3
+struct pinInfo PIN_PusherLocked = PA_5; //in		//Status Bit 3
 struct pinInfo PIN_LidLocked = PA_6; //in			//Status Bit 2
 struct pinInfo PIN_LidClosed = PA_7; //in			//Status Bit 1
 
@@ -261,7 +261,6 @@ int main (void)
 					nextResponse = SPI_CommandOK;
 				break;
 				case SPI_MODE_GET_DEBUG:
-					Vdebug=StatusByte;
 					nextResponse = Vdebug;
 				break;
 				case SPI_MODE_VENTIL:

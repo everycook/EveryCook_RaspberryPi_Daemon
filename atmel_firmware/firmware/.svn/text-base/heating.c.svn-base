@@ -9,7 +9,7 @@
 struct pinInfo IHTempSensor = PA_1; //Analog
 
 //struct pinInfo IHOff = PB_4; //out, not connected/needed
-struct pinInfo isIHOn = PA_5; //in
+struct pinInfo isIHOn = PD_3; //in
 struct pinInfo IHOn = PD_4; //out
 struct pinInfo IHPowerPWM = PD_6; //pwm	//OC2B
 struct pinInfo IHFanPWM = PD_7; //pwm	//OC2A
@@ -69,8 +69,6 @@ void Heating_init(){
 	//Set Pin Modes
 	pinMode(IHTempSensor, INPUT/*_ANALOG*/);
 //	pinMode(IHOff, OUTPUT);
-	pinMode(isIHOn, OUTPUT);
-	digitalWrite(isIHOn,HIGH);
 	pinMode(isIHOn, INPUT_PULLUP);
 	pinMode(IHOn, OUTPUT);
 	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
@@ -155,7 +153,6 @@ void Heating_heatControl(){
 		analogWrite(IHPowerPWM_TIMER, outputValueIH);
 	}
 	lastIsHeating=isHeating;
-	Vdebug=isHeating;
 	if (isHeating){
 		StatusByte |= _BV(SB_isIHOn);
 	} else {

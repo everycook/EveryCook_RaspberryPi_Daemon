@@ -1,0 +1,341 @@
+K 25
+svn:wc:ra_dav:version-url
+V 86
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/148/trunk/atmel_firmware/firmware
+END
+compile.sh
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/firmware/compile.sh
+END
+firmware.h
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/157/trunk/atmel_firmware/firmware/firmware.h
+END
+upload.sh_sich
+K 25
+svn:wc:ra_dav:version-url
+V 101
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/firmware/upload.sh_sich
+END
+status.c
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/status.c
+END
+firmware.o
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/firmware.o
+END
+status.h
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/status.h
+END
+Charliplexing.c
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/Charliplexing.c
+END
+time.c
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/time.c
+END
+Charliplexing.h
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/Charliplexing.h
+END
+status.o
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/status.o
+END
+SmallFont.c
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/SmallFont.c
+END
+.upload.sh_old.swp
+K 25
+svn:wc:ra_dav:version-url
+V 105
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/.upload.sh_old.swp
+END
+motor.c
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/148/trunk/atmel_firmware/firmware/motor.c
+END
+watchdog.c
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/watchdog.c
+END
+compile_firmware++.sh
+K 25
+svn:wc:ra_dav:version-url
+V 108
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/firmware/compile_firmware++.sh
+END
+time.h
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/time.h
+END
+DisplayHandler.c
+K 25
+svn:wc:ra_dav:version-url
+V 103
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/DisplayHandler.c
+END
+FontHandler.c
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/FontHandler.c
+END
+SmallFont.h
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/SmallFont.h
+END
+watchdog.h
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/watchdog.h
+END
+motor.h
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/motor.h
+END
+Charliplexing.o
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/141/trunk/atmel_firmware/firmware/Charliplexing.o
+END
+communication.c
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/communication.c
+END
+DisplayHandler.h
+K 25
+svn:wc:ra_dav:version-url
+V 103
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/DisplayHandler.h
+END
+FontHandler.h
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/FontHandler.h
+END
+time.o
+K 25
+svn:wc:ra_dav:version-url
+V 93
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/time.o
+END
+reset.sh
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/reset.sh
+END
+communication.h
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/communication.h
+END
+SmallFont.o
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/SmallFont.o
+END
+upload.sh
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/147/trunk/atmel_firmware/firmware/upload.sh
+END
+motor.o
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/motor.o
+END
+watchdog.o
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/watchdog.o
+END
+mytypes.h
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/mytypes.h
+END
+heating.c
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/158/trunk/atmel_firmware/firmware/heating.c
+END
+DisplayHandler.o
+K 25
+svn:wc:ra_dav:version-url
+V 103
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/DisplayHandler.o
+END
+NormalFont.c
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/NormalFont.c
+END
+FontHandler.o
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/FontHandler.o
+END
+communication.o
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/communication.o
+END
+heating.h
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/heating.h
+END
+NormalFont.h
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/NormalFont.h
+END
+upload.sh_def_raspi
+K 25
+svn:wc:ra_dav:version-url
+V 106
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/firmware/upload.sh_def_raspi
+END
+setFuses.sh
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/setFuses.sh
+END
+upload.sh_def
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/firmware/upload.sh_def
+END
+firmware
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/firmware
+END
+NormalFont.o
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/NormalFont.o
+END
+heating.o
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/heating.o
+END
+input.c
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/input.c
+END
+FontTypes.h
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/FontTypes.h
+END
+spihandling.c
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/spihandling.c
+END
+Kopie von Charliplexing.c
+K 25
+svn:wc:ra_dav:version-url
+V 116
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/Kopie%20von%20Charliplexing.c
+END
+input.h
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/input.h
+END
+spihandling.h
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/firmware/spihandling.h
+END
+compile++.sh
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/firmware/compile++.sh
+END
+input.o
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/137/trunk/atmel_firmware/firmware/input.o
+END
+firmware.c
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/158/trunk/atmel_firmware/firmware/firmware.c
+END
+firmware.hex
+K 25
+svn:wc:ra_dav:version-url
+V 99
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/142/trunk/atmel_firmware/firmware/firmware.hex
+END
