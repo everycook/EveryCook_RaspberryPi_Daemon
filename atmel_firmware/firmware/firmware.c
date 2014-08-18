@@ -86,6 +86,7 @@ uint8_t PusherLocked = 0;
 uint8_t LidLocked = 0;
 uint8_t LidClosed = 0;
 uint8_t VentilState = 0;
+uint8_t Vdebug=0;
 
 uint8_t currentMode = 0;
 uint8_t lastPercentValue = 0;
@@ -148,7 +149,7 @@ int main (void)
 //	pinMode(PIN_MotorPWM, OUTPUT/*_PWM*/);
 //	pinMode(PIN_IHPowerPWM, OUTPUT/*_PWM*/);
 //	pinMode(PIN_IHFanPWM, OUTPUT/*_PWM*/);
-	Vdebug=0;
+	
 	Motor_init();
 	Heating_init();
 	

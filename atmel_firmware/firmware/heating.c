@@ -5,7 +5,7 @@
 #include "input.h"
 #include "status.h"
 #include "time.h"
-
+#include "firmware.h"
 struct pinInfo IHTempSensor = PA_1; //Analog
 
 //struct pinInfo IHOff = PB_4; //out, not connected/needed
