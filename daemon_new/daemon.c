@@ -3399,6 +3399,7 @@ void *handleButtons(void *ptr){
 }
 //function for the new mode
 int newModeMain(){
+	heaterOff();
 	Vdebug=0;
 	srand(time(NULL));
 	int t=pthread_create(&readInput, NULL, readInputFunction, NULL);
@@ -3408,6 +3409,7 @@ int newModeMain(){
 		system("clear");
 		printf("\n********************************************************************************");
 		printf("\n Help : h  ***** version : %d ***** Mode actuel : %s ***** debug : %d",daemonGetSettingsShieldVersion(),modeNom,Vdebug);
+		//printf("\n SPI comm is %s",daemonGetSettingsShieldVersion(),modeNom,Vdebug);
 		printf("\n********************************************************************************");
 		switch (modeNum){
 			case HELP :
@@ -3509,6 +3511,7 @@ void *readInputFunction(void *ptr){
         case 'Q' :
 			modeNom="quit";
 			modeNum=QUIT;
+			state.running=false;
             break;
 		case 'f' :
         case 'F' :
@@ -3543,9 +3546,7 @@ void *readInputFunction(void *ptr){
 		case 'y' :
         case 'Y' :
 			switch (modeNum){
-				case QUIT :
-					state.running=false;
-				break;
+				
 				case TEST_DISPLAY :
 					displayMode=1;
 					displayFill();

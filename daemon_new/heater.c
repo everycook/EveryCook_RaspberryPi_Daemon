@@ -49,7 +49,6 @@ uint8_t heaterFanPWM=24;
 //Public function
 bool heaterOn(){//HeatOn
 	if(daemonGetSettingsShieldVersion() < 4){
-		//if (daemonGetSettingsDebug_enabled()|| daemonGetRunningModeSimulationMode()){printf("HeatOn, was: %d\n", state->heatPowerStatus);}
 		if (heaterGetPowerStatus() && !heaterGetStatusIsOn()){
 			if (( daemonGetTimeValuesRunTimeMillis() - heaterGetStatusIsOnLastTime()) > 6000){
 				heaterSetPowerStatus(false);
@@ -78,14 +77,20 @@ bool heaterOn(){//HeatOn
 			return false;
 		}
 	} else {
-		if (heaterGetPowerStatus() && !heaterGetStatusIsOn()){
+		//printf("\n==========\nHeat status, was: %d\n", heaterPowerStatus);
+		/*if (heaterGetPowerStatus() && !heaterGetStatusIsOn()){
 			heaterSetPowerStatus(false);
 		}
-
+		*/
 		if (daemonGetAdcConfigRestartingAdc()){
 			return false;
 		}
-
+		if (daemonGetSettingsDebug_enabled()|| daemonGetRunningModeSimulationMode()){printf("HeatOn status was: %d, led is heating: %d\n", heaterGetPowerStatus(), heaterGetStatusIsOn());}
+		if (daemonGetSettingsDebug3_enabled()){printf("-->HeatOn\n");}
+		heaterStartTime = daemonGetTimeValuesRunTime();
+		heaterSetPowerStatus(true);
+		return true;
+		/*
 		if (!heaterGetPowerStatus()) { //if its off
 			if (daemonGetSettingsDebug_enabled()|| daemonGetRunningModeSimulationMode()){printf("HeatOn status was: %d, led is heating: %d\n", heaterGetPowerStatus(), heaterGetStatusIsOn());}
 			if (!daemonGetRunningModeSimulationMode()){
@@ -101,7 +106,7 @@ bool heaterOn(){//HeatOn
 			return true;
 		} else {
 			return false;
-		}
+		}*/
 	}
 }
 
@@ -136,14 +141,19 @@ bool heaterOff(){//HeatOff
 			return false;
 		}
 	} else {
-		if (!heaterGetPowerStatus() && heaterGetStatusIsOn()){
+		/*if (!heaterGetPowerStatus() && heaterGetStatusIsOn()){
 			heaterSetPowerStatus(true);
-		}
+		}*/
 
 		if (daemonGetAdcConfigRestartingAdc()){
 			return false;
 		}
-
+		if (daemonGetSettingsDebug_enabled()|| daemonGetRunningModeSimulationMode()){printf("HeatOff status was: %d, led is heating: %d\n", heaterGetPowerStatus(), heaterGetStatusIsOn());}
+		if (daemonGetSettingsDebug3_enabled()){printf("-->HeatOff\n");}
+		heaterStopTime = daemonGetTimeValuesRunTime();
+		heaterSetPowerStatus(false);
+		return true;
+		/*
 		if (heaterGetPowerStatus()) { //if its on
 			if (daemonGetSettingsDebug_enabled()|| daemonGetRunningModeSimulationMode()){printf("HeatOff status was: %d, led is heating: %d\n", heaterGetPowerStatus(), heaterGetStatusIsOn());}
 			if (!daemonGetRunningModeSimulationMode()){
@@ -159,7 +169,7 @@ bool heaterOff(){//HeatOff
 			return true;
 		} else {
 			return false;
-		}
+		}*/
 	}
 }
 

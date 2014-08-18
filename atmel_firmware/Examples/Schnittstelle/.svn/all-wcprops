@@ -1,0 +1,59 @@
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle
+END
+NormalFont.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 115
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/NormalFont.cpp
+END
+SmallFont.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 114
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/SmallFont.cpp
+END
+FontTypes.h
+K 25
+svn:wc:ra_dav:version-url
+V 112
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/FontTypes.h
+END
+FontHandler.cpp
+K 25
+svn:wc:ra_dav:version-url
+V 116
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/FontHandler.cpp
+END
+NormalFont.h
+K 25
+svn:wc:ra_dav:version-url
+V 113
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/NormalFont.h
+END
+SmallFont.h
+K 25
+svn:wc:ra_dav:version-url
+V 112
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/SmallFont.h
+END
+Schnittstelle.ino
+K 25
+svn:wc:ra_dav:version-url
+V 118
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/Schnittstelle.ino
+END
+FontHandler.h
+K 25
+svn:wc:ra_dav:version-url
+V 114
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/FontHandler.h
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/Examples/Schnittstelle/Makefile
+END

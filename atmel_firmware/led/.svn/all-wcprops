@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/led
+END
+upload.sh_old
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/led/upload.sh_old
+END
+upload.sh
+K 25
+svn:wc:ra_dav:version-url
+V 91
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/led/upload.sh
+END
+echo.c
+K 25
+svn:wc:ra_dav:version-url
+V 88
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/led/echo.c
+END
+compile.sh
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/led/compile.sh
+END
+led.o
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/led/led.o
+END
+led
+K 25
+svn:wc:ra_dav:version-url
+V 85
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/led/led
+END
+led.c
+K 25
+svn:wc:ra_dav:version-url
+V 87
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/led/led.c
+END
+led.hex
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/led/led.hex
+END

@@ -1,0 +1,41 @@
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/input2
+END
+input
+K 25
+svn:wc:ra_dav:version-url
+V 90
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/input2/input
+END
+input.c
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/input2/input.c
+END
+compile.sh
+K 25
+svn:wc:ra_dav:version-url
+V 95
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/input2/compile.sh
+END
+input.hex
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/input2/input.hex
+END
+input.o
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/130/trunk/atmel_firmware/input2/input.o
+END
+upload.sh
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/everycook/EveryCook_RaspberryPi_Daemon.git/!svn/ver/111/trunk/atmel_firmware/input2/upload.sh
+END
