@@ -217,9 +217,14 @@ void *SPIWriterReaderFunction(void *ptr){
 				motorSetRPMTrue(getResult());
 			break;
 			case SPI_MODE_GET_FAN_PWM:
-				SPImode=SPI_MODE_IDLE;
+				SPImode=SPI_MODE_GET_DEBUG;
 				SPIAtmelWrite(SPI_MODE_GET_FAN_PWM);
 				heaterSetFanPWM(getResult());
+			break;
+			case SPI_MODE_GET_DEBUG:
+				SPImode=SPI_MODE_IDLE;
+				SPIAtmelWrite(SPI_MODE_GET_DEBUG);
+				daemonSetVdebug(getResult());
 			break;
 			default:
 				SPImode=SPI_MODE_IDLE;

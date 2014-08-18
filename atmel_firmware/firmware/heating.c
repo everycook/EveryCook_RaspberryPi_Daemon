@@ -148,7 +148,8 @@ void Heating_heatControl(){
 		_delay_ms(20);
 		digitalWrite(IHOff,LOW);
 		*/
-		outputValueIH = 1;
+		outputValueIH = 0;
+		Vdebug=outputValueIH;
 		analogWrite(IHPowerPWM_TIMER, outputValueIH);
 	}
 	lastIsHeating=isHeating;

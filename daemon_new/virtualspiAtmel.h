@@ -71,6 +71,7 @@ See GPLv3.htm in the main folder for details.
 #define SPI_MODE_GET_MOTOR_POS_SENSOR		15
 #define SPI_MODE_GET_MOTOR_RPM				16
 #define SPI_MODE_GET_FAN_PWM				17
+#define SPI_MODE_GET_DEBUG					18
 
 #ifdef __cplusplus
 extern "C" {
