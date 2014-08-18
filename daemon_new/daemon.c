@@ -195,6 +195,8 @@ struct Temppress_Data_tab{
 struct Temppress_Data allTemppressData[NBTEMPPRESSLINE]; 
 struct Temppress_Data newTemppressData;
 struct Temppress_Data_tab tabTemppressData;
+//DEBUG
+uint8_t Vdebug;
 //end for the new mode
 
 /** @brief program different mode according to what is chosen during the launch
@@ -2168,7 +2170,10 @@ void ScaleFunction(){
 					state.weightPercent = (uint8_t) percent;
 				}
 			}
-			if(state.weightPercent>180 && !weightSlowly){
+			if(weightSlowly==false && currentCommandValues.weight<((newCommandValues.weight*settings.weightReachedMultiplier*70)/100)){
+			weightSlowly=false;
+			}
+			if(weightSlowly==false && currentCommandValues.weight>=((newCommandValues.weight*settings.weightReachedMultiplier*70)/100)){
 				speakerSpeakLanguage("slowly");
 				weightSlowly=true;
 			}
@@ -2176,7 +2181,7 @@ void ScaleFunction(){
 				if (daemonGetCurrentCommandValuesMode() != MODE_WEIGHT_REACHED){
 					if(settings.BeepWeightReached > 0){
 						speakerSpeakLanguage("stop");
-						weightSlowly=false;
+						
 						//beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+settings.BeepWeightReached);
 					}
 					if (daemonGetSettingsDebug_enabled() || daemonGetSettingsDebug3_enabled()){printf("\tweight reached!\n");}
@@ -3394,18 +3399,15 @@ void *handleButtons(void *ptr){
 }
 //function for the new mode
 int newModeMain(){
+	Vdebug=0;
 	srand(time(NULL));
 	int t=pthread_create(&readInput, NULL, readInputFunction, NULL);
-	
-	if(t==0){
-		printf("merde");
-	}
 	while(state.running){
 		if(daemonGetSettingsShieldVersion()>3){
 		}
 		system("clear");
 		printf("\n********************************************************************************");
-		printf("\n Help : h  ******** version : %d ********* Mode actuel : %s",daemonGetSettingsShieldVersion(),modeNom);
+		printf("\n Help : h  ***** version : %d ***** Mode actuel : %s ***** debug : %d",daemonGetSettingsShieldVersion(),modeNom,Vdebug);
 		printf("\n********************************************************************************");
 		switch (modeNum){
 			case HELP :
@@ -4283,6 +4285,9 @@ bool daemonGetStateRunning(){
 uint32_t daemonGetStateDelay(){
 	return state.Delay;
 }
+uint8_t daemonGetVdebug(){
+	return Vdebug;
+}
 //SET
 void daemonSetTimeValuesStepEndTime(uint32_t step){
 	timeValues.stepEndTime=step;
@@ -4304,4 +4309,7 @@ void daemonSetStateLidLocked(bool stateLidLocked){
 }
 void daemonSetStatePusherLocked(bool statePusherLocked){
 	state.pusherLocked = statePusherLocked;
+}
+void daemonSetVdebug(uint8_t bug){
+	Vdebug=bug;
 }
