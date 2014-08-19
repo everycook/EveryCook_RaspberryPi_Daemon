@@ -2672,9 +2672,14 @@ void ReadConfigurationFile(void){
 //				free(state.language);
 				state.language = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&state.language[0], valueString);
-				if (showReadedConfigs){printf("\tspeakLanguage %s\n", state.language);} // (old: %s)
-				
-				
+				if(strcmp(state.language,"english")){
+					speakerLanguageEnglish();
+				}else if(strcmp(state.language,"french")){
+					speakerLanguageFrancais();
+				}else if(strcmp(state.language,"deutsch")){
+					speakerLanguageDeutsch();
+				}			
+				if (showReadedConfigs){printf("\tspeakLanguage %s\n", state.language);} // (old: %s)			
 			} else if(strcmp(keyString, "LowTemp") == 0){
 				settings.LowTemp = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tLowTemp: %d\n", settings.LowTemp);} // (old: %d)
