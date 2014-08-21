@@ -131,15 +131,15 @@ void *SPIWriterReaderFunction(void *ptr){
 				SPIAtmelWrite(motorGetI2cValuesMotorRpm());		
 			break;
 			case SPI_MODE_HEATING:
-				printf("\n==========\nReading heating status over SPI \n");
+				//printf("\n==========\nReading heating status over SPI \n");
 				SPImode=SPI_MODE_VENTIL;
 				SPIAtmelWrite(SPI_MODE_HEATING);
 				if(heaterGetPowerStatus()){
 					SPIAtmelWrite(0x01);
-					daemonSetVdebug(8);
+					//daemonSetVdebug(8);
 				} else{
 					SPIAtmelWrite(0x00);
-					daemonSetVdebug(13);
+					//daemonSetVdebug(13);
 				}				
 			break;
 			case SPI_MODE_VENTIL:
@@ -198,7 +198,7 @@ void *SPIWriterReaderFunction(void *ptr){
 			case SPI_MODE_GET_MOTOR_SPEED:
 				SPImode=SPI_MODE_GET_IGBT_TEMP;
 				SPIAtmelWrite(SPI_MODE_GET_MOTOR_SPEED);
-				motorSetRPMTrue(getResult());
+				//motorSetRPMTrue(getResult());
 			break;
 			case SPI_MODE_GET_IGBT_TEMP:
 				SPImode=SPI_MODE_GET_HEATING_OUTPUT_LEVEL;
@@ -228,7 +228,7 @@ void *SPIWriterReaderFunction(void *ptr){
 			case SPI_MODE_GET_DEBUG:
 				SPImode=SPI_MODE_IDLE;
 				SPIAtmelWrite(SPI_MODE_GET_DEBUG);
-				//daemonSetVdebug(getResult());
+				daemonSetVdebug(getResult());
 			break;
 			default:
 				SPImode=SPI_MODE_IDLE;
