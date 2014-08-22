@@ -5,6 +5,7 @@
 #include "time.h"
 #include "mytypes.h"
 #include "status.h"
+#include "firmware.h"
 
 struct pinInfo MotorPosSensor = PA_2; //in
 struct pinInfo MotorPWM = PD_5; //pwm	//OC1A
@@ -22,8 +23,8 @@ uint8_t motorSpeed = 0;
 
 
 //Motor vars
-long lastSensorTrigger = 0;
-boolean lastSensorValue=false;
+
+
 
 long previousMillis = 0;
 long interval = 1000;   
@@ -31,9 +32,21 @@ int rotationTime=0;
 
 uint8_t sensorValue = 0;        
 int outputValueMotor = 0;        // value output to the PWM (analog out)
+
+long lastSensorTrigger = 0;
+boolean lastSensorValue=false;
 int rpm=0;
-
-
+//new code
+#define STOP 0
+#define RUNNING 1
+#define WILLSTOP 2
+#define SPEEDMINMOTOR 60
+int mode=STOP;
+uint8_t speedRequired;
+long startStopTime;
+long timeNow;
+uint8_t chrono=0;
+long startChrono;
 void Motor_init(){
 	//Set Pin Modes
 	pinMode(MotorPosSensor, INPUT_PULLUP);
@@ -42,38 +55,23 @@ void Motor_init(){
 	
 	
 	cli();
-	
 	//Set Phase-Correct PWM mode for OC1A / OC1B 8bit mode 		//ATmega_644.pdf, Page 127
 	TCCR1A |= _BV(WGM10);
-	//Set prescaling 64, this enable the timer //Set it to 64 because of time messurement in time.c (other values are also possible, you must call "initTime();" after change this)
-	//TCCR1B |= _BV(CS11) | _BV(CS10);
 	
-	//TCCR1B |= _BV(CS11) | _BV(CS10) | _BV(CS12) ; //=18 Hz
-	//TCCR1B |= _BV(CS11) | _BV(CS10)  ; //=245 Hz
-	//TCCR1B |= _BV(CS11)  ; //=1.9kHz
-	//TCCR1B |= _BV(CS10) | _BV(CS12)  ; //=18 Hz
-	//TCCR1B |= _BV(CS11) | _BV(CS12)  ; //=18 Hz
-	//TCCR1B |= _BV(CS10) ; //=685Hz
-	//TCCR1B |= _BV(CS10) | _BV(CS21)  ; //=245 Hz
 	TCCR1B |= _BV(CS10) | _BV(CS20) ; //=685 Hz
-	//TCCR1B |= _BV(CS10) | _BV(CS20) | _BV(CS22) ; //=16 Hz
-	//TCCR1B |= _BV(CS10) | _BV(CS02) ; //=16 Hz
-		
 	sei();
-	
-	
 }
 
 
 void Motor_setMotor(uint8_t speed){
-	motorSpeed = speed;
-	motorStop = (motorSpeed == 0);
-	if (motorStop){
-		//outputValueMotor=min(outputValueMotor,stopSpeed);
-		outputValueMotor=(outputValueMotor<stopSpeed)?outputValueMotor:stopSpeed; // min(outputValueMotor,stopSpeed);
-	} else {
-		outputValueMotor=motorSpeed;
-		motorStoped=false;
+	if(speed>SPEEDMINMOTOR){
+		mode=RUNNING;
+		speedRequired=speed;
+	}else{
+		if(mode==RUNNING){
+			mode=WILLSTOP;
+			startStopTime=millis();
+		}
 	}
 }
 
@@ -82,6 +80,43 @@ boolean Motor_isStopped(){
 }
 
 void Motor_motorControl() {
+	sensorValue = digitalRead(MotorPosSensor);
+	if(mode==RUNNING || mode==WILLSTOP){
+        if (sensorValue==0 && lastSensorValue==1) {
+			rotationTime=millis()-lastSensorTrigger;
+			rpm=60000/rotationTime;
+			lastSensorTrigger=millis();
+		}
+	}else{
+		rpm=0;
+	}
+	switch (mode){
+		case RUNNING :
+			analogWrite(MotorPWM_TIMER, speedRequired);
+			rpm=33;
+		break;
+		case STOP :
+			analogWrite(MotorPWM_TIMER, 0);
+			Vdebug=44;
+		break;
+		case WILLSTOP :
+			rpm=55;
+			analogWrite(MotorPWM_TIMER, SPEEDMINMOTOR);
+			timeNow=millis();
+			if((timeNow-startStopTime>5000) || (timeNow-startStopTime>2000 && sensorValue==0 && lastSensorValue==1)){
+				//mode=STOP;
+			}
+		break;
+	}	
+	lastSensorValue=sensorValue;
+	if(mode==STOP){	
+		StatusByte |= _BV(SB_MotorStoped);
+    } else {
+        StatusByte&= ~_BV(SB_MotorStoped);
+    }
+
+	
+	/*
 	if (outputValueMotor != 0){
 		sensorValue = digitalRead(MotorPosSensor);
 		if (sensorValue &&!lastSensorValue) {
@@ -113,7 +148,7 @@ void Motor_motorControl() {
 		Serial.print(rotationTime);      
 		Serial.print("\t output = ");      
 		Serial.println(outputValueMotor);   
-		*/
+		
 	} else {
 		lastSensorValue = digitalRead(MotorPosSensor);
 		if (lastSensorValue){
@@ -125,5 +160,5 @@ void Motor_motorControl() {
 			StatusByte&= ~_BV(SB_MotorStoped);
 		}
 	}
-
+*/
 }

@@ -252,6 +252,7 @@ int main (void)
 					data = readSPI(true);
 					wdt_reset();
 					Motor_setMotor(data);
+					//Vdebug=data;
 					nextResponse = SPI_CommandOK;
 				break;
 				case SPI_MODE_HEATING:
@@ -261,7 +262,7 @@ int main (void)
 					nextResponse = SPI_CommandOK;
 				break;
 				case SPI_MODE_GET_DEBUG:
-					Vdebug=StatusByte;
+					//Vdebug=33;
 					nextResponse = Vdebug;
 				break;
 				case SPI_MODE_VENTIL:
