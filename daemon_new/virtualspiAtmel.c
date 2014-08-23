@@ -117,7 +117,7 @@ void *SPIWriterReaderFunction(void *ptr){
 				daemonSetStatePusherLocked((dataReceipt & (1<<SB_PusherLocked))>0);
 				heaterSetStatusIsOn((dataReceipt & (1<<SB_isIHOn))>0);
 				if ((dataReceipt & (1<<SB_MotorStoped))>0){
-					motorSetI2cValuesMotorRpm(0);
+					//motorSetI2cValuesMotorRpm(0);
 				}
 				//fanSetIsOn((dataReceipt & (1<<SB_IHFanOn))>0);		
 			break;

@@ -4072,7 +4072,7 @@ void testMotorPrintf(){
 	if(daemonGetSettingsShieldVersion()<4){
 		printf("\nYour command is %d",motorPWMDesired);
 	}else{
-		printf("\nThe motor turn at %d RPM per second and your command is %d",motorRPMTrued,motorRPMDesired);
+		printf("\nThe motor turn at %d RPM per second and your command is %d",motorRPMTrued,motorGetI2cValuesMotorRpm());
 	}
 	if(daemonGetSettingsShieldVersion()==4){
 		printf("\nState of position sensor %d",motorSensord);
