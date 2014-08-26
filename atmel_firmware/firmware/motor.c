@@ -85,7 +85,7 @@ void Motor_motorControl() {
         if (sensorValue==0 && lastSensorValue==1) {
 			rotationTime=millis()-lastSensorTrigger;
 			rpm=60000/rotationTime;
-			Vdebug=rpm;
+			//Vdebug=rpm;
 			lastSensorTrigger=millis();
 		}
 	}else{

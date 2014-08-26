@@ -106,9 +106,6 @@ uint16_t picture_hi[9] = {
 	0b00110110011000,
 	0b00000000000000
 };
-
-
-
 uint16_t picture_0[9] = {
 	0b00000000000000,
 	0b00000000000000,
@@ -468,6 +465,7 @@ int main (void)
 				DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_DEBUG:
+					//Vdebug=ihTemp8bit;
 					nextResponse = Vdebug;
 					DisplayHandler_setPicture(&picture_18[0]);
 				DisplayHandler_DisplayBitMap();
@@ -589,8 +587,8 @@ int main (void)
 				
 				case SPI_MODE_GET_IGBT_TEMP:
 					nextResponse = ihTemp8bit;
-					DisplayHandler_setPicture(&picture_13[0]);
-				DisplayHandler_DisplayBitMap();
+					DisplayHandler_setPicture(&picture_hi[0]);
+					DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_FAN_PWM:
 					nextResponse = lastIHFanPWM;
@@ -599,7 +597,7 @@ int main (void)
 				break;
 				
 				case SPI_MODE_GET_HEATING_OUTPUT_LEVEL:
-					nextResponse = outputValueIH;
+					nextResponse = 0;
 					//nextResponse = Heating_getLastOnPWM();
 					DisplayHandler_setPicture(&picture_14[0]);
 				DisplayHandler_DisplayBitMap();

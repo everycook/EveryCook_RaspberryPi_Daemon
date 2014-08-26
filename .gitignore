@@ -5,3 +5,5 @@ daemon_new/ecdaemon
 daemon_new/ecdaemon.pid
 daemon_new/*.o
 daemon_new/*.gch
+atmel_firmware/firmware/*.o
+atmel_firmware/firmware/*.hex

@@ -121,7 +121,7 @@ void triggerWatchDog(boolean dataFromDaemon){
 				digitalWrite(PIN_SafetyChain, LOW);
 				saftyChainOff = true;
 				//stop heating
-				analogWrite(IHPowerPWM_TIMER, 0);
+				//analogWrite(IHPowerPWM_TIMER, 0);
 				//stop motor
 				analogWrite(MotorPWM_TIMER, 0);
 			}

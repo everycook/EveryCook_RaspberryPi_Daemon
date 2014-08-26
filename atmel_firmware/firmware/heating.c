@@ -8,17 +8,17 @@
 #include "firmware.h"
 struct pinInfo IHTempSensor = PA_1; //Analog
 
-//struct pinInfo IHOff = PB_4; //out, not connected/needed
-struct pinInfo isIHOn = PA_5; //in
-struct pinInfo IHOn = PD_4; //out
-struct pinInfo IHPowerPWM = PD_6; //pwm	//OC2B
+struct pinInfo isIHOn = PD_4; //in
+struct pinInfo IHOn = PD_6; //out
 struct pinInfo IHFanPWM = PD_7; //pwm	//OC2A
 
-uint8_t IHPowerPWM_TIMER = TIMER2B;
 uint8_t IHFanPWM_TIMER = TIMER2A;
 
 uint8_t lastIHFanPWM = 0;
-uint16_t lastPulseTime = 0;
+
+long timeButLow =0;
+int pressButDuration=500;
+int butStatus=0;
 
 uint16_t ihTemp = 0;
 uint8_t ihTemp8bit;
@@ -52,30 +52,21 @@ void Heating_controlIHTemp(){
 
 
 
-boolean heating = false;
 
 //IH vars
-const int Increment = 5;
-const int pause=100;
-int initialOutputValue = 0;
+boolean heatingLed;
 boolean isHeating = false;
-boolean lastIsHeating = false;
-int outputValueIH = 50; //initialOutputValue
-int lastOutputValueIHStart = 0;
-int lastOutputValueIHRun = 0;
-
-
+boolean heatingCommand = false;
+#define NBCYCLE 200
+uint8_t i;
 void Heating_init(){
 	//Set Pin Modes
 	pinMode(IHTempSensor, INPUT/*_ANALOG*/);
-//	pinMode(IHOff, OUTPUT);
-	pinMode(isIHOn, OUTPUT);
-	digitalWrite(isIHOn,HIGH);
-	pinMode(isIHOn, INPUT_PULLUP);
-	pinMode(IHOn, OUTPUT);
-	pinMode(IHPowerPWM, OUTPUT/*_PWM*/);
+	pinMode(isIHOn, INPUT);
 	pinMode(IHFanPWM, OUTPUT/*_PWM*/);
-	
+	pinMode(IHOn, OUTPUT);
+	digitalWrite(IHOn,HIGH);
+	//digitalWrite(IHOn,LOW);
 	cli();
 	//Enable ADC (for IHTempSensor)
 	ADCSRA |= _BV(ADEN);		//ATmega_644.pdf, Page 249
@@ -84,78 +75,44 @@ void Heating_init(){
 	TCCR2A |= _BV(WGM20);
 	//Set prescaling 64, this enable the timer
 	TCCR2B |= _BV(CS10) | _BV(CS20);
-	
 	sei();
 	
 }
 
 
 void Heating_setHeating(boolean on){
-	if (on && !heating){
-		outputValueIH = initialOutputValue;
-	}
-	heating = on;
+	heatingCommand=on;
 }
-
-int Heating_getLastOnPWM(){
-	return lastOutputValueIHRun;
-}
-
-boolean Heating_isHeating(){
+bool heating_GetisHeating(){
 	return isHeating;
 }
-
 void Heating_heatControl(){
-	isHeating=digitalRead(isIHOn);
-	if (heating){
-		if(isHeating)  {
-			if(!lastIsHeating){
-				lastOutputValueIHStart = outputValueIH;
-			}
-			lastOutputValueIHRun = outputValueIH;
-/*			
-//			uint16_t currentMillis = millis();
-//			if (currentMillis - lastPulseTime>HEATING_PULSE_INTERVAL){
-				outputValueIH+=Increment;
-				if (outputValueIH>80){
-					outputValueIH = 80;
-				}
-				analogWrite(IHPowerPWM_TIMER, outputValueIH);
-				lastPulseTime = currentMillis;
-//			}
-*/
-		} else{
-			uint16_t currentMillis = millis();
-			if (currentMillis - lastPulseTime>HEATING_PULSE_INTERVAL){
-				outputValueIH+=Increment;
-				
-				if (outputValueIH>80){
-					outputValueIH = 80;
-				}
-				/*
-				if (outputValueIH>100){
-					outputValueIH = 100;
-				}
-				*/
-				analogWrite(IHPowerPWM_TIMER, outputValueIH);
-				digitalWrite(IHOn,HIGH);
-				_delay_ms(20);
-				digitalWrite(IHOn,LOW);
-				lastPulseTime = currentMillis;
-			}
-		}
-	} else if (isHeating){
-		/*
-		digitalWrite(IHOff,HIGH);
-		_delay_ms(20);
-		digitalWrite(IHOff,LOW);
-		*/
-		outputValueIH = 0;
-		//Vdebug=outputValueIH;
-		analogWrite(IHPowerPWM_TIMER, outputValueIH);
+	//digitalWrite(IHOn,HIGH);
+	//digitalWrite(IHOn,LOW);
+	isHeating=true;
+	//Vdebug=heatingCommand;
+	if (heatingCommand) Vdebug=33;
+	else Vdebug=44;
+	for(i=0;i<NBCYCLE;i++){
+		heatingLed=digitalRead(isIHOn);
+		//_delay_ms(20);
+		if(heatingLed){
+			isHeating=false;
+		}	
 	}
-	lastIsHeating=isHeating;
-	//Vdebug=isHeating;
+	if(isHeating!=heatingCommand && butStatus==0){
+		digitalWrite(IHOn,LOW);
+		timeButLow=millis();
+		butStatus=1;
+		//digitalWrite(IHOn,HIGH);
+	//	_delay_ms(20);
+	//	digitalWrite(IHOn,HIGH);
+		//digitalWrite(IHOn,LOW);
+	 }
+	if (millis()>=timeButLow+pressButDuration) {
+		digitalWrite(IHOn,HIGH);
+			if (millis()>=timeButLow+pressButDuration*4) butStatus=0;
+	}
 	if (isHeating){
 		StatusByte |= _BV(SB_isIHOn);
 	} else {

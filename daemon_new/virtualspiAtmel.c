@@ -198,7 +198,7 @@ void *SPIWriterReaderFunction(void *ptr){
 			case SPI_MODE_GET_MOTOR_SPEED:
 				SPImode=SPI_MODE_GET_IGBT_TEMP;
 				SPIAtmelWrite(SPI_MODE_GET_MOTOR_SPEED);
-				//motorSetRPMTrue(getResult());
+				getResult();
 			break;
 			case SPI_MODE_GET_IGBT_TEMP:
 				SPImode=SPI_MODE_GET_HEATING_OUTPUT_LEVEL;
@@ -228,7 +228,7 @@ void *SPIWriterReaderFunction(void *ptr){
 			case SPI_MODE_GET_DEBUG:
 				SPImode=SPI_MODE_IDLE;
 				SPIAtmelWrite(SPI_MODE_GET_DEBUG);
-				daemonSetVdebug(getResult());
+				daemonSetVdebug(getResult());	
 			break;
 			default:
 				SPImode=SPI_MODE_IDLE;

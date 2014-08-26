@@ -3931,15 +3931,21 @@ void testBoutonPrintf(){
 
 }
 void testInductionPrintf(){
-	if(daemonGetSettingsShieldVersion()<4){
-		printf("\nwould you activate the heater? (y/n)");
-	}else{
-		printf("\nEnter number betwenn 0 and 100 to activate the PWM : %d",inductionPwm);
-	}
+
+	printf("\nwould you activate the heater? (y/n)");
+	
 	if(heaterGetStatusIsOn()){
-		printf("\nThe heater is running and the PWM is %d",heaterGetPWMTrue());
+			if(inductionIsRunning){
+				printf("\nThe heater is running and your command is running");
+			}else{
+				printf("\nThe heater is running and your command is not running");
+			}
 	}else{
-		printf("\nThe heater is not running");
+		if(inductionIsRunning){
+				printf("\nThe heater is not running and your command is running");
+			}else{
+				printf("\nThe heater is not running and your command is not running");
+			}
 	}
 	if(heaterGetStatusErrorMsg() == NULL){
 		printf("\nThere aren't error");
@@ -3947,7 +3953,6 @@ void testInductionPrintf(){
 		printf("\nThe error is %s",heaterGetStatusErrorMsg());
 	}
 	printf("\nThe temperatur of the transistor is %d",heaterGetTempTrans());
-	printf("The temperatur of the transistor is %d",heaterGetTempTrans());
 }
 void testSDisplayPrintf(){
 	printf("\nthe Shield version is %d",daemonGetSettingsShieldVersion());
