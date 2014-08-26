@@ -151,11 +151,11 @@ void Heating_heatControl(){
 		digitalWrite(IHOff,LOW);
 		*/
 		outputValueIH = 0;
-		Vdebug=outputValueIH;
+		//Vdebug=outputValueIH;
 		analogWrite(IHPowerPWM_TIMER, outputValueIH);
 	}
 	lastIsHeating=isHeating;
-	Vdebug=isHeating;
+	//Vdebug=isHeating;
 	if (isHeating){
 		StatusByte |= _BV(SB_isIHOn);
 	} else {
