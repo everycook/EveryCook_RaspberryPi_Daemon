@@ -234,7 +234,7 @@ void *SPIWriterReaderFunction(void *ptr){
 				SPImode=SPI_MODE_IDLE;
 			break;
 		}
-		delay(10);
+		//delay(10);
 	}
 	return 0;
 }

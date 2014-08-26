@@ -243,6 +243,7 @@ uint8_t motorGetPWMTrue(){
 //SET
 void motorSetI2cValuesMotorRpm(uint16_t rpm){
 	motor_i2c_values.motorRpm=rpm;
+	virtualSpiAtmelSetNewMode(2);// SPI_MODE_MOTOR
 }
 void motorSetI2cValuesDestRpm(uint16_t destrpm){
 	motor_i2c_values.destRpm=destrpm;
