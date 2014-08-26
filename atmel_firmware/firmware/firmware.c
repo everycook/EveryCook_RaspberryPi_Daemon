@@ -81,7 +81,6 @@ struct pinInfo PIN_IHOn = PD_4; //out
 //uint8_t IHPowerPWM_TIMER = TIMER2B;
 //uint8_t IHFanPWM_TIMER = TIMER2A;
 
-
 uint8_t PusherLocked = 0;
 uint8_t LidLocked = 0;
 uint8_t LidClosed = 0;
@@ -108,17 +107,218 @@ uint16_t picture_hi[9] = {
 	0b00000000000000
 };
 
-uint16_t picture_bye[9] = {
+
+
+uint16_t picture_0[9] = {
 	0b00000000000000,
-	0b01110010101110,
-	0b01001010101000,
-	0b01001010101000,
-	0b01110001001110,
-	0b01001001001000,
-	0b01001001001000,
-	0b01110001001110,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
 	0b00000000000000
 };
+uint16_t picture_1[9] = {
+	0b10000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_2[9] = {
+	0b11000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_3[9] = {
+	0b11100000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_4[9] = {
+	0b11110000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_5[9] = {
+	0b11111000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_6[9] = {
+	0b11111100000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_7[9] = {
+	0b11111110000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_8[9] = {
+	0b11111111000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_9[9] = {
+	0b11111111100000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_10[9] = {
+	0b11111111110000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_11[9] = {
+	0b11111111111000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_12[9] = {
+	0b11111111111100,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_13[9] = {
+	0b11111111111110,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_14[9] = {
+	0b11111111111111,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_15[9] = {
+	0b11111111111111,
+	0b10000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_16[9] = {
+	0b11111111111111,
+	0b11000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_17[9] = {
+	0b11111111111111,
+	0b11100000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+uint16_t picture_18[9] = {
+	0b11111111111111,
+	0b11110000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000,
+	0b00000000000000
+};
+
 uint16_t picture_chess[9]  = {
 	0b10101010101010,
 	0b01010101010101,
@@ -149,7 +349,7 @@ int main (void)
 //	pinMode(PIN_MotorPWM, OUTPUT/*_PWM*/);
 //	pinMode(PIN_IHPowerPWM, OUTPUT/*_PWM*/);
 //	pinMode(PIN_IHFanPWM, OUTPUT/*_PWM*/);
-	
+
 	Motor_init();
 	Heating_init();
 	
@@ -227,7 +427,6 @@ int main (void)
 		Heating_heatControl();
 		Heating_controlIHTemp();
 		checkLocks();
-		
 		if (availableSPI() > 0) {
 			triggerWatchDog(true);
 			uint8_t data;
@@ -238,9 +437,13 @@ int main (void)
 			boolean setOff = false;
 			switch(newMode){
 				case SPI_MODE_IDLE:
+				DisplayHandler_setPicture(&picture_0[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_STATUS:
 					nextResponse = StatusByte;
+					DisplayHandler_setPicture(&picture_1[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_DISPLAY_CLEAR:
 					LedSign_Clear(0);
@@ -252,24 +455,30 @@ int main (void)
 					data = readSPI(true);
 					wdt_reset();
 					Motor_setMotor(data);
-					//Vdebug=data;
 					nextResponse = SPI_CommandOK;
+					DisplayHandler_setPicture(&picture_2[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_HEATING:
 					data = readSPI(true);
 					wdt_reset();
 					Heating_setHeating(data);
 					nextResponse = SPI_CommandOK;
+					DisplayHandler_setPicture(&picture_3[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_DEBUG:
-					//Vdebug=33;
 					nextResponse = Vdebug;
+					DisplayHandler_setPicture(&picture_18[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_VENTIL:
 					VentilState = readSPI(true);
 					wdt_reset();
 					digitalWrite(PIN_Ventil, VentilState);
 					nextResponse = SPI_CommandOK;
+					DisplayHandler_setPicture(&picture_10[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_DISPLAY_PERCENT:
@@ -374,26 +583,38 @@ int main (void)
 				
 				case SPI_MODE_GET_MOTOR_SPEED:
 					nextResponse = outputValueMotor;
+					DisplayHandler_setPicture(&picture_12[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_IGBT_TEMP:
 					nextResponse = ihTemp8bit;
+					DisplayHandler_setPicture(&picture_13[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_FAN_PWM:
 					nextResponse = lastIHFanPWM;
+					DisplayHandler_setPicture(&picture_17[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_HEATING_OUTPUT_LEVEL:
 					nextResponse = outputValueIH;
 					//nextResponse = Heating_getLastOnPWM();
+					DisplayHandler_setPicture(&picture_14[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_MOTOR_POS_SENSOR:
 					nextResponse = lastSensorValue;
+					DisplayHandler_setPicture(&picture_15[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_MOTOR_RPM:
 					nextResponse = rpm;
+					DisplayHandler_setPicture(&picture_16[0]);
+				DisplayHandler_DisplayBitMap();
 				break;
 				
 				default:
@@ -419,7 +640,9 @@ int main (void)
 					}
 				break;
 			}
-		}
+			DisplayHandler_setPicture(&picture_0[0]);
+				DisplayHandler_DisplayBitMap();
+		}	
 	}
 	
 	return 0;
