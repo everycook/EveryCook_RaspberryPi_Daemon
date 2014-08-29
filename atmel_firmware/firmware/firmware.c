@@ -434,13 +434,13 @@ int main (void)
 			boolean setOff = false;
 			switch(newMode){
 				case SPI_MODE_IDLE:
-				DisplayHandler_setPicture(&picture_0[0]);
-				DisplayHandler_DisplayBitMap();
+				//DisplayHandler_setPicture(&picture_0[0]);
+				//DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_STATUS:
 					nextResponse = StatusByte;
-					DisplayHandler_setPicture(&picture_1[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_1[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_DISPLAY_CLEAR:
 					LedSign_Clear(0);
@@ -453,30 +453,29 @@ int main (void)
 					wdt_reset();
 					Motor_setMotor(data);
 					nextResponse = SPI_CommandOK;
-					DisplayHandler_setPicture(&picture_2[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_2[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_HEATING:
 					data = readSPI(true);
 					wdt_reset();
 					Heating_setHeating(data);
 					nextResponse = SPI_CommandOK;
-					DisplayHandler_setPicture(&picture_3[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_3[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_DEBUG:
-					//Vdebug=ihTemp8bit;
 					nextResponse = Vdebug;
-					DisplayHandler_setPicture(&picture_18[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_18[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_VENTIL:
 					VentilState = readSPI(true);
 					wdt_reset();
 					digitalWrite(PIN_Ventil, VentilState);
 					nextResponse = SPI_CommandOK;
-					DisplayHandler_setPicture(&picture_10[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_10[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_DISPLAY_PERCENT:
@@ -581,38 +580,38 @@ int main (void)
 				
 				case SPI_MODE_GET_MOTOR_SPEED:
 					nextResponse = outputValueMotor;
-					DisplayHandler_setPicture(&picture_12[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_12[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_IGBT_TEMP:
 					nextResponse = ihTemp8bit;
-					DisplayHandler_setPicture(&picture_hi[0]);
-					DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_hi[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				case SPI_MODE_GET_FAN_PWM:
 					nextResponse = lastIHFanPWM;
-					DisplayHandler_setPicture(&picture_17[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_17[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_HEATING_OUTPUT_LEVEL:
 					nextResponse = 0;
 					//nextResponse = Heating_getLastOnPWM();
-					DisplayHandler_setPicture(&picture_14[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_14[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_MOTOR_POS_SENSOR:
 					nextResponse = lastSensorValue;
-					DisplayHandler_setPicture(&picture_15[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_15[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				
 				case SPI_MODE_GET_MOTOR_RPM:
 					nextResponse = rpm;
-					DisplayHandler_setPicture(&picture_16[0]);
-				DisplayHandler_DisplayBitMap();
+					//DisplayHandler_setPicture(&picture_16[0]);
+					//DisplayHandler_DisplayBitMap();
 				break;
 				
 				default:
@@ -638,8 +637,8 @@ int main (void)
 					}
 				break;
 			}
-			DisplayHandler_setPicture(&picture_0[0]);
-				DisplayHandler_DisplayBitMap();
+			//DisplayHandler_setPicture(&picture_0[0]);
+			//DisplayHandler_DisplayBitMap();
 		}	
 	}
 	
