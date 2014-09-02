@@ -27,17 +27,9 @@ void Heating_controlIHTemp(){
 	ihTemp = analogRead(IHTempSensor);
 	ihTemp8bit = ihTemp >> 2;
 	uint8_t IHFanPWMValue = 0;
-	if (ihTemp8bit > 214){//70°
-		IHFanPWMValue = 255;
-	} else if (ihTemp8bit > 200){//65°
-		IHFanPWMValue = 200;
-	} else if (ihTemp8bit > 180){//45°
-		IHFanPWMValue = 150;
-	} else if (ihTemp8bit > 167){//38°
-		IHFanPWMValue = 100;
-	} else if (ihTemp8bit < 140){//27°
-		IHFanPWMValue = 0;
-}
+	if (ihTemp8bit > 150){//27°
+		IHFanPWMValue = 100+((ihTemp8bit-150)*3);
+	}
 	if (IHFanPWMValue != 0){
 		StatusByte |= _BV(SB_IHFanOn);
 	}else{

@@ -123,7 +123,7 @@ void triggerWatchDog(boolean dataFromDaemon){
 				//stop heating
 				//analogWrite(IHPowerPWM_TIMER, 0);
 				//stop motor
-				analogWrite(MotorPWM_TIMER, 0);
+				//analogWrite(MotorPWM_TIMER, 0);
 			}
 			
 			if (resetDaemonTime != 0) {

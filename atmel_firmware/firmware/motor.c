@@ -1,5 +1,5 @@
 #include <avr/interrupt.h>
-
+#include <util/delay.h>
 #include "motor.h"
 #include "input.h"
 #include "time.h"
@@ -10,7 +10,7 @@
 struct pinInfo MotorPosSensor = PA_2; //in
 struct pinInfo MotorPWM = PD_5; //pwm	//OC1A
 
-uint8_t MotorPWM_TIMER = TIMER1A;
+//uint8_t MotorPWM_TIMER = TIMER1A;
 
 uint8_t stopSpeed = 256/6;
 int slowRotationTime=500;
@@ -51,7 +51,7 @@ void Motor_init(){
 	//Set Pin Modes
 	pinMode(MotorPosSensor, INPUT_PULLUP);
 	pinMode(MotorPWM, OUTPUT/*_PWM*/);
-	analogWrite(MotorPWM_TIMER, 0);
+	//analogWrite(MotorPWM_TIMER, 0);
 	
 	
 	cli();
@@ -93,16 +93,20 @@ void Motor_motorControl() {
 	}
 	switch (mode){
 		case RUNNING :
-			analogWrite(MotorPWM_TIMER, speedRequired);
+			//analogWrite(MotorPWM_TIMER, speedRequired);
+			digitalWrite(MotorPWM,HIGH);
 		break;
 		case STOP :
-			analogWrite(MotorPWM_TIMER, 0);
+			//analogWrite(MotorPWM_TIMER, 0);
+			digitalWrite(MotorPWM,LOW);
 		break;
 		case WILLSTOP :
-			analogWrite(MotorPWM_TIMER, SPEEDMINMOTOR);
+			//analogWrite(MotorPWM_TIMER, SPEEDMINMOTOR);
 			timeNow=millis();
-			if((timeNow-startStopTime>5000) || (timeNow-startStopTime>1500 && sensorValue==0 && lastSensorValue==1)){
+			if((timeNow-startStopTime>5000) || (sensorValue==1 && lastSensorValue==0)){
 				mode=STOP;
+				_delay_ms(40);
+				digitalWrite(MotorPWM,LOW);
 			}
 		break;
 	}	
