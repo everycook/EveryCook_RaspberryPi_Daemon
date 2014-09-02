@@ -40,6 +40,7 @@ int rpm=0;
 #define STOP 0
 #define RUNNING 1
 #define WILLSTOP 2
+#define LASTTURN 3
 #define SPEEDMINMOTOR 60
 int mode=STOP;
 uint8_t speedRequired;
@@ -95,6 +96,7 @@ void Motor_motorControl() {
 		case RUNNING :
 			//analogWrite(MotorPWM_TIMER, speedRequired);
 			digitalWrite(MotorPWM,HIGH);
+			Vdebug=11;
 		break;
 		case STOP :
 			//analogWrite(MotorPWM_TIMER, 0);
@@ -103,11 +105,29 @@ void Motor_motorControl() {
 		case WILLSTOP :
 			//analogWrite(MotorPWM_TIMER, SPEEDMINMOTOR);
 			timeNow=millis();
-			if((timeNow-startStopTime>5000) || (sensorValue==1 && lastSensorValue==0)){
-				mode=STOP;
-				_delay_ms(40);
+			Vdebug=22;
+			sensorValue = digitalRead(MotorPosSensor);
+			if((timeNow-startStopTime>2500) || (sensorValue==1 && lastSensorValue==0)){
 				digitalWrite(MotorPWM,LOW);
+				_delay_ms(20);
+				mode=LASTTURN;
 			}
+		break;	
+		case LASTTURN :
+			timeNow=millis();
+			//Vdebug=33;
+			sensorValue = digitalRead(MotorPosSensor);
+			if((sensorValue==0)){
+				mode=STOP;
+			}else{
+				digitalWrite(MotorPWM,HIGH);
+				_delay_ms(1);
+				digitalWrite(MotorPWM,LOW);
+				Vdebug=44;
+			}
+		break;
+		default:
+			mode=STOP;
 		break;
 	}	
 	lastSensorValue=sensorValue;

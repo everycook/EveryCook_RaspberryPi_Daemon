@@ -79,15 +79,9 @@ bool heating_GetisHeating(){
 	return isHeating;
 }
 void Heating_heatControl(){
-	//digitalWrite(IHOn,HIGH);
-	//digitalWrite(IHOn,LOW);
 	isHeating=true;
-	//Vdebug=heatingCommand;
-	if (heatingCommand) Vdebug=33;
-	else Vdebug=44;
 	for(i=0;i<NBCYCLE;i++){
 		heatingLed=digitalRead(isIHOn);
-		//_delay_ms(20);
 		if(heatingLed){
 			isHeating=false;
 		}	
@@ -96,10 +90,7 @@ void Heating_heatControl(){
 		digitalWrite(IHOn,LOW);
 		timeButLow=millis();
 		butStatus=1;
-		//digitalWrite(IHOn,HIGH);
-	//	_delay_ms(20);
-	//	digitalWrite(IHOn,HIGH);
-		//digitalWrite(IHOn,LOW);
+		
 	 }
 	if (millis()>=timeButLow+pressButDuration) {
 		digitalWrite(IHOn,HIGH);

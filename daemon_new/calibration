@@ -2,10 +2,10 @@
 #lines starting with a # are comments
 
 #the conversion factor between ADC values and grams 8714000 0 8720000 100
-ForceADC1=8686962
-ForceADC2=8735328
+ForceADC1=8733921
+ForceADC2=8787362
 ForceValue1=0
-ForceValue2=1895
+ForceValue2=2000
 
 #two calibrations points between adc values and pressure in kpa
 PressADC1=8625217
@@ -38,10 +38,10 @@ Gain_Press=16
 Gain_Temp=4
 
 #ADC inverse
-inverse_LoadCellFrontLeft=0
-inverse_LoadCellFrontRight=0
-inverse_LoadCellBackLeft=0
-inverse_LoadCellBackRight=0
+inverse_LoadCellFrontLeft=1
+inverse_LoadCellFrontRight=1
+inverse_LoadCellBackLeft=1
+inverse_LoadCellBackRight=1
 inverse_Press=0
 inverse_Temp=0
 
