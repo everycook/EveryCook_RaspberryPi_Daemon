@@ -22,19 +22,43 @@ int butStatus=0;
 
 uint16_t ihTemp = 0;
 uint8_t ihTemp8bit;
+uint8_t lastIhTemp8bit;
 void Heating_controlIHTemp(){
 	//controll IHTemp
 	ihTemp = analogRead(IHTempSensor);
 	ihTemp8bit = ihTemp >> 2;
 	uint8_t IHFanPWMValue = 0;
-	if (ihTemp8bit > 150){//27°
-		IHFanPWMValue = 100+((ihTemp8bit-150)*3);
+	if(ihTemp8bit>210){
+		IHFanPWMValue = 255;
+	}else if(ihTemp8bit>200 && lastIHFanPWM==255){
+		IHFanPWMValue = 255;
+	}else if(ihTemp8bit>200 && lastIHFanPWM==200){
+		IHFanPWMValue = 200;
+	}else if(ihTemp8bit>190){
+		IHFanPWMValue = 200;
+	}else if(ihTemp8bit>180 && lastIHFanPWM==200){
+		IHFanPWMValue = 200;
+	}else if(ihTemp8bit>180 && lastIHFanPWM==150){
+		IHFanPWMValue = 150;
+	}else if(ihTemp8bit>170){
+		IHFanPWMValue = 150;
+	}else if(ihTemp8bit>160 && lastIHFanPWM==150){
+		IHFanPWMValue = 150;
+	}else if(ihTemp8bit>160 && lastIHFanPWM==100){
+		IHFanPWMValue = 100;
+	}else if(ihTemp8bit>150){
+		IHFanPWMValue = 100;
+	}else if(ihTemp8bit>140 && lastIHFanPWM==100){
+		IHFanPWMValue = 100;
+	}else{
+		IHFanPWMValue = 100;
 	}
 	if (IHFanPWMValue != 0){
 		StatusByte |= _BV(SB_IHFanOn);
 	}else{
 		StatusByte&= ~_BV(SB_IHFanOn);
 	}
+	lastIhTemp8bit=ihTemp8bit;
 	if (lastIHFanPWM != IHFanPWMValue){
 		analogWrite(IHFanPWM_TIMER, IHFanPWMValue);
 		lastIHFanPWM = IHFanPWMValue;
@@ -62,13 +86,13 @@ void Heating_init(){
 	cli();
 	//Enable ADC (for IHTempSensor)
 	ADCSRA |= _BV(ADEN);		//ATmega_644.pdf, Page 249
-		
+
 	//Set Phase-Correct PWM mode for OC2A / OC2B 		//ATmega_644.pdf, Page 148
 	TCCR2A |= _BV(WGM20);
 	//Set prescaling 64, this enable the timer
 	TCCR2B |= _BV(CS10) | _BV(CS20);
 	sei();
-	
+
 }
 
 
@@ -79,18 +103,27 @@ bool heating_GetisHeating(){
 	return isHeating;
 }
 void Heating_heatControl(){
+	//digitalWrite(IHOn,HIGH);
+	//digitalWrite(IHOn,LOW);
 	isHeating=true;
+	//Vdebug=heatingCommand;
+	if (heatingCommand) Vdebug=33;
+	else Vdebug=44;
 	for(i=0;i<NBCYCLE;i++){
 		heatingLed=digitalRead(isIHOn);
+		//_delay_ms(20);
 		if(heatingLed){
 			isHeating=false;
-		}	
+		}
 	}
 	if(isHeating!=heatingCommand && butStatus==0){
 		digitalWrite(IHOn,LOW);
 		timeButLow=millis();
 		butStatus=1;
-		
+		//digitalWrite(IHOn,HIGH);
+	//	_delay_ms(20);
+	//	digitalWrite(IHOn,HIGH);
+		//digitalWrite(IHOn,LOW);
 	 }
 	if (millis()>=timeButLow+pressButDuration) {
 		digitalWrite(IHOn,HIGH);

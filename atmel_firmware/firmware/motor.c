@@ -86,7 +86,6 @@ void Motor_motorControl() {
         if (sensorValue==0 && lastSensorValue==1) {
 			rotationTime=millis()-lastSensorTrigger;
 			rpm=60000/rotationTime;
-			//Vdebug=rpm;
 			lastSensorTrigger=millis();
 		}
 	}else{
@@ -96,7 +95,6 @@ void Motor_motorControl() {
 		case RUNNING :
 			//analogWrite(MotorPWM_TIMER, speedRequired);
 			digitalWrite(MotorPWM,HIGH);
-			Vdebug=11;
 		break;
 		case STOP :
 			//analogWrite(MotorPWM_TIMER, 0);
@@ -105,7 +103,7 @@ void Motor_motorControl() {
 		case WILLSTOP :
 			//analogWrite(MotorPWM_TIMER, SPEEDMINMOTOR);
 			timeNow=millis();
-			Vdebug=22;
+			
 			sensorValue = digitalRead(MotorPosSensor);
 			if((timeNow-startStopTime>2500) || (sensorValue==1 && lastSensorValue==0)){
 				digitalWrite(MotorPWM,LOW);
@@ -115,15 +113,13 @@ void Motor_motorControl() {
 		break;	
 		case LASTTURN :
 			timeNow=millis();
-			//Vdebug=33;
 			sensorValue = digitalRead(MotorPosSensor);
-			if((sensorValue==0)){
+			if((sensorValue==1)){
 				mode=STOP;
 			}else{
 				digitalWrite(MotorPWM,HIGH);
 				_delay_ms(1);
 				digitalWrite(MotorPWM,LOW);
-				Vdebug=44;
 			}
 		break;
 		default:
