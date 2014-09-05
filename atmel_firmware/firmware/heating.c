@@ -37,7 +37,7 @@ void Heating_controlIHTemp(){
 		IHFanPWMValue=((lastIHFanPWM-IHFanPWMValue)*4/5)+IHFanPWMValue;
 	}*/
 	if(isHeating){
-		IHFanPWMValue=200;
+		IHFanPWMValue=255;
 	}else{
 		IHFanPWMValue=50;
 	}
@@ -78,7 +78,7 @@ void Heating_init(){
 	//Set Phase-Correct PWM mode for OC2A / OC2B 		//ATmega_644.pdf, Page 148
 	TCCR2A |= _BV(WGM20);
 	//Set prescaling 64, this enable the timer
-	TCCR2B |= _BV(CS10) | _BV(CS20);
+	TCCR2B |= _BV(CS20);
 	sei();
 
 }

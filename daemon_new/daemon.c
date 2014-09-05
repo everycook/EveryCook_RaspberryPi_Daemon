@@ -1939,7 +1939,9 @@ void ProcessCommand(void){
 	if (daemonGetCurrentCommandValuesMode()==MODE_SCALE || daemonGetCurrentCommandValuesMode()==MODE_WEIGHT_REACHED){
 		if (state.dataChanged){
 			if (settings.shieldVersion >= 4){
+				
 				displayShowPercent(state.weightPercent);// show percent on display
+						
 			}
 		}
 	}
@@ -2168,14 +2170,14 @@ void ScaleFunction(){
 			
 			if (oldCommandValues.weight != currentCommandValues.weight){
 				state.dataChanged = true;
-				double percent = currentCommandValues.weight / newCommandValues.weight;
+				double percent = currentCommandValues.weight*100 / newCommandValues.weight;
 				if (percent>255){
 					state.weightPercent = 255;
 				} else {
 					state.weightPercent = (uint8_t) percent;
 				}
 			}
-			if(weightSlowly==false && currentCommandValues.weight<((newCommandValues.weight*settings.weightReachedMultiplier*70)/100)){
+			if(currentCommandValues.weight<((newCommandValues.weight*settings.weightReachedMultiplier*50)/100)){
 			weightSlowly=false;
 			}
 			if(weightSlowly==false && currentCommandValues.weight>=((newCommandValues.weight*settings.weightReachedMultiplier*70)/100)){
@@ -2186,7 +2188,8 @@ void ScaleFunction(){
 				if (daemonGetCurrentCommandValuesMode() != MODE_WEIGHT_REACHED){
 					if(settings.BeepWeightReached > 0){
 						speakerSpeakLanguage("stop");
-						
+						displayShowPercent(state.weightPercent);
+
 						//beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+settings.BeepWeightReached);
 					}
 					if (daemonGetSettingsDebug_enabled() || daemonGetSettingsDebug3_enabled()){printf("\tweight reached!\n");}

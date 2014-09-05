@@ -424,6 +424,7 @@ int main (void)
 		Heating_heatControl();
 		Heating_controlIHTemp();
 		checkLocks();
+		if (!LidClosed) Motor_setMotor(0);
 		if (availableSPI() > 0) {
 			triggerWatchDog(true);
 			uint8_t data;
@@ -451,7 +452,11 @@ int main (void)
 				case SPI_MODE_MOTOR:
 					data = readSPI(true);
 					wdt_reset();
-					Motor_setMotor(data);
+					if(LidClosed){
+						Motor_setMotor(data);
+					}else{
+						Motor_setMotor(0);
+					}
 					nextResponse = SPI_CommandOK;
 					//DisplayHandler_setPicture(&picture_2[0]);
 					//DisplayHandler_DisplayBitMap();
