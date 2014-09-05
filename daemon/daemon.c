@@ -254,6 +254,10 @@ int main(int argc, const char* argv[]){
 	if (runningMode.normalMode){
 		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
 			pthread_create(&threadHeaterLedReader, NULL, heaterLedEvaluation, NULL); // calculate the heater status in according to the shield version
+		} else {
+			heaterStatus.hasPower = true;
+			heaterStatus.hasError = false;
+			heaterStatus.noPanError = false;
 		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		if(settings.shieldVersion != 1){// only if shield version is not 1

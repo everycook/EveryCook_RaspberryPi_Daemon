@@ -323,6 +323,10 @@ int main(int argc, const char* argv[]){
 	if (runningMode.normalMode){
 		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
 			heaterStartThreadLedReader();
+		} else {
+			heaterSetStatusHasPower(true);
+			heaterSetStatusHasError(false);
+			heaterSetStatusNoPanError(false);
 		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		if(settings.shieldVersion != 1){// only if shield version is not 1
