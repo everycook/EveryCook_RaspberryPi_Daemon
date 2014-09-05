@@ -154,6 +154,7 @@ bool boutonState[6]={false,false,false,false,false,false};
 //TEST_DISPLAY
 bool displayLedShined[8]={false,false,false,false,false,false,false,false};
 uint16_t displayMode=0;
+uint8_t percentToShow=0;
 //TEST_VALVE
 uint16_t solenoidPwm=0;
 bool solenoidIsOpen=false;
@@ -3641,6 +3642,10 @@ void *readInputFunction(void *ptr){
 					solenoidPwm=0;
 					writeI2CPin(i2c_config.i2c_servo, solenoidPwm);
 					solenoidIsOpen=false;
+				case TEST_DISPLAY:
+					percentToShow=0;
+					displayShowPercent(percentToShow);
+				break;
 				default:
 				break;
 			}
@@ -3735,7 +3740,10 @@ void *readInputFunction(void *ptr){
 							displaySetPeriod(true);
 						}
 						displayLedShined[isNumber-1]=!displayLedShined[isNumber-1];
-					} 
+					}else{
+						percentToShow=isNumber;
+						displayShowPercent(percentToShow);
+					}
 				break;
 				case TEST_INDUCTION :
 					inductionPwm=isNumber;
@@ -4002,11 +4010,12 @@ void testSDisplayPrintf(){
 	}else{
 		printf("\n                          4    *8                           ");	
 	}	
-	}else{
+	}else{	
 	printf("\nWould you want to turn on or off all Leds? (y/n)");
 	printf("\nWhat picture would you want to show? (Chess = 1/Smilly = 2)");
 	printf("\nPress 'p' to show the following text 'I love everycook' parades before your eyes");
-	
+	printf("\nPress one number (not 1-8) to show a percent, your percent is %d",percentToShow);
+
 	switch (displayMode){
 		case 0 :
 			printf("\n\n'_'=led turn off    '0'=led turn on\n");

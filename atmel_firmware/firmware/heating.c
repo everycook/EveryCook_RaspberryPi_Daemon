@@ -6,6 +6,8 @@
 #include "status.h"
 #include "time.h"
 #include "firmware.h"
+boolean isHeating = false;
+
 struct pinInfo IHTempSensor = PA_1; //Analog
 
 struct pinInfo isIHOn = PD_4; //in
@@ -28,30 +30,16 @@ void Heating_controlIHTemp(){
 	ihTemp = analogRead(IHTempSensor);
 	ihTemp8bit = ihTemp >> 2;
 	uint8_t IHFanPWMValue = 0;
-	if(ihTemp8bit>210){
-		IHFanPWMValue = 255;
-	}else if(ihTemp8bit>200 && lastIHFanPWM==255){
-		IHFanPWMValue = 255;
-	}else if(ihTemp8bit>200 && lastIHFanPWM==200){
-		IHFanPWMValue = 200;
-	}else if(ihTemp8bit>190){
-		IHFanPWMValue = 200;
-	}else if(ihTemp8bit>180 && lastIHFanPWM==200){
-		IHFanPWMValue = 200;
-	}else if(ihTemp8bit>180 && lastIHFanPWM==150){
-		IHFanPWMValue = 150;
-	}else if(ihTemp8bit>170){
-		IHFanPWMValue = 150;
-	}else if(ihTemp8bit>160 && lastIHFanPWM==150){
-		IHFanPWMValue = 150;
-	}else if(ihTemp8bit>160 && lastIHFanPWM==100){
-		IHFanPWMValue = 100;
-	}else if(ihTemp8bit>150){
-		IHFanPWMValue = 100;
-	}else if(ihTemp8bit>140 && lastIHFanPWM==100){
-		IHFanPWMValue = 100;
+	/*if (ihTemp8bit > 150){//27°
+		IHFanPWMValue = 100+((ihTemp8bit-150)*3);
+	}
+	if(IHFanPWMValue<lastIHFanPWM){
+		IHFanPWMValue=((lastIHFanPWM-IHFanPWMValue)*4/5)+IHFanPWMValue;
+	}*/
+	if(isHeating){
+		IHFanPWMValue=200;
 	}else{
-		IHFanPWMValue = 100;
+		IHFanPWMValue=50;
 	}
 	if (IHFanPWMValue != 0){
 		StatusByte |= _BV(SB_IHFanOn);
@@ -71,7 +59,7 @@ void Heating_controlIHTemp(){
 
 //IH vars
 boolean heatingLed;
-boolean isHeating = false;
+
 boolean heatingCommand = false;
 #define NBCYCLE 200
 uint8_t i;
