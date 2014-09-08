@@ -175,7 +175,7 @@ struct Weight_Data_tab{
 	struct	Weight_Data avg;
 	uint32_t nbData;
 };
-struct Weight_Data allWeightData[NBWEIGHTLINE]; 
+struct Weight_Data allWeightData[NBWEIGHTLINE];
 struct Weight_Data newWeightData;
 struct Weight_Data_tab tabWeightData;
 //TEST_TEMPPRESS
@@ -193,7 +193,7 @@ struct Temppress_Data_tab{
 	struct	Temppress_Data avg;
 	uint32_t nbData;
 };
-struct Temppress_Data allTemppressData[NBTEMPPRESSLINE]; 
+struct Temppress_Data allTemppressData[NBTEMPPRESSLINE];
 struct Temppress_Data newTemppressData;
 struct Temppress_Data_tab tabTemppressData;
 //DEBUG
@@ -273,67 +273,63 @@ int main(int argc, const char* argv[]){
 	daemon_values.buttonConfig = &buttonConfig;
 	daemon_values.buttonValues = &buttonValues;
 	daemon_values.adc_values = &adc_values;
-	
+
 	printf("starting EveryCook daemon...\n");
 	if (daemonGetSettingsDebug_enabled()){printf("main\n");}
-	
+
 	int result=parseParams(argc, argv); // reading modes that were selected
 	if (result != -1){   // end of the program depending on the mode
 		return result;
 	}
 	defineSignalHandler(); //initialization signals
 	state.alwaysReadMode = false;
-	
+
 	StringClean(state.TotalUpdate, 512);//clean state.TotalUpdate
 	ReadConfigurationFile();// read the file configuration
 	ReadCalibrationFile(); // read the file calibration
-	
+
 	initHardware(settings.shieldVersion, buttonConfig.button_pin, buttonConfig.button_inverse); // initilalization PIN
 	delay(30);
-	
+
 	if (settings.shieldVersion >= 4){
 		VirtualSPIAtmelInit(daemonGetSettingsDebug_enabled()); // initilalization PIN (SPI)
 		virtualAtmelStartSPI();
 	}
-	
+
 	initOutputFile();// création of the file wich is use for web
 	state.Delay = settings.LongDelay;
-	
+
 	resetValues(); //reset all value
 	state.referenceForce = forceCalibration.offset; //for default reference Force in calibration mode
 	if (settings.shieldVersion < 4){
 		SegmentDisplaySimple(' ', &state, &i2c_config);
 	}
-	
+
 	if (daemonGetSettingsDebug_enabled()){printf("commandFile is: %s\n", settings.commandFile);}
 	if (daemonGetSettingsDebug_enabled()){printf("statusFile is: %s\n", settings.statusFile);}
-	
+
 	//remove commandfile so no unexpectet action will be done
 	if (remove(settings.commandFile) != 0){
 		printf("Error while remove old commandfile: %s\n", settings.commandFile);
 	}
-		
+
 	timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
 	printf("runtime is now: %d \n", daemonGetTimeValuesRunTime());
 	timeValues.stepStartTime = daemonGetTimeValuesRunTime(); //TODO WIA CHANGE THIS
-	
-	
+
+
 	if (daemonGetSettingsDebug_enabled()){printf("runningModes: normalMode:%d, calibration:%d, measure_noise:%d, test_7seg:%d, test_servo:%d, test_heat_led:%d, test_motor:%d, test_buttons:%d, test_adc:%d, test_heating_power:%d, test_heating_press:%d, test_serial:%d\n", runningMode.normalMode, runningMode.calibration, runningMode.measure_noise, runningMode.test_7seg, runningMode.test_servo, runningMode.test_heat_led, runningMode.test_motor, runningMode.test_buttons, runningMode.test_adc, runningMode.test_heating_power, runningMode.test_heating_press, runningMode.test_serial);}
-	
-	
+
+
 	if (runningMode.normalMode){
 		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
 			heaterStartThreadLedReader();
-		} else {
-			heaterSetStatusHasPower(true);
-			heaterSetStatusHasError(false);
-			heaterSetStatusNoPanError(false);
 		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		if(settings.shieldVersion != 1){// only if shield version is not 1
 			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);//gestionndes bouttons
 		}
-		
+
 		//Show Smilly / startscreen
 		if (settings.shieldVersion >= 4){
 									//00##############
@@ -348,7 +344,7 @@ int main(int argc, const char* argv[]){
 									0b0000000111110000};
 			displayShowPicture(&picture[0]);
 		}
-		
+
 		while (state.running){
 			if (daemonGetSettingsDebug_enabled()){printf("main loop...\n");}
 			if (timeValues.lastRunTime != daemonGetTimeValuesRunTime()){// if new start
@@ -356,10 +352,10 @@ int main(int argc, const char* argv[]){
 				timeValues.lastRunTime = daemonGetTimeValuesRunTime();//new time start
 			}
 			bool valueChanged = checkForInput();//check if new value
-			
+
 			timeValues.runTime = time(NULL); //TODO WIA CHANGE THIS
 			timeValues.runTimeMillis = millis();
-			
+
 			if (valueChanged){//if new information
 				if (daemonGetSettingsDebug_enabled()){printf("valueChanged=true\n");}
 				//TODO: timeValues.lastFileChangeTime = timeValues.runTime;
@@ -367,9 +363,9 @@ int main(int argc, const char* argv[]){
 			}
 			ProcessCommand();//control all output electronique system
 			currentCommandValues.time = daemonGetTimeValuesRunTime() - timeValues.stepStartTime;
-			
+
 			doOutput();// control all output for web
-			
+
 			if (daemonGetSettingsDebug_enabled()){printf("main loop end.\n");}
 			delay(state.Delay);
 		}
@@ -378,9 +374,9 @@ int main(int argc, const char* argv[]){
 		motorSetI2cValuesMotorRpm(motorGetI2cValuesSpeedMin());
 		motorSetI2cValuesDestRpm(motorGetI2cValuesMotorRpm());
 		motorSetCommandRPM(0);
-		
+
 		if (settings.shieldVersion < 3){
-			setServoOpen(0, 1, 0, &daemon_values);//open valve with servo 
+			setServoOpen(0, 1, 0, &daemon_values);//open valve with servo
 		} else {
 			solenoidSetOpen(false);//open solenoide valve
 		}
@@ -399,19 +395,19 @@ int main(int argc, const char* argv[]){
 		while (state.running){
 			timeValues.runTime = time(NULL);
 			timeValues.runTimeMillis = millis();
-			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");	
+			//printf("we are in calibration mode, be careful!\n Heat will turn on automatically if switch is on!\n Use switch to turn heat off.\n");
 			if (runningMode.calibration) heaterOn();// heat turn on
-			if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled() || runningMode.measure_noise) {	
+			if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled() || runningMode.measure_noise) {
 				printf("time %8d | ", timeValues.runTimeMillis);
 			}
-			
+
 			if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled()){printf("Temp %d dig %.0f °C | ", adc_values.Temp.adc_value, adc_values.Temp.valueByOffset);}
 			if (runningMode.measure_noise) {printf("NoiseTemp %d | ", adc_noise.DeltaTemp);}
-			
+
 			if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled()){printf("Press %d digits %.0f kPa | ", adc_values.Press.adc_value, adc_values.Press.valueByOffset);}
 			if (runningMode.measure_noise){printf("NoisePress %d |", adc_noise.DeltaPress);}
-			
-			if (daemonGetSettingsDebug_enabled() || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}			
+
+			if (daemonGetSettingsDebug_enabled() || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}
 			if (runningMode.measure_noise){
 				printf("NoiseWeightFL %d | ", adc_noise.DeltaWeight1);
 				printf("NoiseWeightFR %d | ", adc_noise.DeltaWeight2);
@@ -428,11 +424,11 @@ int main(int argc, const char* argv[]){
 		}
 	} else if (runningMode.test_7seg){
 		//newMode
-		
+
 		printf("\nnew mode is going to start");
 		if (settings.shieldVersion < 4){// only with shield version 1,2 and 3
 			heaterStartThreadLedReader();
-		}		
+		}
 		pthread_create(&threadReadADCValues, NULL, readADCValues, NULL);// return temp,press and loadcell
 		if(settings.shieldVersion != 1){// only if shield version is not 1
 			pthread_create(&threadHandleButtons, NULL, handleButtons, NULL);//gestionndes bouttons
@@ -448,7 +444,7 @@ int main(int argc, const char* argv[]){
 		motorSetCommandRPM(0);
 		printf("\nmotor is stopped");
 		if (settings.shieldVersion < 3){
-			setServoOpen(0, 1, 0, &daemon_values);//open valve with servo 
+			setServoOpen(0, 1, 0, &daemon_values);//open valve with servo
 		} else {
 			solenoidSetOpen(false);//open solenoide valve
 		}
@@ -460,7 +456,7 @@ int main(int argc, const char* argv[]){
 			heaterStopThreadLedReader();// wait end of thread
 		}
 		//End newMode
-		
+
 		/*if (settings.shieldVersion < 4){//there is a 7 seg
 			while (state.running){
 				blink7Segment(&i2c_config);
@@ -555,23 +551,23 @@ int main(int argc, const char* argv[]){
 				printf("\t%d (pressed: %d, ontime: %d, offtime: %d)", but[i], buttonValues.buttonPressedTime[i], buttonValues.buttonOnTime[i], buttonValues.buttonOffTime[i]);
 			}
 			printf("\n");
-			
+
 			delay(state.Delay);
 		}
 	} else if (runningMode.test_adc){
 		state.Delay = 5;
 		printf("test_adc\n");
-		
+
 		struct adc_private adc;
 		uint8_t adcChannel = 0;
 		if (settings.use_spi_dev){//SPI configuration
 			ad7794_reset(&adc);
 			delay(30);
-		
+
 			ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
 			ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 		} else {//SPI configuration
-			SPIReset();	
+			SPIReset();
 			delay(30);
 			SPIWrite2Bytes(WRITE_MODE_REG, settings.test_ADC_update_rate & 0x000F);
 			SPIWrite2Bytes(WRITE_CONFIG_REG, adc_config.ADC_ConfigReg[adcChannel]);
@@ -582,7 +578,7 @@ int main(int argc, const char* argv[]){
 		uint32_t adcValues[8] = {0,0,0,0,0,0};
 		uint32_t adcTime[8] = {0,0,0,0,0,0};
 		uint32_t adcLoops[8] = {0,0,0,0,0,0};
-		
+
 		if (settings.test_ADC_offsetCalibration != 0 || settings.test_ADC_fullScaleCalibration != 0){
 		  if (settings.use_spi_dev){
 			printf("before calibration\n");
@@ -594,13 +590,13 @@ int main(int argc, const char* argv[]){
 				delay(50);
 				printf("ADC(%d) fullscale: %d, offset: %d\n", adcChannel, fullscale, offset);
 			}
-			
+
 			if (settings.test_ADC_offsetCalibration != 0){
 				//Offset Calibration
 				adcChannel = 0;
 				ad7794_select_channel2(&adc, adcChannel, adc_config.ADC_ConfigReg[adcChannel]);
 				ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_offsetCalibration | (settings.test_ADC_update_rate & 0x000F));
-				while (state.running){	
+				while (state.running){
 					uint8_t adcState=0;
 					ad7794_communicate(&adc, AD7794_STATUS, AD7794_DIRECTION_READ, 1, &adcState);
 					if (daemonGetSettingsDebug_enabled()){ printf("%d: state %d / %8s\n", millis(), adcState, my_itoa(adcState, 2)); }
@@ -641,7 +637,7 @@ int main(int argc, const char* argv[]){
 					}
 				}
 			}
-			
+
 			printf("after calibration\n");
 			adcChannel = 0;
 			for (;adcChannel<6;adcChannel++) {
@@ -662,7 +658,7 @@ int main(int argc, const char* argv[]){
 				delay(50);
 				printf("ADC(%d) fullscale: %d, offset: %d\n", adcChannel, fullscale, offset);
 			}
-			
+
 			if (settings.test_ADC_offsetCalibration != 0){
 				//Offset Calibration
 				adcChannel = 0;
@@ -707,7 +703,7 @@ int main(int argc, const char* argv[]){
 					}
 				}
 			}
-			
+
 			printf("after calibration\n");
 			adcChannel = 0;
 			for (;adcChannel<6;adcChannel++) {
@@ -724,13 +720,13 @@ int main(int argc, const char* argv[]){
 				//forceCalibration.offset=forceCalibration.Value1 - forceCalibration.ADC1*forceCalibration.scaleFactor ;  //offset in g //for default reference force in calibration mode only
 				//pressCalibration.offset=pressCalibration.Value1 - pressCalibration.ADC1*pressCalibration.scaleFactor ;  //offset in pa
 				//tempCalibration.offset=tempCalibration.Value1 - tempCalibration.ADC1*tempCalibration.scaleFactor ;  //offset in °C
-				
+
 				forceCalibration.offset=0 - 0x800001*forceCalibration.scaleFactor;  //offset in g //for default reference force in calibration mode only
 				pressCalibration.offset=0 - 0x800001*pressCalibration.scaleFactor;  //offset in pa
 				tempCalibration.offset=0 - 0x800001*tempCalibration.scaleFactor;  //offset in °C
 			}
 		}
-		
+
 		if (settings.use_spi_dev){
 			ad7794_write_data(&adc, AD7794_MODE, settings.test_ADC_update_rate & 0x000F);
 			adcChannel = 0;
@@ -759,7 +755,7 @@ int main(int argc, const char* argv[]){
 				if (adc_config.inverse[adcChannel]){
 					data = 0x00FFFFFF - data;
 				}
-			
+
 				adcValues[adcChannel] = data;
 				adcTime[adcChannel] = millis() - lastTime;
 				adcLoops[adcChannel] = amount;
@@ -768,10 +764,10 @@ int main(int argc, const char* argv[]){
 				} else {
 					adcChannel = 0;
 					uint32_t totalTime = adcTime[0] + adcTime[1] + adcTime[2] + adcTime[3] + adcTime[4] + adcTime[5] + adcTime[6] + adcTime[7];
-					
+
 					//printf("%d\tval:\t%d\t%d\t%d\t%d\t%d\t%d\tTime:\t%d\t%d\t%d\t%d\t%d\t%d\tloops:\t%d\t%d\t%d\t%d\t%d\t%d\n", totalTime, adcValues[0], adcValues[1], adcValues[2], adcValues[3], adcValues[4], adcValues[5], adcTime[0], adcTime[1], adcTime[2], adcTime[3], adcTime[4], adcTime[5], adcLoops[0], adcLoops[1], adcLoops[2], adcLoops[3], adcLoops[4], adcLoops[5]);
 					//printf("%d\tval:\t%d\t%d\t%d\t%d\t%d\t%d\tTime:\t%d | %d | %d | %d | %d | %d\tloops:\t%d | %d | %d | %d | %d | %d\n", totalTime, adcValues[0], adcValues[1], adcValues[2], adcValues[3], adcValues[4], adcValues[5], adcTime[0], adcTime[1], adcTime[2], adcTime[3], adcTime[4], adcTime[5], adcLoops[0], adcLoops[1], adcLoops[2], adcLoops[3], adcLoops[4], adcLoops[5]);
-					
+
 					double fl = ((double)adcValues[adc_config.ADC_LoadCellFrontLeft]);
 					double fr = ((double)adcValues[adc_config.ADC_LoadCellFrontRight]);
 					double bl = ((double)adcValues[adc_config.ADC_LoadCellBackLeft]);
@@ -784,14 +780,14 @@ int main(int argc, const char* argv[]){
 					fullWeight = fullWeight * forceCalibration.scaleFactor + forceCalibration.offset;
 					double ps = ((double)adcValues[adc_config.ADC_Press]) * pressCalibration.scaleFactor + pressCalibration.offset;
 					double tp = ((double)adcValues[adc_config.ADC_Temp]) * tempCalibration.scaleFactor + tempCalibration.offset;
-					
-					
+
+
 					printf("%d\tweight:\t%.1f\tdig:\tfl:%.1f\tfr:%.1f\tbl:%.1f\tbr:%.1f\tps:%.1f\ttp:%.1f\tval:\t%d\t%d\t%d\t%d\t%d\t%d\tTime:\t%d | %d | %d | %d | %d | %d\tloops:\t%d | %d | %d | %d | %d | %d\t\tInternal Temp: %d / %d(time:%d, loops:%d)\tAVdd: %d / %d(time:%d, loops:%d)\n", totalTime, fullWeight,fl,fr,bl,br,ps,tp,
 					/*adcValues[0], adcValues[1], adcValues[2], adcValues[3], adcValues[4], adcValues[5],
-					adcTime[0], adcTime[1], adcTime[2], adcTime[3], adcTime[4], adcTime[5], 
+					adcTime[0], adcTime[1], adcTime[2], adcTime[3], adcTime[4], adcTime[5],
 					adcLoops[0], adcLoops[1], adcLoops[2], adcLoops[3], adcLoops[4], adcLoops[5]);*/
 					adcValues[adc_config.ADC_LoadCellFrontLeft], adcValues[adc_config.ADC_LoadCellFrontRight], adcValues[adc_config.ADC_LoadCellBackLeft], adcValues[adc_config.ADC_LoadCellBackRight], adcValues[adc_config.ADC_Press], adcValues[adc_config.ADC_Temp],
-					adcTime[adc_config.ADC_LoadCellFrontLeft], adcTime[adc_config.ADC_LoadCellFrontRight], adcTime[adc_config.ADC_LoadCellBackLeft], adcTime[adc_config.ADC_LoadCellBackRight], adcTime[adc_config.ADC_Press], adcTime[adc_config.ADC_Temp], 
+					adcTime[adc_config.ADC_LoadCellFrontLeft], adcTime[adc_config.ADC_LoadCellFrontRight], adcTime[adc_config.ADC_LoadCellBackLeft], adcTime[adc_config.ADC_LoadCellBackRight], adcTime[adc_config.ADC_Press], adcTime[adc_config.ADC_Temp],
 					adcLoops[adc_config.ADC_LoadCellFrontLeft], adcLoops[adc_config.ADC_LoadCellFrontRight], adcLoops[adc_config.ADC_LoadCellBackLeft], adcLoops[adc_config.ADC_LoadCellBackRight], adcLoops[adc_config.ADC_Press], adcLoops[adc_config.ADC_Temp],
 					adcValues[6], adcValues[6] - 0x800001, adcTime[6], adcLoops[6],  adcValues[7], adcValues[7] - 0x800001, adcTime[7], adcLoops[7]);
 				}
@@ -814,20 +810,20 @@ int main(int argc, const char* argv[]){
 		uint8_t currentTestPart = 0;
 		uint32_t partReachedTime = 0;
 		uint32_t partErrorTime = 0;
-		
+
 		uint32_t weight = 0;
 		//uint32_t startTime;
 		uint32_t time40 = 0;
 		uint32_t time90 = 0;
 		double lastTemp = 0;
 		uint32_t lastOutputTime = 0;
-		
+
 		beeperBeepEndStep();
 		//time for initialize weight
 		currentCommandValues.mode = MODE_SCALE;
 		delay(2000);
 		currentCommandValues.mode = MODE_STANDBY;
-		
+
 		printf("Open lid (and remove stirrer if inserted)\n");
 		while (state.running){
 			timeValues.runTime = time(NULL);
@@ -842,7 +838,7 @@ int main(int argc, const char* argv[]){
 						delay(1000); //to be sure current walue is good referenceForce
 						state.referenceForce = -adc_values.Weight.value;
 						state.scaleReady = true;
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
@@ -860,7 +856,7 @@ int main(int argc, const char* argv[]){
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
 						weight = adc_values.Weight.valueByOffset;
 						currentCommandValues.mode = MODE_STANDBY;
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
@@ -883,7 +879,7 @@ int main(int argc, const char* argv[]){
 							partReachedTime = timeValues.runTimeMillis;
 						} else if (timeValues.runTimeMillis - partReachedTime > 5000){
 							//startTime = timeValues.runTimeMillis;
-							
+
 							currentTestPart++;
 							partReachedTime = 0;
 							partErrorTime = 0;
@@ -898,7 +894,7 @@ int main(int argc, const char* argv[]){
 				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
-				
+
 				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {//if temperature change or 5s
 					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
@@ -909,7 +905,7 @@ int main(int argc, const char* argv[]){
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
 						time40 = partReachedTime;
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
@@ -923,20 +919,20 @@ int main(int argc, const char* argv[]){
 				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
-				
+
 				if (lastTemp != adc_values.Temp.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {//if temperature change or 5s
 					printf("time: %5.3f\tcurrent temp: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
 					lastTemp = adc_values.Temp.valueByOffset;
-				} 
+				}
 				if (adc_values.Temp.valueByOffset >= 90){//if temp > 40
 					if (partReachedTime == 0){
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
 						time90 = partReachedTime;
-						
+
 						printf("reached 90°C\n");
-						
+
 						//Add standard heatUp time for pan 1700g metal: 0.48 J / g*K
 						double cp_pan = 0.48;
 						double m_pan = 1700;
@@ -944,7 +940,7 @@ int main(int argc, const char* argv[]){
 						double m_water = weight;
 						double usedTime = (time90-time40)/1000;
 						double P = (cp_water*m_water+m_pan*cp_pan) * 50 / usedTime; //P=m*cp*deltaT/deltaZeit
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
@@ -962,7 +958,7 @@ int main(int argc, const char* argv[]){
 					state.running = false;
 				}
 			}
-			
+
 			SegmentDisplay();
 			delay(state.Delay);
 		}
@@ -975,7 +971,7 @@ int main(int argc, const char* argv[]){
 		uint8_t currentTestPart = 0;
 		uint32_t partReachedTime = 0;
 		uint32_t partErrorTime = 0;
-		
+
 		uint32_t weight = 0;
 		//uint32_t startTime;
 		uint32_t timePress1 = 0;
@@ -984,13 +980,13 @@ int main(int argc, const char* argv[]){
 		double lastTemp = 0;
 		double lastPress = 0;
 		uint32_t lastOutputTime = 0;
-		
+
 		beeperBeepEndStep();
 		//time for initialize weight
 		currentCommandValues.mode = MODE_SCALE;
 		delay(2000);
 		currentCommandValues.mode = MODE_STANDBY;
-		
+
 		printf("Open lid (and remove stirrer if inserted)\n");
 		while (state.running){
 			timeValues.runTime = time(NULL);
@@ -1005,7 +1001,7 @@ int main(int argc, const char* argv[]){
 						delay(1000); //to be sure current walue is good referenceForce
 						state.referenceForce = -adc_values.Weight.value;
 						state.scaleReady = true;
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
@@ -1023,7 +1019,7 @@ int main(int argc, const char* argv[]){
 					} else if (timeValues.runTimeMillis - partReachedTime > 3000){
 						weight = adc_values.Weight.valueByOffset;
 						currentCommandValues.mode = MODE_STANDBY;
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
@@ -1046,7 +1042,7 @@ int main(int argc, const char* argv[]){
 							partReachedTime = timeValues.runTimeMillis;
 						} else if (timeValues.runTimeMillis - partReachedTime > 5000){
 							//startTime = timeValues.runTimeMillis;
-							
+
 							currentTestPart++;
 							partReachedTime = 0;
 							partErrorTime = 0;
@@ -1061,7 +1057,7 @@ int main(int argc, const char* argv[]){
 				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
-				
+
 				if (lastTemp != adc_values.Temp.valueByOffset || lastPress != adc_values.Press.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
 					printf("time: %5.3f\tcurrent temp: %.0f, current Press: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset, adc_values.Press.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
@@ -1074,7 +1070,7 @@ int main(int argc, const char* argv[]){
 						startTemp = adc_values.Temp.valueByOffset;
 					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
 						timePress1 = partReachedTime;
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
@@ -1088,7 +1084,7 @@ int main(int argc, const char* argv[]){
 				heaterOn();
 				currentCommandValues.press = adc_values.Press.valueByOffset;
 				currentCommandValues.temp = adc_values.Temp.valueByOffset;
-				
+
 				if (lastTemp != adc_values.Temp.valueByOffset || lastPress != adc_values.Press.valueByOffset || timeValues.runTimeMillis - lastOutputTime > 5000) {
 					printf("time: %5.3f\tcurrent temp: %.0f, current Press: %.0f\n", (double)timeValues.runTimeMillis / 1000, adc_values.Temp.valueByOffset, adc_values.Press.valueByOffset);
 					lastOutputTime = timeValues.runTimeMillis;
@@ -1100,16 +1096,16 @@ int main(int argc, const char* argv[]){
 						partReachedTime = timeValues.runTimeMillis;
 					} else if (timeValues.runTimeMillis - partReachedTime > 5000){
 						timePress80 = partReachedTime;
-						
+
 						printf("reached 80kPa\n");
 						double usedTime = (timePress80-timePress1)/1000;
 						double P = 79 / usedTime;
-						
+
 						currentTestPart++;
 						partReachedTime = 0;
 						partErrorTime = 0;
 						printf("used %.0f seconds for pressup from 1kPa(with %.0f°C) to 80kPa(with %.0f°C) => %.2fkPa/sec\n", usedTime, startTemp, adc_values.Temp.valueByOffset, P);
-						
+
 						currentCommandValues.mode=MODE_PRESSVENT;
 						printf("pressvent!\n");
 					}
@@ -1133,7 +1129,7 @@ int main(int argc, const char* argv[]){
 					if (timeValues.servoStayEndTime < daemonGetTimeValuesRunTime()){
 						currentCommandValues.mode=MODE_PRESSURELESS;
 						timeValues.servoStayEndTime = 0;
-						
+
 						if (settings.shieldVersion < 3){
 							setServoOpen(0, 1, 0, &daemon_values);
 						} else {
@@ -1159,7 +1155,7 @@ int main(int argc, const char* argv[]){
 				}
 				*/
 			}
-			
+
 			SegmentDisplay();
 			delay(state.Delay);
 		}
@@ -1173,7 +1169,7 @@ int main(int argc, const char* argv[]){
 			printf("test serial / Atmel communication\n");
 			SPIAtmelReset();
 			atmelSetMaintenance(true);
-			
+
 			uint8_t stepNr = 0;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//count from 0 to 255
 				printf("count from 0 to 255\n");
@@ -1189,13 +1185,13 @@ int main(int argc, const char* argv[]){
 				}
 				delay(250);
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//ShowPercent(100)
 				displayShowPercent(100);
 				delay(2000);
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//show 123456789
 				//Show Text
@@ -1203,7 +1199,7 @@ int main(int argc, const char* argv[]){
 				displayShowText("1234567890");
 				delay(6000);
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// Show Smilly
 				printf("Show Smilly\n");
@@ -1221,7 +1217,7 @@ int main(int argc, const char* argv[]){
 				displayShowPicture(&picture[0]);
 				delay(2000);
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// Show chess
 				printf("Show chess\n");
@@ -1237,7 +1233,7 @@ int main(int argc, const char* argv[]){
 				displayShowPicture(&picture2[0]);
 				delay(2000);
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// show percent 0-140
 				printf("Show percent progress\n");
@@ -1250,7 +1246,7 @@ int main(int argc, const char* argv[]){
 				printf("clear\n");
 				displayClear();
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){// "Hallo Welt! Ich komme vom Raspi!"
 				printf("Show text\n");
@@ -1261,7 +1257,7 @@ int main(int argc, const char* argv[]){
 				printf("clear\n");
 				displayClear();
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//open solenoid valve during 5 sec
 				printf("atmelSetSolenoidOpen, for 5 seconds\n");
@@ -1273,7 +1269,7 @@ int main(int argc, const char* argv[]){
 				}
 				solenoidSetOpen(false);
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//turn on heater during 10 sec
 				printf("enable heater, for 10 seconds\n");
@@ -1285,7 +1281,7 @@ int main(int argc, const char* argv[]){
 				}
 				heaterOff();
 			}
-			
+
 			stepNr++;
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//turn on motor in full speed during 10 sec
 				printf("enable motor in full speed, for 10 seconds\n");
@@ -1297,8 +1293,8 @@ int main(int argc, const char* argv[]){
 				}
 				motorSetSpeedRPM(0);
 			}
-			
-			stepNr++;
+
+			stepNr++;si la batterie sera forcéme
 			if (settings.test_servo_min<=stepNr && settings.test_servo_max>=stepNr){//read status until programm end Ctrl+C
 				printf("read status until programm end Ctrl+C\n");
 				while(state.running){
@@ -1329,7 +1325,7 @@ int main(int argc, const char* argv[]){
 	if (settings.logLines == 0 || state.logLineNr<settings.logLines){
 		fclose(state.logFilePointer);
 	}
-	
+
 	//free allocated memmory
 	if (settings.logLines != 0){
 		uint32_t i=0;
@@ -1339,7 +1335,7 @@ int main(int argc, const char* argv[]){
 		free(state.logLines);
 	}
 	printf("program ended normally\n");
-	
+
 	exit(0); //To make sure all Threads are closed
 	return 0;
 }
@@ -1425,7 +1421,7 @@ int parseParams(int argc, const char* argv[]){
 				}
 			}
 			printf("test servo config from %d to %d\n", settings.test_servo_min, settings.test_servo_max);
-			
+
 		} else if(strcmp(argv[i], "--test-heat-led") == 0 || strcmp(argv[i], "-th") == 0){
 			runningMode.test_heat_led = true;
 			runningMode.normalMode = false;
@@ -1444,7 +1440,7 @@ int parseParams(int argc, const char* argv[]){
 				}
 			}
 			printf("test motor config from %d to %d\n", settings.test_servo_min, settings.test_servo_max);
-			
+
 		} else if(strcmp(argv[i], "--test-buttons") == 0 || strcmp(argv[i], "-tb") == 0){
 			runningMode.test_buttons = true;
 			runningMode.normalMode = false;
@@ -1473,7 +1469,7 @@ int parseParams(int argc, const char* argv[]){
 				}
 			}
 			printf("test adc\n");
-			
+
 		} else if(strcmp(argv[i], "--test-heating-power") == 0 || strcmp(argv[i], "-tp") == 0){
 			runningMode.test_heating_power = true;
 			runningMode.normalMode = false;
@@ -1578,7 +1574,7 @@ void initOutputFile(void){
 	fp = fopen(settings.statusFile, "w");
 	fputs("{\"T0\":0,\"P0\":0,\"M0RPM\":0,\"M0ON\":0,\"M0OFF\":0,\"W0\":0,\"STIME\":0,\"SMODE\":0,\"SID\":-2}", fp);
 	fclose(fp);
-	
+
 	char* headerLine = "Time, Temp, Press, MotorRpm, Weight, setTemp, setPress, setMotorRpm, setWeight, setMode, Mode, heaterHasPower, isOn, noPan, lidClosed, lidLocked, pusherLocked\n";
 	if (settings.logLines != 0){
 		state.logLines = (char **)malloc(sizeof(char *) * (settings.logLines+1)); //+1 for headerline/line 0
@@ -1594,7 +1590,7 @@ void initOutputFile(void){
 		}
 		state.logFilePointer = fopen(settings.logFile, "a");
 	}
-	
+
 	FILE *hourCounterFilePointer = fopen(settings.hourCounterFile, "r");
 	if (hourCounterFilePointer == NULL){
 		printf("error reading hourCounter values, file does not exist %s\n", settings.hourCounterFile);
@@ -1636,25 +1632,25 @@ void resetValues(){
 	state.dataChanged = true;
 	state.timeChanged = true;
 	timeValues.lastFileChangeTime = 0;
-	
+
 	currentCommandValues.temp = 0;
 	currentCommandValues.press = 0;
 	currentCommandValues.weight = 0;
 	currentCommandValues.time = 0;
 	currentCommandValues.mode = 0;
-	
+
 	newCommandValues.mode = 0;
 	newCommandValues.temp = 0;
 	newCommandValues.press = 0;
 	newCommandValues.weight = 0;
-	
+
 	state.Delay = settings.LongDelay;
-	
+
 	i2c_servo_values.servoOpen=0;
 	if (settings.shieldVersion < 4){
 		writeI2CPin(i2c_config.i2c_servo, i2c_servo_values.i2c_servo_closed); // send the value by the I2C
 	}
-	
+
 	heaterSetStatusLedValuesI(0,0);
 	heaterSetStatusLedValuesI(1,0);
 	heaterSetStatusLedValuesI(2,0);
@@ -1703,7 +1699,7 @@ bool checkForInput(){
 		} else if (settings.useFile){
 			time_t changeTime = get_mtime(settings.commandFile);
 			//TODO: changeTime = localtime(changeTime);
-			
+
 			if (changeTime > timeValues.lastFileChangeTime){
 				if (ReadFile()){
 					valueChanged = true;
@@ -1719,7 +1715,7 @@ bool checkForInput(){
 			delay(10000);
 		}
 	}
-	
+
 	return valueChanged;
 }
 
@@ -1769,7 +1765,7 @@ void ProcessCommand(void){
 		timeValues.stepStartTime = daemonGetTimeValuesRunTime();//save time
 		state.dataChanged = true;// save the fact that the date have changed
 		timeValues.stepEndTime = timeValues.stepStartTime + newCommandValues.time;
-		
+
 		state.scaleReady = false;
 		if (state.Delay == settings.ShortDelay || (oldCommandValues.mode == MODE_SCALE && daemonGetCurrentCommandValuesMode() == MODE_SCALE)) {
 			if(daemonGetSettingsDebug3_enabled()){printf("new and old step is scale mode, reset values\n");}
@@ -1777,10 +1773,10 @@ void ProcessCommand(void){
 			state.Delay=settings.LongDelay;
 			currentCommandValues.weight = 0.0;
 		}
-		
+
 		if (daemonGetSettingsDebug_enabled()){printf("stepId changed, new mode is: %d\n", daemonGetCurrentCommandValuesMode());}
 		if (daemonGetSettingsDebug_enabled() || runningMode.simulationMode || daemonGetSettingsDebug3_enabled()){printf("ProcessCommand: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, motorGetNewCommandValuesRpm(), motorGetNewCommandValuesOn(), motorGetNewCommandValuesOff(), newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
-		
+
 		OptionControl();//bep and blink 7seg
 		if (settings.shieldVersion >= 4){// if display, show image per mode
 			if (daemonGetCurrentCommandValuesMode()==MODE_STANDBY) {
@@ -1906,6 +1902,18 @@ void ProcessCommand(void){
 										0b000001111100000,
 										0b000000000000000};
 				displayShowPicture(&picture[0]);
+			}else if (daemonGetCurrentCommandValuesMode()==MODE_RECIPE_END) {
+										//00##############
+				uint16_t picture[9] = { 0b000000000000000,
+										0b011110000000001,
+										0b010000000000001,
+										0b010000000000001,
+										0b011100111001111,
+										0b010000100101001,
+										0b010000100101001,
+										0b011110100101111,
+										0b000000000000000};
+				displayShowPicture(&picture[0]);
 			}
 			/* TODO
 			MODE_HOT
@@ -1914,15 +1922,15 @@ void ProcessCommand(void){
 			MODE_PRESSURELESS
 			MODE_WEIGHT_REACHED
 			MODE_COOK_TIMEEND
-			MODE_RECIPE_END
+
 			*/
-		}	
+		}
 		if (state.alwaysReadMode){
 			speakerSpeak(state.actionText);//speak the action
 		}
 	}
 	if (settings.shieldVersion >= 4){
-		
+
 	}
 	TempControl();//temperature
 	PressControl();//pression
@@ -1931,7 +1939,7 @@ void ProcessCommand(void){
 	}
 	motorControl();//motor
 	ValveControl();//valve
-	
+
 	if (daemonGetSettingsDebug3_enabled()){
 		printf("after ValveControl\n");
 	}
@@ -1939,13 +1947,11 @@ void ProcessCommand(void){
 	if (daemonGetCurrentCommandValuesMode()==MODE_SCALE || daemonGetCurrentCommandValuesMode()==MODE_WEIGHT_REACHED){
 		if (state.dataChanged){
 			if (settings.shieldVersion >= 4){
-				
 				displayShowPercent(state.weightPercent);// show percent on display
-						
 			}
 		}
 	}
-	
+
 	if (daemonGetSettingsTimeValuesStepEndTime() > daemonGetTimeValuesRunTime()) {
 		timeValues.remainTime=daemonGetSettingsTimeValuesStepEndTime()-daemonGetTimeValuesRunTime();
 	} else if (daemonGetCurrentCommandValuesMode()<MIN_STATUS_MODE) {
@@ -2016,11 +2022,11 @@ void TempControl(){
 		currentCommandValues.temp = adc_values.Temp.valueByOffset;
 		if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled()){printf("Temp %d dig %.0f °C | ", adc_values.Temp.adc_value, adc_values.Temp.valueByOffset);}
 		if (runningMode.measure_noise) {printf("NoiseTemp %d | ", adc_noise.DeltaTemp);}
-		
+
 		if (oldCommandValues.temp != currentCommandValues.temp){
 			state.dataChanged = true;
 		}
-		
+
 		int deltaT=newCommandValues.temp-currentCommandValues.temp;
 		if (daemonGetCurrentCommandValuesMode()==MODE_HEATUP || daemonGetCurrentCommandValuesMode()==MODE_COOK) {
 			if (deltaT<=0) {
@@ -2064,11 +2070,11 @@ void PressControl(){
 		currentCommandValues.press = adc_values.Press.valueByOffset;
 		if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled()){printf("Press %d digits %.0f kPa | ", adc_values.Press.adc_value, adc_values.Press.valueByOffset);}
 		if (runningMode.measure_noise){printf("NoisePress %d |", adc_noise.DeltaPress);}
-		
+
 		if (oldCommandValues.press != currentCommandValues.press){
 			state.dataChanged = true;
 		}
-		
+
 		int deltaP=newCommandValues.press-currentCommandValues.press;
 		if (daemonGetCurrentCommandValuesMode()==MODE_PRESSUP || daemonGetCurrentCommandValuesMode()==MODE_PRESSHOLD) {
 			if (deltaP<=0) {
@@ -2097,7 +2103,7 @@ void PressControl(){
 		currentCommandValues.press = adc_values.Press.valueByOffset;
 		if (daemonGetSettingsDebug_enabled() || runningMode.calibration || daemonGetSettingsDebug3_enabled()){printf("Press %d digits %.0f kPa | ", adc_values.Press.adc_value, adc_values.Press.valueByOffset);}
 		if (runningMode.measure_noise){printf("NoisePress %d |", adc_noise.DeltaPress);}
-		
+
 		if (oldCommandValues.press != currentCommandValues.press){
 			state.dataChanged = true;
 		}
@@ -2146,7 +2152,7 @@ void ScaleFunction(){
 		timeValues.stepEndTime=daemonGetTimeValuesRunTime()+2;
 		oldCommandValues.weight = currentCommandValues.weight;
 		double sumOfForces = adc_values.Weight.value;
-		if (daemonGetSettingsDebug_enabled() || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}			
+		if (daemonGetSettingsDebug_enabled() || runningMode.calibration){printf("Weight %d dig %.1f g / %.1f g | FL %d FR %d BL %d BR %d\n", adc_values.Weight.adc_value, adc_values.Weight.value, adc_values.Weight.valueByOffset, adc_values.LoadCellFrontLeft.adc_value, adc_values.LoadCellFrontRight.adc_value, adc_values.LoadCellBackLeft.adc_value, adc_values.LoadCellBackRight.adc_value);}
 		if (runningMode.measure_noise){
 			printf("NoiseWeightFL %d | ", adc_noise.DeltaWeight1);
 			printf("NoiseWeightFR %d | ", adc_noise.DeltaWeight2);
@@ -2154,7 +2160,7 @@ void ScaleFunction(){
 			printf("NoiseWeightBR %d\n", adc_noise.DeltaWeight4);
 		}
 		if (daemonGetSettingsDebug_enabled()){printf("ScaleFunction\n");}
-		
+
 		if (!state.scaleReady) { //we are not ready for weighting
 			state.referenceForce=sumOfForces;
 			oldCommandValues.weight=sumOfForces;
@@ -2167,17 +2173,17 @@ void ScaleFunction(){
 		} else { //we have a reference and are ready
 			state.Delay=settings.ShortDelay;
 			currentCommandValues.weight=(sumOfForces-state.referenceForce);
-			
+
 			if (oldCommandValues.weight != currentCommandValues.weight){
 				state.dataChanged = true;
-				double percent = currentCommandValues.weight*100 / newCommandValues.weight;
+				double percent = currentCommandValues.weight / newCommandValues.weight;
 				if (percent>255){
 					state.weightPercent = 255;
 				} else {
 					state.weightPercent = (uint8_t) percent;
 				}
 			}
-			if(currentCommandValues.weight<((newCommandValues.weight*settings.weightReachedMultiplier*50)/100)){
+			if(weightSlowly==false && currentCommandValues.weight<((newCommandValues.weight*settings.weightReachedMultiplier*70)/100)){
 			weightSlowly=false;
 			}
 			if(weightSlowly==false && currentCommandValues.weight>=((newCommandValues.weight*settings.weightReachedMultiplier*70)/100)){
@@ -2188,7 +2194,6 @@ void ScaleFunction(){
 				if (daemonGetCurrentCommandValuesMode() != MODE_WEIGHT_REACHED){
 					if(settings.BeepWeightReached > 0){
 						speakerSpeakLanguage("stop");
-						displayShowPercent(state.weightPercent);
 
 						//beeperSetBeepEndTime(daemonGetTimeValuesRunTime()+settings.BeepWeightReached);
 					}
@@ -2278,13 +2283,13 @@ void prepareState(char* TotalUpdate){
 */
 void writeStatus(char* data){
 	if (daemonGetSettingsDebug_enabled()){printf("WriteStatus\n");}
-	
+
 	FILE *fp;
 	fp = fopen(settings.statusFile, "w");
 	fputs(data, fp);
 	fclose(fp);
 	if (daemonGetSettingsDebug3_enabled()){printf("%s\n", data);}
-	
+
 	if (daemonGetSettingsDebug_enabled()){printf("WriteStatus: after write\n");}
 }
 
@@ -2294,14 +2299,14 @@ void writeLog(){
 	if (daemonGetSettingsDebug_enabled()){printf("writeLog\n");}
 	timeValues.nowTime = time(NULL);
 	timeValues.localTime=localtime(&timeValues.nowTime);
-	
+
 	if (daemonGetTimeValuesRunTime()>=timeValues.lastLogSaveTime+settings.logSaveInterval){
 		char tempString[20];
 		StringClean(tempString, 20);
 		strftime(tempString, 20,"%F %T",timeValues.localTime);
 		char logline[200];
 		sprintf(logline, "%s, %.1f, %i, %i, %.1f, %.1f, %i, %i, %.1f, %i, %i, %i, %i, %i, %i, %i, %i\n",tempString, currentCommandValues.temp, currentCommandValues.press, motorGetI2cValuesMotorRpm(), currentCommandValues.weight, newCommandValues.temp, newCommandValues.press, motorGetNewCommandValuesRpm(), newCommandValues.weight, newCommandValues.mode, daemonGetCurrentCommandValuesMode(), heaterGetStatusHasPower(), heaterGetStatusIsOn(), heaterGetStatusNoPanError(), state.lidClosed, state.lidLocked, state.pusherLocked);
-		
+
 		if (settings.logLines == 0){
 			fputs(logline, state.logFilePointer);
 			//open once and flush, instat open and close it always
@@ -2311,7 +2316,7 @@ void writeLog(){
 				++state.logLineNr;
 				state.logLines[state.logLineNr] = (char *) malloc(strlen(logline) * sizeof(char) + 1);
 				strcpy(state.logLines[state.logLineNr], logline);
-				
+
 				//if not yet reached max line amount only add last line to file.
 				fputs(state.logLines[state.logLineNr], state.logFilePointer);
 				fflush(state.logFilePointer);
@@ -2334,12 +2339,12 @@ void writeLog(){
 				fclose(state.logFilePointer);
 			}
 		}
-		
+
 		if (timeValues.lastLogSaveTime>0){
 			hourCounter.daemon = hourCounter.daemon + (daemonGetTimeValuesRunTime() - timeValues.lastLogSaveTime);
 			heaterUpdateTime();
 			motorUpdateTime();
-			
+
 			FILE *hourCounterFilePointer = fopen(settings.hourCounterFile, "w");
 			fwrite(&hourCounter, sizeof(hourCounter), 1, hourCounterFilePointer);
 			fprintf(hourCounterFilePointer, "\nhours on: %.2f\nmotor hours: %.2f\nheater hours: %.2f\n", hourCounter.daemon/SECONDS_PER_HOUR, motorGetHourCounter()/SECONDS_PER_HOUR, heaterGetHourCounter()/SECONDS_PER_HOUR);
@@ -2360,7 +2365,7 @@ void parseSockInput(char* input){
 	uint8_t ptr = 0;
 	uint8_t inputPos = 0;
 	char c;
-	
+
 	StringClean(tempName, 10);
 	StringClean(tempValue, 10);
 	state.actionText[0] = 0;
@@ -2412,13 +2417,13 @@ void parseSockInput(char* input){
 				i = 0;
 				state.value[ptr] = StringConvertToNumber(tempValue);
 			}
-			
+
 			//state.names[ptr] = tempName;
 			int32_t j = 0;
 			for (; j < 10; ++j){
 				state.names[ptr][j] = tempName[j];
 			}
-			
+
 			if (daemonGetSettingsDebug_enabled()){printf("found %s with value %d\r\n", state.names[ptr], state.value[ptr]);}
 			StringClean(tempName, 10);
 			StringClean(tempValue, 10);
@@ -2437,7 +2442,7 @@ bool ReadFile(){
 	uint8_t i = 0;
 	uint8_t ptr = 0;
 	char c;
-	
+
 	StringClean(tempName, 10);
 	StringClean(tempValue, 10);
 	state.actionText[0] = 0;
@@ -2446,7 +2451,7 @@ bool ReadFile(){
 		printf("could not open file %s\n", settings.commandFile);
 		return false;
 	}
-	
+
 	while ((c = fgetc(fp)) != 255){
 		if (c == '"'){
 			c = fgetc(fp);
@@ -2462,7 +2467,7 @@ bool ReadFile(){
 			while (c == ' ' || c == 9){
 				c = fgetc(fp);
 			}
-			
+
 			if(strcmp(tempName, "TEXT") == 0){
 				if (c == '"'){
 					c = fgetc(fp);
@@ -2488,22 +2493,22 @@ bool ReadFile(){
 				i = 0;
 				state.value[ptr] = StringConvertToNumber(tempValue);
 			}
-			
+
 			//state.names[ptr] = tempName;
 			int32_t j = 0;
 			for (; j < 10; ++j){
 				state.names[ptr][j] = tempName[j];
 			}
-			
+
 			if (daemonGetSettingsDebug_enabled()){printf("found %s with value %d\r\n", state.names[ptr], state.value[ptr]);}
-			
+
 			StringClean(tempName, 10);
 			StringClean(tempValue, 10);
 			ptr++;
 		}
 	}
 	fclose(fp);
-	
+
 	return true;
 }
 
@@ -2535,7 +2540,7 @@ void evaluateInput(){
 		}
 	}
 	if (daemonGetSettingsDebug_enabled()){printf("evaluateInput: T0: %.0f, P0: %d, M0RPM: %d, M0ON: %d, M0OFF: %d, W0: %.0f, STIME: %d, SMODE: %d, SID: %d\n", newCommandValues.temp, newCommandValues.press, motorGetNewCommandValuesRpm(), motorGetNewCommandValuesOn(), motorGetNewCommandValuesOff(), newCommandValues.weight, newCommandValues.time, newCommandValues.mode, newCommandValues.stepId);}
-	
+
 	if(newCommandValues.temp>200) {newCommandValues.temp=200;}
 	if(newCommandValues.press>80) {newCommandValues.press=80;}
 	if (motorGetNewCommandValuesOn()>0 && motorGetNewCommandValuesOn()<2) motorSetNewCommandValuesOn(2);
@@ -2551,11 +2556,11 @@ void evaluateInput(){
 bool readConfigLine(char* keyString, char* valueString, FILE *fp){
 	char c;
 	char c2;
-	
+
 	uint8_t i = 0;
 	c = fgetc(fp);
 	while (c != 255){ // 255=nothing
-		if (c == '#'){ 
+		if (c == '#'){
 			if (daemonGetSettingsDebug_enabled()){printf("\tline with # found\n");}
 			while (c != '\r' && c != '\n' && c != 255){
 				c = fgetc(fp);
@@ -2614,9 +2619,9 @@ bool readConfigLine(char* keyString, char* valueString, FILE *fp){
  */
 void ReadConfigurationFile(void){
 	if (daemonGetSettingsDebug_enabled()){printf("ReadConfigurationFile...\n");}
-	
+
 	bool showReadedConfigs = daemonGetSettingsDebug_enabled();
-	
+
 	FILE *fp;
 	char keyString[30];
 	char valueString[100];
@@ -2626,7 +2631,7 @@ void ReadConfigurationFile(void){
 	if (fp != NULL){// if file exist
 		while (readConfigLine(&keyString[0], &valueString[0], fp)){
 			if (daemonGetSettingsDebug_enabled()){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
-			
+
 			//ParseConfigValue
 			if(strcmp(keyString, "BeepWeightReached") == 0){
 				settings.BeepWeightReached = StringConvertToNumber(valueString);
@@ -2640,7 +2645,7 @@ void ReadConfigurationFile(void){
 			} else if(strcmp(keyString, "DeleteLogOnStart") == 0){
 				settings.DeleteLogOnStart = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tDeleteLogOnStart: %d\n", settings.DeleteLogOnStart);} // (old: %d)
-				
+
 			} else if(strcmp(keyString, "calibrationFile") == 0){
 //				free(settings.calibrationFile);
 				settings.calibrationFile = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
@@ -2686,8 +2691,8 @@ void ReadConfigurationFile(void){
 					speakerLanguageFrancais();
 				}else if(strcmp(state.language,"deutsch")){
 					speakerLanguageDeutsch();
-				}			
-				if (showReadedConfigs){printf("\tspeakLanguage %s\n", state.language);} // (old: %s)			
+				}
+				if (showReadedConfigs){printf("\tspeakLanguage %s\n", state.language);} // (old: %s)
 			} else if(strcmp(keyString, "LowTemp") == 0){
 				settings.LowTemp = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tLowTemp: %d\n", settings.LowTemp);} // (old: %d)
@@ -2700,23 +2705,23 @@ void ReadConfigurationFile(void){
 			} else if(strcmp(keyString, "ShortDelay") == 0){
 				settings.ShortDelay = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tShortDelay: %d\n", settings.ShortDelay);} // (old: %d)
-				
+
 			} else if(strcmp(keyString, "logSaveInterval") == 0){
 				settings.logSaveInterval = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tlogSaveInterval: %d\n", settings.logSaveInterval);} // (old: %d)
 			} else if(strcmp(keyString, "logLines") == 0){
 				settings.logLines = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tlogLines %d\n", settings.logLines);} // (old: %d)
-				
+
 			} else if(strcmp(keyString, "weightReachedMultiplier") == 0){
 				settings.weightReachedMultiplier = StringConvertToDouble(valueString);
-				if (showReadedConfigs){printf("\tweightReachedMultiplier %.2f\n", settings.weightReachedMultiplier);} // (old: %d)	
-				
+				if (showReadedConfigs){printf("\tweightReachedMultiplier %.2f\n", settings.weightReachedMultiplier);} // (old: %d)
+
 			} else if(strcmp(keyString, "shieldVersion") == 0){
 				settings.shieldVersion = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tshieldVersion: %d\n", settings.shieldVersion);}
-			
-			
+
+
 			} else if(strcmp(keyString, "middlewareHostname") == 0){
 				settings.middlewareHostname = (char *) malloc(strlen(valueString) * sizeof(char) + 1);
 				strcpy(&settings.middlewareHostname[0], valueString);
@@ -2724,7 +2729,7 @@ void ReadConfigurationFile(void){
 			} else if(strcmp(keyString, "middlewarePortno") == 0){
 				settings.middlewarePortno = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tmiddlewarePortno: %d\n", settings.middlewarePortno);}
-			
+
 			//motor values
 			} else if(strcmp(keyString, "i2c_motor_speed_min") == 0){
 				motorSetI2cValuesSpeedMin(StringConvertToNumber(valueString));
@@ -2732,12 +2737,12 @@ void ReadConfigurationFile(void){
 			} else if(strcmp(keyString, "i2c_motor_speed_ramp") == 0){
 				motorSetI2cValuesSpeedRamp(StringConvertToNumber(valueString));
 				if (showReadedConfigs){printf("\ti2c_motor_speed_ramp %d\n", motorGetI2cValuesSpeedRamp());}
-			
+
 			//servo values
 			} else if(strcmp(keyString, "i2c_servo_stay_open") == 0){
 				i2c_servo_values.i2c_servo_stay_open = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo_stay_open: %d\n", i2c_servo_values.i2c_servo_stay_open);}
-			
+
 			//ADC values
 			} else if(strcmp(keyString, "ADC_ref") == 0){
 				adc_config.ADC_ref = StringConvertToNumber(valueString);
@@ -2745,7 +2750,7 @@ void ReadConfigurationFile(void){
 			} else if(strcmp(keyString, "ADC_update_rate") == 0){
 				adc_config.ADC_update_rate = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tADC_update_rate %d\n", adc_config.ADC_update_rate);}
-			
+
 			} else {
 				if (daemonGetSettingsDebug_enabled()){printf("\tkey not Found\n");}
 			}
@@ -2755,16 +2760,16 @@ void ReadConfigurationFile(void){
 	} else { // if file doesn't exist
 		printf("config file '%s' not found!", settings.configFile);
 	}
-	
+
 	fclose(fp);
-	
+
 	if (settings.shieldVersion < 1 && settings.shieldVersion > 4){
 		printf("Shield version %d unknown stop daemon.\n", settings.shieldVersion);
 		exit(1);
 	}
-	
+
 	setADCModeReg(adc_config.ADC_update_rate & 0x000F);
-	
+
 	if (daemonGetSettingsDebug_enabled()){printf("done.\n");}
 }
 
@@ -2772,9 +2777,9 @@ void ReadConfigurationFile(void){
  */
 void ReadCalibrationFile(void){
 	if (daemonGetSettingsDebug_enabled()){printf("ReadCalibrationFile...\n");}
-	
+
 	bool showReadedConfigs = daemonGetSettingsDebug_enabled() || runningMode.calibration;
-	
+
 	FILE *fp;
 	char keyString[30];
 	char valueString[100];
@@ -2785,7 +2790,7 @@ void ReadCalibrationFile(void){
 	if (fp != NULL){
 		while (readConfigLine(&keyString[0], &valueString[0], fp)){
 			if (daemonGetSettingsDebug_enabled()){printf("\tkey: '%s', value: '%s'\n", keyString, valueString);}
-			
+
 			//ParseConfigValue
 			//scale
 			if(strcmp(keyString, "ForceADC1") == 0){
@@ -2800,7 +2805,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "ForceValue2") == 0){
 				forceCalibration.Value2 = StringConvertToDouble(valueString);
 				if (showReadedConfigs){printf("\tForceValue2: %f\n", forceCalibration.Value2);} // (old: %d)
-				
+
 			//pressure
 			} else if(strcmp(keyString, "PressADC1") == 0){
 				pressCalibration.ADC1 = StringConvertToNumber(valueString);
@@ -2814,7 +2819,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "PressValue2") == 0){
 				pressCalibration.Value2 = StringConvertToDouble(valueString);
 				if (showReadedConfigs){printf("\tPressValue2: %f\n", pressCalibration.Value2);} // (old: %d)
-				
+
 			//temperature
 			} else if(strcmp(keyString, "TempADC1") == 0){
 				tempCalibration.ADC1 = StringConvertToNumber(valueString);
@@ -2828,7 +2833,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "TempValue2") == 0){
 				tempCalibration.Value2 = StringConvertToDouble(valueString);
 				if (showReadedConfigs){printf("\tTempValue2: %f\n", tempCalibration.Value2);} // (old: %d)
-			
+
 			//adc channels
 			} else if(strcmp(keyString, "ADC_LoadCellFrontLeft") == 0){
 				adc_config.ADC_LoadCellFrontLeft = StringConvertToNumber(valueString);
@@ -2848,7 +2853,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "ADC_Temp") == 0){
 				adc_config.ADC_Temp = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tADC_Temp: %d\n", adc_config.ADC_Temp);}
-			
+
 			//adc gain
 			} else if(strcmp(keyString, "Gain_LoadCellFrontLeft") == 0){
 				ptr = adc_config.ADC_LoadCellFrontLeft;
@@ -2880,7 +2885,7 @@ void ReadCalibrationFile(void){
 				adc_config.ADC_ConfigReg[ptr] = StringConvertToNumber(valueString);
 				adc_config.ADC_ConfigReg[ptr] = POWNTimes(adc_config.ADC_ConfigReg[ptr], 2)<<8 | adc_config.ADC_ref<<6 | 1<<4 | ptr;
 				if (showReadedConfigs){printf("\tGain_Temp: %04X\n", adc_config.ADC_ConfigReg[ptr]);} // (old: %d)
-			
+
 			//adc inversee
 			} else if(strcmp(keyString, "inverse_LoadCellFrontLeft") == 0){
 				adc_config.inverse[adc_config.ADC_LoadCellFrontLeft] = StringConvertToNumber(valueString);
@@ -2900,7 +2905,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "inverse_Temp") == 0){
 				adc_config.inverse[adc_config.ADC_Temp] = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tinverse_Temp: %d\n", adc_config.inverse[adc_config.ADC_Temp]);}
-			
+
 			//Hystereis
 			} else if(strcmp(keyString, "PressHystereis") == 0){
 				adc_config.PressHystereis = StringConvertToNumber(valueString);
@@ -2908,7 +2913,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "TempHystereis") == 0){
 				adc_config.TempHystereis = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tTempHystereis: %d\n", adc_config.TempHystereis);}
-			
+
 			//7seg pins
 			} else if(strcmp(keyString, "i2c_7seg_top") == 0){
 				displaySetI2c_7seg_top(StringConvertToNumber(valueString));
@@ -2934,14 +2939,14 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "i2c_7seg_period") == 0){
 				displaySetI2c_7seg_period(StringConvertToNumber(valueString));
 				if (showReadedConfigs){printf("\ti2c_7seg_period: %d\n", displayGetI2c_7seg_period());}
-				
+
 			} else if(strcmp(keyString, "i2c_motor") == 0){
 				motorSetI2cConfig(StringConvertToNumber(valueString));
 				if (showReadedConfigs){printf("\ti2c_motor: %d\n", motorGetI2cConfig());}
 			} else if(strcmp(keyString, "i2c_servo") == 0){
 				i2c_config.i2c_servo = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo %d\n", i2c_config.i2c_servo);}
-			
+
 			//Servo values
 			} else if(strcmp(keyString, "i2c_servo_open") == 0){
 				i2c_servo_values.i2c_servo_open = StringConvertToNumber(valueString);
@@ -2949,7 +2954,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "i2c_servo_closed") == 0){
 				i2c_servo_values.i2c_servo_closed = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_servo_closed %d\n", i2c_servo_values.i2c_servo_closed);}
-			
+
 			//Solenoid values
 			} else if(strcmp(keyString, "i2c_solenoid_open") == 0){
 				i2c_solenoid_values.i2c_solenoid_open = StringConvertToNumber(valueString);
@@ -2957,7 +2962,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "i2c_solenoid_closed") == 0){
 				i2c_solenoid_values.i2c_solenoid_closed = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\ti2c_solenoid_closed %d\n", i2c_solenoid_values.i2c_solenoid_closed);}
-				
+
 			//Button pins
 			} else if(strcmp(keyString, "pin_button_0") == 0){
 				buttonConfig.button_pin[0] = StringConvertToNumber(valueString);
@@ -2968,7 +2973,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "pin_button_2") == 0){
 				buttonConfig.button_pin[2] = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tbutton_pin_2 %d\n", buttonConfig.button_pin[2]);}
-			
+
 			//Button inverse
 			} else if(strcmp(keyString, "inverse_button_0") == 0){
 				buttonConfig.button_inverse[0] = StringConvertToNumber(valueString);
@@ -2979,7 +2984,7 @@ void ReadCalibrationFile(void){
 			} else if(strcmp(keyString, "inverse_button_2") == 0){
 				buttonConfig.button_inverse[2] = StringConvertToNumber(valueString);
 				if (showReadedConfigs){printf("\tbutton_inverse_2 %d\n", buttonConfig.button_inverse[2]);}
-				
+
 			} else {
 				if (daemonGetSettingsDebug_enabled()){printf("\tkey not Found\n");}
 			}
@@ -2989,22 +2994,22 @@ void ReadCalibrationFile(void){
 	} else {
 		printf("calibration file '%s' not found!", settings.calibrationFile);
 	}
-	
+
 	fclose(fp);
-	
+
 	forceCalibration.scaleFactor=(forceCalibration.Value2-forceCalibration.Value1)/((double)forceCalibration.ADC2-(double)forceCalibration.ADC1);
 	forceCalibration.offset=forceCalibration.Value1 - forceCalibration.ADC1*forceCalibration.scaleFactor ;  //offset in g //for default reference force in calibration mode only
-	
+
 	pressCalibration.scaleFactor=(pressCalibration.Value2-pressCalibration.Value1)/((double)pressCalibration.ADC2-(double)pressCalibration.ADC1);
 	pressCalibration.offset=pressCalibration.Value1 - pressCalibration.ADC1*pressCalibration.scaleFactor ;  //offset in pa
-	
+
 	tempCalibration.scaleFactor=(tempCalibration.Value2-tempCalibration.Value1)/((double)tempCalibration.ADC2-(double)tempCalibration.ADC1);
 	tempCalibration.offset=tempCalibration.Value1 - tempCalibration.ADC1*tempCalibration.scaleFactor ;  //offset in °C
-	
+
 	setADCConfigReg(adc_config.ADC_ConfigReg);
-	
+
 	if (showReadedConfigs){printf("ForceScaleFactor: %.4f (, ForceOffset: %f), PressScaleFactor: %.4f, PressOffset: %f, TempScaleFactor: %.4f, TempOffset: %f\n", forceCalibration.scaleFactor, forceCalibration.offset, pressCalibration.scaleFactor, pressCalibration.offset, tempCalibration.scaleFactor, tempCalibration.offset);}
-	
+
 	if (daemonGetSettingsDebug_enabled()){printf("done.\n");}
 }
 
@@ -3014,12 +3019,12 @@ void ReadCalibrationFile(void){
 void *readADCValues(void *ptr){
 	uint32_t delayWeight;
 	uint32_t delayTempPess;
-	
+
 	if (runningMode.simulationMode){// if simulation mode
 		state.lidClosed = true;
 		delayWeight = 300;
 		delayTempPess = 1000;
-		while (state.running){		
+		while (state.running){
 			if (daemonGetCurrentCommandValuesMode() == MODE_SCALE){
 				double weightValue;
 				if (!state.scaleReady) {
@@ -3050,19 +3055,19 @@ void *readADCValues(void *ptr){
 					adc_values.Weight.valueByOffset = weightValue;
 					adc_values.Weight.value = adc_values.Weight.valueByOffset - state.referenceForce;
 					adc_values.Weight.adc_value = adc_values.Weight.value / forceCalibration.scaleFactor;
-					
+
 					adc_values.LoadCellFrontLeft.adc_value = adc_values.Weight.adc_value;
 					adc_values.LoadCellFrontLeft.value = adc_values.Weight.value;
 					adc_values.LoadCellFrontLeft.valueByOffset = adc_values.Weight.valueByOffset;
-					
+
 					adc_values.LoadCellFrontRight.adc_value = adc_values.Weight.adc_value;
 					adc_values.LoadCellFrontRight.value = adc_values.Weight.value;
 					adc_values.LoadCellFrontRight.valueByOffset = adc_values.Weight.valueByOffset;
-					
+
 					adc_values.LoadCellBackLeft.adc_value = adc_values.Weight.adc_value;
 					adc_values.LoadCellBackLeft.value = adc_values.Weight.value;
 					adc_values.LoadCellBackLeft.valueByOffset = adc_values.Weight.valueByOffset;
-					
+
 					adc_values.LoadCellBackRight.adc_value = adc_values.Weight.adc_value;
 					adc_values.LoadCellBackRight.value = adc_values.Weight.value;
 					adc_values.LoadCellBackRight.valueByOffset = adc_values.Weight.valueByOffset;
@@ -3092,7 +3097,7 @@ void *readADCValues(void *ptr){
 				adc_values.Temp.valueByOffset = tempValue;
 				adc_values.Temp.value = adc_values.Temp.valueByOffset - tempCalibration.offset;
 				adc_values.Temp.adc_value = adc_values.Temp.value / tempCalibration.scaleFactor;
-				
+
 				int32_t pressValue = oldCommandValues.press;
 				int deltaP=newCommandValues.press - oldCommandValues.press;
 				if (daemonGetCurrentCommandValuesMode() == MODE_PRESSUP || daemonGetCurrentCommandValuesMode() == MODE_PRESSHOLD) {
@@ -3118,7 +3123,7 @@ void *readADCValues(void *ptr){
 		}
 		return 0;
 	}
-	
+
 	delayWeight = 10;
 	delayTempPess = 100;
 	while (state.running){
@@ -3130,7 +3135,7 @@ void *readADCValues(void *ptr){
 			adc_values.LoadCellFrontLeft.value = (double)adc_values.LoadCellFrontLeft.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellFrontLeft.valueByOffset=adc_values.LoadCellFrontLeft.value + state.referenceForce;
 			adc_values.LoadCellFrontLeft.valueByOffset = round(adc_values.LoadCellFrontLeft.valueByOffset);
-			
+
 			adc_values.LoadCellFrontRight.adc_value = readADC(adc_config.ADC_LoadCellFrontRight);
 			if (adc_config.inverse[adc_config.ADC_LoadCellFrontRight]){
 				adc_values.LoadCellFrontRight.adc_value = 0x00FFFFFF - adc_values.LoadCellFrontRight.adc_value;
@@ -3138,7 +3143,7 @@ void *readADCValues(void *ptr){
 			adc_values.LoadCellFrontRight.value = (double)adc_values.LoadCellFrontRight.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellFrontRight.valueByOffset=adc_values.LoadCellFrontRight.value + state.referenceForce;
 			adc_values.LoadCellFrontRight.valueByOffset = round(adc_values.LoadCellFrontRight.valueByOffset);
-			
+
 			adc_values.LoadCellBackLeft.adc_value = readADC(adc_config.ADC_LoadCellBackLeft);
 			if (adc_config.inverse[adc_config.ADC_LoadCellBackLeft]){
 				adc_values.LoadCellBackLeft.adc_value = 0x00FFFFFF - adc_values.LoadCellBackLeft.adc_value;
@@ -3146,7 +3151,7 @@ void *readADCValues(void *ptr){
 			adc_values.LoadCellBackLeft.value = (double)adc_values.LoadCellBackLeft.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellBackLeft.valueByOffset=adc_values.LoadCellBackLeft.value + state.referenceForce;
 			adc_values.LoadCellBackLeft.valueByOffset = round(adc_values.LoadCellBackLeft.valueByOffset);
-			
+
 			adc_values.LoadCellBackRight.adc_value = readADC(adc_config.ADC_LoadCellBackRight);
 			if (adc_config.inverse[adc_config.ADC_LoadCellBackRight]){
 				adc_values.LoadCellBackRight.adc_value = 0x00FFFFFF - adc_values.LoadCellBackRight.adc_value;
@@ -3154,44 +3159,44 @@ void *readADCValues(void *ptr){
 			adc_values.LoadCellBackRight.value = (double)adc_values.LoadCellBackRight.adc_value * forceCalibration.scaleFactor;
 			adc_values.LoadCellBackRight.valueByOffset=adc_values.LoadCellBackRight.value + state.referenceForce;
 			adc_values.LoadCellBackRight.valueByOffset = round(adc_values.LoadCellBackRight.valueByOffset);
-			
+
 			adc_values.Weight.adc_value = (adc_values.LoadCellFrontLeft.adc_value + adc_values.LoadCellFrontRight.adc_value + adc_values.LoadCellBackLeft.adc_value + adc_values.LoadCellBackRight.adc_value) / 4;
 			adc_values.Weight.value = (double)adc_values.Weight.adc_value * forceCalibration.scaleFactor;
 			adc_values.Weight.valueByOffset=adc_values.Weight.value + state.referenceForce;
 			adc_values.Weight.valueByOffset = round(adc_values.Weight.valueByOffset);
-			
+
 			timeValues.lastWeightUpdateTime = millis();
-			
+
 			if (settings.shieldVersion < 4){//if shield Version 1, 2 or 3
 				if (daemonGetCurrentCommandValuesMode() != MODE_SCALE){
 					//check isLidClosed
 					double front = (adc_values.LoadCellFrontLeft.valueByOffset + adc_values.LoadCellFrontRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
 					double back = (adc_values.LoadCellBackLeft.valueByOffset + adc_values.LoadCellBackRight.valueByOffset) / 2 - adc_values.Weight.valueByOffset;
-					
+
 					double diff = front - back;
 					state.lidClosed = diff >= -1000;// close/open
 					if (daemonGetSettingsDebug3_enabled()) {printf("lidClosed front: %2.f, back: %2.f, diff: %2.f, lidClosed: %d\n", front, back, diff, state.lidClosed);}
 				}
 			}
-			
+
 			if (runningMode.measure_noise){
 				if (adc_values.LoadCellFrontLeft.adc_value > adc_noise.MaxWeight1) adc_noise.MaxWeight1 = adc_values.LoadCellFrontLeft.adc_value;
 				if (adc_values.LoadCellFrontLeft.adc_value < adc_noise.MinWeight1) adc_noise.MinWeight1 = adc_values.LoadCellFrontLeft.adc_value;
 				adc_noise.DeltaWeight1 = adc_noise.MaxWeight1 - adc_noise.MinWeight1;
-				
+
 				if (adc_values.LoadCellFrontRight.adc_value > adc_noise.MaxWeight2) adc_noise.MaxWeight2 = adc_values.LoadCellFrontRight.adc_value;
 				if (adc_values.LoadCellFrontRight.adc_value < adc_noise.MinWeight2) adc_noise.MinWeight2 = adc_values.LoadCellFrontRight.adc_value;
 				adc_noise.DeltaWeight2 = adc_noise.MaxWeight2 - adc_noise.MinWeight2;
-				
+
 				if (adc_values.LoadCellBackLeft.adc_value > adc_noise.MaxWeight3) adc_noise.MaxWeight3 = adc_values.LoadCellBackLeft.adc_value;
 				if (adc_values.LoadCellBackLeft.adc_value < adc_noise.MinWeight3) adc_noise.MinWeight3 = adc_values.LoadCellBackLeft.adc_value;
 				adc_noise.DeltaWeight3 = adc_noise.MaxWeight3 - adc_noise.MinWeight3;
-				
+
 				if (adc_values.LoadCellBackRight.adc_value > adc_noise.MaxWeight4) adc_noise.MaxWeight4 = adc_values.LoadCellBackRight.adc_value;
 				if (adc_values.LoadCellBackRight.adc_value < adc_noise.MinWeight4) adc_noise.MinWeight4 = adc_values.LoadCellBackRight.adc_value;
 				adc_noise.DeltaWeight4 = adc_noise.MaxWeight4 - adc_noise.MinWeight4;
 			}
-			
+
 			delay(delayWeight);
 		}
 		if (daemonGetCurrentCommandValuesMode() != MODE_SCALE || runningMode.calibration || runningMode.measure_noise){
@@ -3202,13 +3207,13 @@ void *readADCValues(void *ptr){
 			adc_values.Temp.value = (double)adc_values.Temp.adc_value * tempCalibration.scaleFactor;
 			adc_values.Temp.valueByOffset=adc_values.Temp.value + tempCalibration.offset;
 			adc_values.Temp.valueByOffset = round(adc_values.Temp.valueByOffset);
-			
+
 			if (runningMode.measure_noise) {
 				if (adc_values.Temp.adc_value > adc_noise.MaxTemp) adc_noise.MaxTemp = adc_values.Temp.adc_value;
 				if (adc_values.Temp.adc_value < adc_noise.MinTemp) adc_noise.MinTemp = adc_values.Temp.adc_value;
 				adc_noise.DeltaTemp = adc_noise.MaxTemp - adc_noise.MinTemp;
 			}
-			
+
 			adc_values.Press.adc_value = readADC(adc_config.ADC_Press);
 			if (adc_config.inverse[adc_config.ADC_Press]){
 				adc_values.Press.adc_value = 0x00FFFFFF - adc_values.Press.adc_value;
@@ -3221,7 +3226,7 @@ void *readADCValues(void *ptr){
 				if (adc_values.Press.adc_value < adc_noise.MinPress) adc_noise.MinPress = adc_values.Press.adc_value;
 				adc_noise.DeltaPress = adc_noise.MaxPress - adc_noise.MinPress;
 			}
-			
+
 			//Validate Temp/press is valid value
 			if (!runningMode.calibration && !runningMode.measure_noise && (adc_values.Temp.valueByOffset < 0 || adc_values.Temp.valueByOffset > 300 || adc_values.Press.valueByOffset < -10 || adc_values.Press.valueByOffset > 100)){
 				adc_config.restarting_adc = true;
@@ -3236,7 +3241,7 @@ void *readADCValues(void *ptr){
 				AD7794Init();
 				adc_config.restarting_adc = false;
 			}
-			
+
 			delay(delayTempPess);
 		}
 	}
@@ -3283,7 +3288,7 @@ void *handleButtons(void *ptr){
 		if (changed){
 			printf("\n");
 		}
-		
+
 		//Check button functions
 		uint8_t buttonNumber = 2;
 		if (buttonValues.button[buttonNumber]){// button back
@@ -3374,7 +3379,7 @@ void *handleButtons(void *ptr){
 				}
 			}
 		}
-		
+
 		buttonNumber = 0;
 		if (buttonValues.button[buttonNumber]){
 			if (buttonValues.buttonPressedTime[buttonNumber] > 20000){
@@ -3559,7 +3564,7 @@ void *readInputFunction(void *ptr){
 		case 'y' :
         case 'Y' :
 			switch (modeNum){
-				
+
 				case TEST_DISPLAY :
 					displayMode=1;
 					displayFill();
@@ -3645,14 +3650,14 @@ void *readInputFunction(void *ptr){
 					solenoidPwm=0;
 					writeI2CPin(i2c_config.i2c_servo, solenoidPwm);
 					solenoidIsOpen=false;
+				default:
 				case TEST_DISPLAY:
 					percentToShow=0;
 					displayShowPercent(percentToShow);
 				break;
-				default:
 				break;
 			}
-		
+
 		break;
 		default :
 		break;
@@ -3871,7 +3876,7 @@ void testTempPressPrintf(){
 	printf("\nPress 't' to reset the valuz (t)");
 	printf("\n_____________________________________________________");
 	printf("\n  Value :PressInput| PressPasc| TempInput|  TempDeg |");
-	
+
 	printf("\n  Max   :");
 	printColumnVAr(WIDHTCOLUMN,4,tabTemppressData.max.pressInput,tabTemppressData.max.pressPasc,tabTemppressData.max.tempInput,tabTemppressData.max.tempDeg);
 	printf("\n  Min   :");
@@ -3884,7 +3889,7 @@ void testTempPressPrintf(){
 	if(tabTemppressData.nbData<NBWEIGHTLINE){
 		for(i=0;i<tabTemppressData.nbData;i++){
 			printf("\n         ");
-			printColumnVAr(WIDHTCOLUMN,4,allTemppressData[i].pressInput,allTemppressData[i].pressPasc,allTemppressData[i].tempInput,allTemppressData[i].tempDeg);	
+			printColumnVAr(WIDHTCOLUMN,4,allTemppressData[i].pressInput,allTemppressData[i].pressPasc,allTemppressData[i].tempInput,allTemppressData[i].tempDeg);
 		}
 	}else{
 		for(i=0;i<NBWEIGHTLINE;i++){
@@ -3892,7 +3897,7 @@ void testTempPressPrintf(){
 			printColumnVAr(WIDHTCOLUMN,4,allTemppressData[i].pressInput,allTemppressData[i].pressPasc,allTemppressData[i].tempInput,allTemppressData[i].tempDeg);
 		}
 	}
-	
+
 }
 void testValvePrintf(){
 	printf("\nPress 'o' for open the valve or 'c' for close the valve.");
@@ -3948,7 +3953,7 @@ void testBoutonPrintf(){
 void testInductionPrintf(){
 
 	printf("\nwould you activate the heater? (y/n)");
-	
+
 	if(heaterGetStatusIsOn()){
 			if(inductionIsRunning){
 				printf("\nThe heater is running and your command is running");
@@ -4009,11 +4014,11 @@ void testSDisplayPrintf(){
 		printf("\n                      |_______|                             ");
 	}
 	if(displayLedShined[7]){
-		printf("\n                          4    *8                    8      ");	
+		printf("\n                          4    *8                    8      ");
 	}else{
-		printf("\n                          4    *8                           ");	
-	}	
-	}else{	
+		printf("\n                          4    *8                           ");
+	}
+	}else{
 	printf("\nWould you want to turn on or off all Leds? (y/n)");
 	printf("\nWhat picture would you want to show? (Chess = 1/Smilly = 2)");
 	printf("\nPress 'p' to show the following text 'I love everycook' parades before your eyes");
@@ -4072,7 +4077,7 @@ void testSDisplayPrintf(){
 			printf("\n\nYour are going to see 'I love everycook' on the display");
 		break;
 		}
-		
+
 	}
 }
 void testFanPrintf(){
@@ -4189,7 +4194,7 @@ void testWeightPrintf(){
 	printf("\nPress 'w' to reset the valuz (w)");
 	printf("\n__________________________________________________________________________");
 	printf("\n Sensor :  FrontL  |  FrontR  |   BackL  |   BackR  |  Average | Average/G|");
-	
+
 	printf("\n  Max   :");
 	printColumnVAr(WIDHTCOLUMN,6,tabWeightData.max.frontL,tabWeightData.max.frontR,tabWeightData.max.backL,tabWeightData.max.backR,tabWeightData.max.average,tabWeightData.max.averageG);
 	printf("\n  Min   :");
@@ -4202,7 +4207,7 @@ void testWeightPrintf(){
 	if(tabWeightData.nbData<NBWEIGHTLINE){
 		for(i=0;i<tabWeightData.nbData;i++){
 			printf("\n         ");
-			printColumnVAr(WIDHTCOLUMN,6,allWeightData[i].frontL,allWeightData[i].frontR,allWeightData[i].backL,allWeightData[i].backR,allWeightData[i].average,allWeightData[i].averageG);	
+			printColumnVAr(WIDHTCOLUMN,6,allWeightData[i].frontL,allWeightData[i].frontR,allWeightData[i].backL,allWeightData[i].backR,allWeightData[i].average,allWeightData[i].averageG);
 		}
 	}else{
 		for(i=0;i<NBWEIGHTLINE;i++){
@@ -4213,11 +4218,11 @@ void testWeightPrintf(){
 }
 void testSpeakerPrintf(){
 	printf("\nFrancais : f           Currente language : %s",speakerCurrentLabguage());
-	printf("\nEnglish  : e");   
+	printf("\nEnglish  : e");
 	printf("\nDeutsch  : d");
-	printf("\nPress n to make error in %s",speakerCurrentLabguage()); 
-	printf("\nPress 1 to say 'slowly' in %s",speakerCurrentLabguage()); 
-	printf("\nPress 2 to say 'stop' in %s",speakerCurrentLabguage()); 
+	printf("\nPress n to make error in %s",speakerCurrentLabguage());
+	printf("\nPress 1 to say 'slowly' in %s",speakerCurrentLabguage());
+	printf("\nPress 2 to say 'stop' in %s",speakerCurrentLabguage());
 }
 void  printColumnVAr( uint16_t widthColumn, uint16_t nbColumn,...){
 	va_list ap;

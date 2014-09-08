@@ -15,10 +15,10 @@ PressValue2=80.0
 PressHystereis=2
 
 #two calibrations points between ADC values and temperature in °C
-TempADC1=9322003
-TempValue1=17.1
-TempADC2=9629329
-TempValue2=98.5
+TempADC1=9330860
+TempValue1=22.0
+TempADC2=9732490
+TempValue2=180
 TempHystereis=2
 
 #ADC channels
