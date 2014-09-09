@@ -162,7 +162,11 @@ function ProgressBar(OuterId,InnerId,Value,MaxValue,Width) {
 function UpdateSetValues()
 {
 	document.InputData.SetTbot.value=document.InputData.TempSlider.value;
-	document.InputData.SetPress.value=document.InputData.PressSlider.value;
+	
+	for (var i=0; i < document.InputData.PressRadio.length;i++){
+		if (document.InputData.PressRadio[i].checked) {RadioPress=document.InputData.PressRadio[i].value;}
+	}
+	document.InputData.SetPress.value=RadioPress;
 }
 
 function CookProgress(){

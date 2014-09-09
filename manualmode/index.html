@@ -77,7 +77,11 @@ var update = window.setInterval("ShowData()",250);
 <td class="mandata">Set Temperature: <input id="SetTbot" type="number" value="0"> °C</td>
 <td class="mandata">0<input id="TempSlider" type="range" min="0" max="200" value="0" onChange="UpdateSetValues()" step="10">200</td>
 <td class="mandata">Set Pressure: <input id="SetPress" type="number" size="2" value="0"> kPa</td>
-<td class="mandata"><input id="PressSlider" type="range" min="0" max="80" value="0" onChange="UpdateSetValues()" step="10">80</td>
+<td class="mandata">
+<input type="radio" name="PressRadio" value="0" onClick="UpdateSetValues()" checked> 0
+<input type="radio" name="PressRadio" value="40" onClick="UpdateSetValues()"> low 
+<input type="radio" name="PressRadio" value="80" onClick="UpdateSetValues()"> high
+</td>
 </tr>
 <tr>
 <td class="mandata">Scale</td><td class="mandata"><input id="SetGrams" type="number" size="2" value="0"> g</td>
