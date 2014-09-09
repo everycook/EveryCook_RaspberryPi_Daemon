@@ -55,7 +55,89 @@ function MakeGraph(){
 		}
 	);
 }
-
+function DrawTemp(){
+	var myChart = document.getElementById("myChart");
+	var myChart_context = myChart.getContext("2d");
+	myChart_context.clearRect ( 0 , 0 , myChart.width , myChart.height );
+	var TextSize =10;
+	var TimeAxis= new Array();
+	var TempData= new Array();
+	var PressData= new Array();
+	myChart_context.font=TextSize+"px Arial";
+	$.get("data.txt", function( text ) {
+	$( ".result" ).html( text );
+	var lines = text.split(/\n/);
+	var xDiv = Math.round(myChart.width/lines.length);
+	var xLabelNumber=20;
+	var xLabelPos=0;
+	var xLabelHeight=(myChart.height-xLabelPos);
+	var yLabelPos=5;
+	var MaxTemp=0;
+	var MaxPress=0;
+	//alert( xLabelHeight );
+	//parse file and search max
+	for (i=1;i<lines.length-1;i++)
+	{
+		line=lines[i].split(',');
+		TimeHMS=line[0].split(' ')[1];
+		TimeAxis[i] = TimeHMS.split(':')[0] + ":" + TimeHMS.split(':')[1];
+		TempData[i] = line[1];
+		PressData[i] = line[2];
+		MaxTemp=Math.max(MaxTemp,TempData[i]);
+		MaxPress=Math.max(MaxPress,PressData[i]);
+		MaxVal=Math.max(MaxPress,MaxTemp);
+	}
+	//set y axis division
+	var yDiv = Math.floor(myChart.height/MaxVal);
+	//set label division
+	roundFactor=Math.round(MaxVal/10);
+	yLabelDiv=Math.round(myChart.height/(yDiv*TextSize*roundFactor))*roundFactor;
+	//draw y axis and horizontal grid
+	for (i=0;i<=myChart.height;i++)	{
+	if (i % yLabelDiv == 0) {
+	myChart_context.fillText(i, yLabelPos,myChart.height-i*yDiv); 
+	myChart_context.beginPath();
+	myChart_context.moveTo(yLabelPos, myChart.height-i*yDiv);
+	myChart_context.lineTo(myChart.width, myChart.height-i*yDiv);
+	myChart_context.lineWidth=0.5;
+	myChart_context.stroke();
+	}
+	}
+	//draw time axis and first line graph
+	myChart_context.beginPath();
+	myChart_context.moveTo(0, myChart.height-TempData[0]*yDiv);
+	for (i=1;i<lines.length-1;i++)	{	
+	if (i ==2 || i % xDiv ==0){ myChart_context.fillText(TimeAxis[i], i*xDiv,xLabelHeight);}
+	myChart_context.lineTo(i*xDiv, myChart.height-TempData[i]*yDiv);
+	}
+	myChart_context.lineWidth=1;
+	myChart_context.strokeStyle = '#ff0000';
+	myChart_context.stroke();
+	//second line graph
+	myChart_context.beginPath();
+	myChart_context.moveTo(0, myChart.height-PressData[0]*yDiv);
+	for (i=1;i<lines.length-1;i++)	{	
+	myChart_context.lineTo(i*xDiv, myChart.height-PressData[i]*yDiv);
+	}
+	myChart_context.lineWidth=1;
+	myChart_context.strokeStyle = '#00ff00';
+	myChart_context.stroke();
+	myChart_context.fillStyle = '#00ff00';
+	myChart_context.fillText("Pressure",myChart.width-12*TextSize,myChart.height-yLabelPos*2);
+	myChart_context.fillStyle = '#ff0000';
+	myChart_context.fillText("Temperature",myChart.width-7*TextSize,myChart.height-yLabelPos*2);
+	myChart_context.fillStyle = '#000000';
+	myChart_context.strokeStyle = '#000000';
+	});
+}
+function checkMode()
+{
+	for (var i=0; i < document.InputData.FormSetMode.length;i++){
+		if (document.InputData.FormSetMode[i].checked) {SetMode=document.InputData.FormSetMode[i].value;}
+	}
+	if (SetMode==11 || SetMode==21) document.getElementById("warning").innerHTML="Needs a ";
+	else document.getElementById("warning").innerHTML="";
+}
 
 function ProgressBar(OuterId,InnerId,Value,MaxValue,Width) {
 	//alert("scaling mode"+Value+" "+MaxValue);
@@ -75,6 +157,12 @@ function ProgressBar(OuterId,InnerId,Value,MaxValue,Width) {
 		document.getElementById(OuterId).style.visibility="hidden";
 		document.getElementById(InnerId).style.visibility="hidden";
 	}
+}
+
+function UpdateSetValues()
+{
+	document.InputData.SetTbot.value=document.InputData.TempSlider.value;
+	document.InputData.SetPress.value=document.InputData.PressSlider.value;
 }
 
 function CookProgress(){
@@ -116,12 +204,12 @@ function SendCommand(){
 		if (document.InputData.FormSetMode[i].checked) {SetMode=document.InputData.FormSetMode[i].value;}
 	//	else {SetMode=0;}
 	}
-
-	var command="{\"T0\":" + document.InputData.SetTbot.value + ",\"P0\":" + document.InputData.SetPress.value+",\"M0RPM\":"  + document.InputData.SetRpm.value + ",\"M0ON\":" +document.InputData.SetRun.value + ",\"M0OFF\":" + document.InputData.SetPause.value + ",\"W0\":" + document.InputData.SetGrams.value + ",\"STIME\":" + document.InputData.SetTime.value + ",\"SMODE\":" + SetMode + ",\"SID\":" + document.InputData.StepID.value + "}";
+	SetTime=document.InputData.SetTimeH.value*60*60 + document.InputData.SetTimeM.value*60 + document.InputData.SetTimeS.value*1;
+	var command="{\"T0\":" + document.InputData.SetTbot.value + ",\"P0\":" + document.InputData.SetPress.value+",\"M0RPM\":"  + document.InputData.SetRpm.value + ",\"M0ON\":" +document.InputData.SetRun.value + ",\"M0OFF\":" + document.InputData.SetPause.value + ",\"W0\":" + document.InputData.SetGrams.value + ",\"STIME\":" + SetTime + ",\"SMODE\":" + SetMode + ",\"SID\":" + document.InputData.StepID.value + "}";
 	document.InputData.StepID.value = parseInt(document.InputData.StepID.value)+1;
-	//alert("Debug:" + command);
-	xmlhttp2.open("GET","functions/sendcommand.php?command="+command,true);
-	xmlhttp2.send();
+	alert("Debug:" + command);
+	//xmlhttp2.open("GET","functions/sendcommand.php?command="+command,true);
+	//xmlhttp2.send();
 }
 
 function ChangeGraphInterval(){

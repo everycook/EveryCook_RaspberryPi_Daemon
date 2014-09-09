@@ -1166,7 +1166,7 @@ int main(int argc, const char* argv[]){
 		if (settings.shieldVersion < 4){
 			printf("there is no ATMega644 on shieldVersion %d\n", settings.shieldVersion);
 		} else {
-			printf("test serial / Atmel communication\n");
+			est serial / Atmel communication\n");
 			SPIAtmelReset();
 			atmelSetMaintenance(true);
 
@@ -1779,6 +1779,7 @@ void ProcessCommand(void){
 
 		OptionControl();//bep and blink 7seg
 		if (settings.shieldVersion >= 4){// if display, show image per mode
+			printf("le mode actuel est : %d",daemonGetCurrentCommandValuesMode());
 			if (daemonGetCurrentCommandValuesMode()==MODE_STANDBY) {
 				/*
 										//00##############
