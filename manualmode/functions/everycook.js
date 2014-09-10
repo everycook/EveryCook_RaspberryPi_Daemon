@@ -17,6 +17,8 @@ function ShowData(){
 		else if (data.SMODE==32) ActualMode="cooled down";
 		else if (data.SMODE==33) ActualMode="pressureless";
 		else if (data.SMODE==34) ActualMode="weight reached";
+		else if (data.SMODE==35) ActualMode="time over";
+		else if (data.SMODE==39) ActualMode="recipe end";
 		document.getElementById("ActBotTemp").innerHTML=data.T0;
 		document.getElementById("ActPress").innerHTML=data.P0;
 		document.getElementById("ActRpm").innerHTML=data.M0RPM;

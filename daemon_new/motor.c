@@ -142,7 +142,7 @@ void motorI2cSetRPM(uint16_t rpm){
 /** @brief Controle Motor
 */
 void motorControl(){//MotorControl
-	if (daemonGetCurrentCommandValuesMode()==MODE_CUT || daemonGetCurrentCommandValuesMode()>=MIN_TEMP_MODE){
+	if ((daemonGetCurrentCommandValuesMode()==MODE_CUT || daemonGetCurrentCommandValuesMode()>=MIN_TEMP_MODE) && daemonGetCurrentCommandValuesMode()!=MODE_HOT && daemonGetCurrentCommandValuesMode()!=MODE_COOK_TIMEEND){
 		if (daemonGetCurrentCommandValuesMode()==MODE_CUT) daemonSetTimeValuesStepEndTime(daemonGetTimeValuesRunTime()+1);
 		if (motorNewCommandValues.Rpm > 0 && daemonGetCurrentCommandValuesMode()<=MAX_STATUS_MODE) {
 			if  (motorNewCommandValues.On > 0 && motorNewCommandValues.Off > 0) {

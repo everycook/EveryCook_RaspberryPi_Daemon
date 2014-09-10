@@ -1761,6 +1761,9 @@ void ProcessCommand(void){
 			if(newCommandValues.stepId==0){
 				resetValues();
 				newCommandValues.stepId=0;
+				motorSetI2cValuesMotorRpm(motorGetI2cValuesSpeedMin()); //cheating so it will realy stop motor
+				motorSetCommandRPM(0);
+				heaterOff();
 			}
 		}
 		oldCommandValues.mode = daemonGetCurrentCommandValuesMode();//save old mode
@@ -2181,7 +2184,7 @@ void ScaleFunction(){
 
 			if (oldCommandValues.weight != currentCommandValues.weight){
 				state.dataChanged = true;
-				double percent = currentCommandValues.weight / newCommandValues.weight;
+				double percent = currentCommandValues.weight*100 / newCommandValues.weight;
 				if (percent>255){
 					state.weightPercent = 255;
 				} else {
