@@ -211,9 +211,9 @@ function SendCommand(){
 	SetTime=document.InputData.SetTimeH.value*60*60 + document.InputData.SetTimeM.value*60 + document.InputData.SetTimeS.value*1;
 	var command="{\"T0\":" + document.InputData.SetTbot.value + ",\"P0\":" + document.InputData.SetPress.value+",\"M0RPM\":"  + document.InputData.SetRpm.value + ",\"M0ON\":" +document.InputData.SetRun.value + ",\"M0OFF\":" + document.InputData.SetPause.value + ",\"W0\":" + document.InputData.SetGrams.value + ",\"STIME\":" + SetTime + ",\"SMODE\":" + SetMode + ",\"SID\":" + document.InputData.StepID.value + "}";
 	document.InputData.StepID.value = parseInt(document.InputData.StepID.value)+1;
-	alert("Debug:" + command);
-	//xmlhttp2.open("GET","functions/sendcommand.php?command="+command,true);
-	//xmlhttp2.send();
+	//alert("Debug:" + command);
+	xmlhttp2.open("GET","functions/sendcommand.php?command="+command,true);
+	xmlhttp2.send();
 }
 
 function ChangeGraphInterval(){
