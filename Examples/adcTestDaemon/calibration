@@ -1,0 +1,86 @@
+#calibration file for the EveryCook_RaspberryPi_Daemon
+#lines starting with a # are comments
+
+#the conversion factor between ADC values and grams 8714000 0 8720000 100
+ForceADC1=32535
+ForceValue1=537
+ForceADC2=32924
+ForceValue2=104
+
+#two calibrations points between adc values and pressure in kpa
+PressADC1=8302481
+PressValue1=537
+PressADC2=8398874
+PressValue2=104
+PressHystereis=2
+
+
+#two calibrations points between ADC values and temperature in °C
+TempADC1=9311770
+TempValue1=16.3
+TempADC2=9620385
+TempValue2=99.2
+TempHystereis=2
+
+#ADC channels
+ADC_LoadCellFrontLeft=1
+ADC_LoadCellFrontRight=3
+ADC_LoadCellBackLeft=0
+ADC_LoadCellBackRight=4
+ADC_Press=2
+ADC_Temp=5
+
+#AD7794 ADC programmable gain configuration
+Gain_LoadCellFrontLeft=128
+Gain_LoadCellFrontRight=128
+Gain_LoadCellBackLeft=128
+Gain_LoadCellBackRight=128
+Gain_Press=16
+Gain_Temp=4
+
+#ADC inverse
+inverse_LoadCellFrontLeft=1
+inverse_LoadCellFrontRight=1
+inverse_LoadCellBackLeft=1
+inverse_LoadCellBackRight=1
+inverse_Press=1
+inverse_Temp=1
+
+#PWM Channels Configuration
+i2c_motor=0
+i2c_servo=1
+#DisplaySegA
+i2c_7seg_top=9
+#DisplaySegB
+i2c_7seg_top_left=2
+#DisplaySegF
+i2c_7seg_top_right=8
+#DisplaySegG
+i2c_7seg_center=3
+#DisplaySegE
+i2c_7seg_bottom_left=6
+#DisplaySegC
+i2c_7seg_bottom_right=4
+#DisplaySegD
+i2c_7seg_bottom=5
+#DisplaySegDP
+i2c_7seg_period=7
+
+#servo values
+i2c_servo_open=210
+i2c_servo_closed=350
+
+#solonoid values
+i2c_solonoid_open=4095
+i2c_solonoid_closed=0
+
+
+#Buttons
+pin_button_0=25
+pin_button_1=8
+pin_button_2=7
+
+#Buttons inverse
+inverse_button_0=0
+inverse_button_1=0
+inverse_button_2=0

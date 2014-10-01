@@ -186,7 +186,7 @@ if [ "\$1" == "toggle" ]; then
 	else
 		lanType="_wlan_ap"
 	fi
-elseif [ "\$1" == "ap" ]; then
+elif [ "\$1" == "ap" ]; then
 	lanType="_wlan_ap"
 else
 	lanType="_wlan_wpa"
